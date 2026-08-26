@@ -54,3 +54,30 @@ comparison material without changing the package ontology.
 
 Only then may the former Sample-specific routes contract. Unrelated former
 package routes have independent owners and are not part of this cutover.
+
+## Current gate state
+
+| Gate | State | Evidence or blocker |
+| --- | --- | --- |
+| Product implementation | Complete for the repository-local v0.2 contract | Revision `6c92d1c` passes the complete source, wheel, execution, documentation, security, and adversarial gate. This does not establish legacy replacement or adoption. |
+| Differential classification | Partial | The accepted fixed-sequence scoring tracer classifies one intentional epsilon-policy correction. Frozen-cohort optimizer and portfolio comparisons remain study-owned and incomplete. |
+| Released-cohort rerun | Blocked | The v0.2 package has no named private release, and the benchmark cohort is not frozen. |
+| Storage handoff | Complete for product dogfood only | Exact and annealed example workspaces validate under both the product and Storage contracts. They are not accepted benchmark evidence. |
+| Consumer adoption | Blocked | No downstream consumer may pin an unpublished or workspace-relative package. Consumer-specific dispositions are below. |
+| Evidence and manuscript handoff | Partial | The scoring record is producer-available; its manuscript snapshot is pending. Benchmark evidence remains blocked. |
+| Rollback and contraction | Blocked | No released v0.2 adoption or downstream rollback has been demonstrated. Sample routes remain in place. |
+
+## Consumer disposition
+
+| Consumer | Disposition | Required next artifact |
+| --- | --- | --- |
+| BaseRender | First eligible Sample consumer after a private release. Add a BaseRender-owned `motif_balance_bundle` adapter beside the existing legacy adapter. | Pinned v0.2 dependency, immutable v2 bundle fixture, expected bundle identity, adapter tests, and rollback to `cruncher_best_window`. |
+| DenseGen | Not a direct Sample-design cutover. It currently consumes Cruncher multi-motif parsing and catalog metadata that Motif Balance deliberately does not own. | A data-owner or DenseGen-owned motif-collection contract; do not add catalog fetching to Motif Balance. |
+| YIU | Not a drop-in replacement. Its views can require multiple motif occurrences, whereas Motif Balance publishes one authoritative best match per motif and candidate. | A versioned YIU input subtype with explicit occurrence semantics and trusted bundle identity. |
+| Sample-backed Cruncher Study and Portfolio | Part of the contraction inventory, but not code to port into Motif Balance. Their sweeps and portfolio recipes depend on Sample exports. | Promote required benchmark recipes to Research Studies, prove parity and rollback, then retire or reroute the legacy paths. |
+| USR promoter, Cassette, and non-Sample payload routes | Outside the Sample cutover. Their behavior has separate owners. | Independent extraction or retirement decisions under those owners. |
+
+The next executable cutover slice begins only after the v0.2 private release
+provides a dependency and checksum that BaseRender can pin. Until then, keeping
+the verified legacy adapter is rollback capacity, not a reason to copy legacy
+workspace semantics into Motif Balance.
