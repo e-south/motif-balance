@@ -1,0 +1,100 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "motif-balance"
+version = "0.1.0a1"
+description = "Deterministic inverse design for balancing explicit DNA motif models"
+readme = "README.md"
+requires-python = ">=3.12,<3.15"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Motif Balance contributors" }]
+classifiers = [
+  "Private :: Do Not Upload",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+  "numpy>=2.2,<3",
+  "pydantic>=2.11,<3",
+  "pyyaml>=6.0.2,<7",
+  "typer>=0.16,<1",
+]
+
+[project.scripts]
+motif-balance = "motif_balance.cli:app"
+
+[dependency-groups]
+dev = [
+  "hypothesis>=6.130,<7",
+  "mypy>=1.17,<2",
+  "pip-audit>=2.9,<3",
+  "pre-commit>=4.3,<5",
+  "pytest>=8.4,<10",
+  "pytest-cov>=6.2,<8",
+  "ruff>=0.12,<1",
+  "twine>=7,<8",
+  "types-pyyaml>=6.0.12,<7",
+]
+
+[tool.uv]
+required-version = ">=0.12.3,<0.13"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/motif_balance"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/LICENSE",
+  "/README.md",
+  "/ARCHITECTURE.md",
+  "/CODE_OF_CONDUCT.md",
+  "/CONTRIBUTING.md",
+  "/DESIGN.md",
+  "/RELIABILITY.md",
+  "/SECURITY.md",
+  "/benchmarks",
+  "/docs",
+  "/examples",
+  "/pyproject.toml",
+  "/src",
+]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "--strict-markers", "--import-mode=importlib"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+source = ["motif_balance"]
+
+[tool.coverage.report]
+fail_under = 90
+precision = 2
+show_missing = true
+skip_covered = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["motif_balance"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["B", "C4", "E", "F", "I", "RUF", "SIM", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/motif_balance/__init__.py" = ["F401"]
+"tests/**/*.py" = ["B017"]

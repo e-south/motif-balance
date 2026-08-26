@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+strict=false
+if [[ $# -gt 1 ]]; then
+  echo "usage: bash ./scripts/agent-preflight [--strict]" >&2
+  exit 2
+fi
+if [[ $# -eq 1 ]]; then
+  if [[ "$1" != "--strict" ]]; then
+    echo "unknown option: $1" >&2
+    exit 2
+  fi
+  strict=true
+fi
+
+command -v git >/dev/null
+command -v uv >/dev/null
+git rev-parse --show-toplevel >/dev/null
+uv lock --check
+uv sync --locked
+
+if [[ "$strict" == true ]]; then
+  uv run --locked python scripts/check_architecture.py
+  uv run --locked python scripts/check_docs.py
+  uv run --locked python scripts/check_public_safety.py
+fi
+
+echo "Agent preflight: ok"

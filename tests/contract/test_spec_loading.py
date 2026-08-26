@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from motif_balance import load_spec
+from motif_balance.errors import InvalidDesign
+
+
+def test_load_spec_resolves_relative_motif_file(tmp_path: Path) -> None:
+    (tmp_path / "motif.yaml").write_text(
+        """motif_id: fixture
+probabilities:
+  - [0.7, 0.1, 0.1, 0.1]
+background: [0.25, 0.25, 0.25, 0.25]
+"""
+    )
+    design_path = tmp_path / "design.yaml"
+    design_path.write_text(
+        """motifs:
+  fixture: motif.yaml
+length: 1
+count: 1
+evaluations: 1
+seed: 0
+"""
+    )
+
+    spec = load_spec(design_path)
+    assert spec.motifs[0].source_name == "motif.yaml"
+
+
+@pytest.mark.parametrize(
+    ("content", "message"),
+    [
+        ("- not\n- a\n- mapping\n", "one mapping"),
+        ("length: 2\ncount: 1\nevaluations: 1\nseed: 0\n", "name-to-model"),
+        (
+            "motifs:\n  fixture: 4\nlength: 2\ncount: 1\nevaluations: 1\nseed: 0\n",
+            "path or model",
+        ),
+    ],
+)
+def test_load_spec_rejects_malformed_surfaces(
+    tmp_path: Path,
+    content: str,
+    message: str,
+) -> None:
+    path = tmp_path / "design.yaml"
+    path.write_text(content)
+    with pytest.raises(InvalidDesign, match=message):
+        load_spec(path)
+
+
+def test_load_spec_reports_missing_file(tmp_path: Path) -> None:
+    with pytest.raises(InvalidDesign, match="Unable to read"):
+        load_spec(tmp_path / "missing.yaml")
+
+
+def test_load_spec_rejects_traversal_and_symlink_motif_references(tmp_path: Path) -> None:
+    specification_root = tmp_path / "specification"
+    specification_root.mkdir()
+    private = tmp_path / "private.yaml"
+    private.write_text(
+        "motif_id: leaked\n"
+        "probabilities:\n  - [0.7, 0.1, 0.1, 0.1]\n"
+        "background: [0.25, 0.25, 0.25, 0.25]\n"
+    )
+    (specification_root / "link.yaml").symlink_to(private)
+
+    for index, reference in enumerate(("../private.yaml", "link.yaml")):
+        design_path = specification_root / f"design-{index}.yaml"
+        design_path.write_text(
+            f"motifs:\n  leaked: {reference}\nlength: 1\ncount: 1\nevaluations: 1\nseed: 0\n"
+        )
+        with pytest.raises(InvalidDesign, match=r"contained|symbolic"):
+            load_spec(design_path)
+
+
+def test_load_spec_and_motif_loader_enforce_byte_bounds(tmp_path: Path) -> None:
+    design_path = tmp_path / "oversized-design.yaml"
+    design_path.write_bytes(b" " * 1_000_001)
+    with pytest.raises(InvalidDesign, match="byte limit"):
+        load_spec(design_path)
+
+    motif_path = tmp_path / "oversized-motif.yaml"
+    motif_path.write_bytes(b" " * 1_000_001)
+    design_path = tmp_path / "design.yaml"
+    design_path.write_text(
+        "motifs:\n  fixture: oversized-motif.yaml\nlength: 1\ncount: 1\nevaluations: 1\nseed: 0\n"
+    )
+    with pytest.raises(InvalidDesign, match="byte limit"):
+        load_spec(design_path)

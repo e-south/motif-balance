@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+smoke_root="$(mktemp -d)"
+trap 'rm -rf "$smoke_root"' EXIT
+
+if [[ $# -gt 1 ]]; then
+  echo "usage: bash ./scripts/wheel-smoke [distribution-directory]" >&2
+  exit 2
+fi
+
+if [[ $# -eq 1 ]]; then
+  dist_dir="$1"
+  test -d "$dist_dir" || { echo "missing distribution directory: $dist_dir" >&2; exit 1; }
+else
+  dist_dir="$smoke_root/dist"
+  uv build --no-sources --out-dir "$dist_dir"
+fi
+
+shopt -s nullglob
+wheels=("$dist_dir"/*.whl)
+sdists=("$dist_dir"/*.tar.gz)
+[[ ${#wheels[@]} -eq 1 ]] || { echo "expected exactly one wheel" >&2; exit 1; }
+[[ ${#sdists[@]} -eq 1 ]] || { echo "expected exactly one source distribution" >&2; exit 1; }
+wheel_path="${wheels[0]}"
+sdist_path="${sdists[0]}"
+
+uv run --locked twine check "$wheel_path" "$sdist_path"
+wheel_contents="$(python3 -m zipfile -l "$wheel_path")"
+for forbidden in '/tests/' '/scripts/' '/.github/' '/.agents/'; do
+  if grep -Fq "$forbidden" <<<"$wheel_contents"; then
+    echo "wheel contains repository-only path: $forbidden" >&2
+    exit 1
+  fi
+done
+sdist_contents="$(tar -tzf "$sdist_path")"
+for forbidden in '/.git/' '/.venv/' '/.artifacts/'; do
+  if grep -Fq "$forbidden" <<<"$sdist_contents"; then
+    echo "source distribution contains local path: $forbidden" >&2
+    exit 1
+  fi
+done
+for required in LICENSE README.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md docs/index.md; do
+  if ! grep -Fq "/$required" <<<"$sdist_contents"; then
+    echo "source distribution omits routed content: $required" >&2
+    exit 1
+  fi
+done
+for required in examples/synthetic-pairwise/design.yaml benchmarks/technical-note/scoring-parity-v1.json; do
+  if ! grep -Fq "/$required" <<<"$sdist_contents"; then
+    echo "source distribution omits reproducibility input: $required" >&2
+    exit 1
+  fi
+done
+
+uv venv --python 3.12 "$smoke_root/venv"
+uv pip install --python "$smoke_root/venv/bin/python" "$wheel_path"
+uv pip check --python "$smoke_root/venv/bin/python"
+
+contract_program='import inspect,json; import motif_balance as m; names=("MotifModel","DesignSpec","MotifMatch","Evaluation","Candidate","Portfolio"); print(json.dumps({"models":{n:getattr(m,n).model_json_schema() for n in names},"operations":{"design":str(inspect.signature(m.design)),"score":str(inspect.signature(m.score))}},sort_keys=True))'
+source_contract="$(uv run --locked python -c "$contract_program")"
+wheel_contract="$("$smoke_root/venv/bin/python" -c "$contract_program")"
+if [[ "$source_contract" != "$wheel_contract" ]]; then
+  echo "source/wheel public contract mismatch" >&2
+  exit 1
+fi
+
+uv run --locked motif-balance --help >"$smoke_root/source-help.txt"
+"$smoke_root/venv/bin/motif-balance" --help >"$smoke_root/wheel-help.txt"
+cmp "$smoke_root/source-help.txt" "$smoke_root/wheel-help.txt"
+
+uv run --locked motif-balance design examples/synthetic-pairwise/design.yaml \
+  --out "$smoke_root/source-result" >/dev/null
+"$smoke_root/venv/bin/motif-balance" design examples/synthetic-pairwise/design.yaml \
+  --out "$smoke_root/wheel-result" >/dev/null
+diff -qr "$smoke_root/source-result" "$smoke_root/wheel-result"
+
+installed_version="$("$smoke_root/venv/bin/python" -c 'from importlib.metadata import version; print(version("motif-balance"))')"
+project_version="$(uv run --locked python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+test "$installed_version" = "$project_version"
+
+echo "Distribution smoke and source parity: ok ($installed_version)"

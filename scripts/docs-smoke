@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+uv run --locked python scripts/check_docs.py
+uv run --locked python - <<'PY'
+import motif_balance as mb
+
+expected = {
+    "Candidate",
+    "DesignSpec",
+    "Evaluation",
+    "MotifMatch",
+    "MotifModel",
+    "Portfolio",
+    "design",
+    "score",
+}
+missing = sorted(name for name in expected if not hasattr(mb, name))
+if missing:
+    raise SystemExit(f"public documentation surface is missing: {', '.join(missing)}")
+print("Documented public surface: ok")
+PY
+uv run --locked motif-balance --help >/dev/null
+
+smoke_root="$(mktemp -d)"
+trap 'rm -rf "$smoke_root"' EXIT
+uv run --locked motif-balance design examples/synthetic-pairwise/design.yaml --check >/dev/null
+uv run --locked motif-balance design examples/synthetic-pairwise/design.yaml \
+  --out "$smoke_root/result" >/dev/null
+uv run --locked python -c \
+  'import sys; from motif_balance import verify_bundle; print(verify_bundle(sys.argv[1]))' \
+  "$smoke_root/result" >/dev/null
+
+echo "Documentation smoke: ok"

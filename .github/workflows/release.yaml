@@ -1,0 +1,78 @@
+name: Private prerelease artifacts
+
+on:
+  push:
+    tags: ["v*a*", "v*b*", "v*rc*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build verified prerelease
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
+      - name: Verify prerelease tag and project version
+        run: |
+          test "${{ github.event.repository.visibility }}" = "private"
+          project_version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          test "${GITHUB_REF_NAME}" = "v${project_version}"
+          case "$project_version" in
+            *a*|*b*|*rc*) ;;
+            *) echo "release workflow accepts prerelease versions only" >&2; exit 1 ;;
+          esac
+      - name: Verify release commit is on main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "${GITHUB_SHA}" origin/main
+      - name: Verify repository
+        run: bash ./scripts/agent-verify
+      - name: Build distributions without workspace sources
+        run: uv build --no-sources
+      - name: Verify exact release distributions
+        run: bash ./scripts/wheel-smoke dist
+      - name: Record checksums
+        run: (cd dist && sha256sum *.whl *.tar.gz > SHA256SUMS)
+      - name: Stage verified distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: motif-balance-prerelease-distributions
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  attach:
+    name: Attach private GitHub prerelease
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download verified distributions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh run download "${GITHUB_RUN_ID}"
+          --name motif-balance-prerelease-distributions
+          --dir dist
+      - name: Create prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${GITHUB_REF_NAME}" dist/*
+          --verify-tag --prerelease --generate-notes
