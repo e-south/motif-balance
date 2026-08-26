@@ -4,12 +4,18 @@ import hashlib
 import json
 import math
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from motif_balance.constants import (
     DNA_ALPHABET,
+    MAX_BUNDLE_ROWS,
+    MAX_CANDIDATE_COUNT,
+    MAX_EVALUATIONS,
+    MAX_PORTFOLIO_BASES,
+    MAX_SEQUENCE_LENGTH,
     OBJECTIVE_SEMANTICS,
     SCORING_SEMANTICS,
     TIE_BREAK_SEMANTICS,
@@ -28,6 +34,13 @@ class FrozenModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
 
 
+class MotifConversion(FrozenModel):
+    schema_version: Literal["motif-conversion/v1"] = "motif-conversion/v1"
+    method: Literal["jaspar_counts_to_probabilities_v1"]
+    prior_weight: Annotated[float, Field(ge=0.0)]
+    source_motif_id: str | None = None
+
+
 class MotifModel(FrozenModel):
     schema_version: Literal["motif-model/v1"] = "motif-model/v1"
     motif_id: str = Field(min_length=1, pattern=r"^[A-Za-z][A-Za-z0-9_.-]*$")
@@ -36,6 +49,9 @@ class MotifModel(FrozenModel):
     background: tuple[float, float, float, float]
     source_digest: str | None = None
     source_name: str | None = None
+    canonical_file_digest: str | None = None
+    canonical_file_name: str | None = None
+    conversion: MotifConversion | None = None
 
     @field_validator("alphabet")
     @classmethod
@@ -73,22 +89,22 @@ class MotifModel(FrozenModel):
             raise ValueError("background must sum to one")
         return value
 
-    @field_validator("source_digest")
+    @field_validator("source_digest", "canonical_file_digest")
     @classmethod
     def validate_source_digest(cls, value: str | None) -> str | None:
         if value is not None and (
             len(value) != 64 or any(character not in "0123456789abcdef" for character in value)
         ):
-            raise ValueError("source_digest must be a lowercase SHA-256 digest")
+            raise ValueError("source digests must be lowercase SHA-256 digests")
         return value
 
-    @field_validator("source_name")
+    @field_validator("source_name", "canonical_file_name")
     @classmethod
     def validate_source_name(cls, value: str | None) -> str | None:
         if value is not None and (
             not value or value in {".", ".."} or "/" in value or "\\" in value
         ):
-            raise ValueError("source_name must be a basename, not a path")
+            raise ValueError("source names must be basenames, not paths")
         return value
 
     @property
@@ -111,10 +127,10 @@ class MotifModel(FrozenModel):
 class DesignSpec(FrozenModel):
     schema_version: Literal["design-spec/v1"] = "design-spec/v1"
     motifs: tuple[MotifModel, ...]
-    length: Annotated[int, Field(gt=0)]
-    count: Annotated[int, Field(gt=0)]
+    length: Annotated[int, Field(gt=0, le=MAX_SEQUENCE_LENGTH)]
+    count: Annotated[int, Field(gt=0, le=MAX_CANDIDATE_COUNT)]
     strands: Literal["forward", "both"] = "both"
-    evaluations: Annotated[int, Field(gt=0)]
+    evaluations: Annotated[int, Field(gt=0, le=MAX_EVALUATIONS)]
     seed: Annotated[int, Field(ge=0)]
     min_distance: Annotated[float, Field(ge=0.0, le=1.0)] | None = None
     scoring_semantics: Literal["normalized_llr_v1"] = SCORING_SEMANTICS
@@ -165,6 +181,10 @@ class DesignSpec(FrozenModel):
     def validate_budget(self) -> Self:
         if self.count > self.evaluations:
             raise ValueError("evaluations must be at least count")
+        if self.count * len(self.motifs) > MAX_BUNDLE_ROWS:
+            raise ValueError("count times motif count exceeds the canonical match-row limit")
+        if self.count * self.length > MAX_PORTFOLIO_BASES:
+            raise ValueError("count times length exceeds the canonical portfolio-base limit")
         return self
 
 
@@ -230,8 +250,147 @@ class ArtifactDigest(FrozenModel):
     bytes: Annotated[int, Field(ge=0)]
 
 
+class SearchCheckpoint(FrozenModel):
+    evaluations: Annotated[int, Field(gt=0)]
+    best_score: Annotated[float, Field(ge=0.0)]
+
+
+class ProposalSummary(FrozenModel):
+    move: Literal["single", "block", "multi", "insertion"]
+    attempted: Annotated[int, Field(ge=0)]
+    accepted: Annotated[int, Field(ge=0)]
+
+    @model_validator(mode="after")
+    def validate_counts(self) -> Self:
+        if self.accepted > self.attempted:
+            raise ValueError("accepted proposal count cannot exceed attempted count")
+        return self
+
+
+class SearchDiagnostics(FrozenModel):
+    schema_version: Literal["search-diagnostics/v1"] = "search-diagnostics/v1"
+    restarts: Annotated[int, Field(gt=0)]
+    best_score: Annotated[float, Field(ge=0.0)]
+    checkpoints: tuple[SearchCheckpoint, ...]
+    restart_final_scores: tuple[Annotated[float, Field(ge=0.0)], ...]
+    proposals: tuple[ProposalSummary, ...]
+
+    @model_validator(mode="after")
+    def validate_diagnostics(self) -> Self:
+        if not self.checkpoints:
+            raise ValueError("search diagnostics must contain at least one checkpoint")
+        if len(self.restart_final_scores) != self.restarts:
+            raise ValueError("restart_final_scores must contain one score per restart")
+        previous_evaluations = 0
+        previous_best = -math.inf
+        for checkpoint in self.checkpoints:
+            if checkpoint.evaluations <= previous_evaluations:
+                raise ValueError("search checkpoints must have increasing evaluation counts")
+            if checkpoint.best_score + 1.0e-12 < previous_best:
+                raise ValueError("search checkpoint best scores cannot decrease")
+            previous_evaluations = checkpoint.evaluations
+            previous_best = checkpoint.best_score
+        if not math.isclose(self.checkpoints[-1].best_score, self.best_score, abs_tol=1.0e-12):
+            raise ValueError("final checkpoint must equal the diagnostic best score")
+        moves = [proposal.move for proposal in self.proposals]
+        if len(moves) != len(set(moves)):
+            raise ValueError("search proposal summaries must have unique move names")
+        return self
+
+
+class ExecutionDependency(FrozenModel):
+    name: str = Field(min_length=1, pattern=r"^[a-z0-9_.-]+$")
+    version: str = Field(min_length=1)
+
+
+class ExecutionReceipt(FrozenModel):
+    schema_version: Literal["motif-balance.execution-receipt/v1"] = (
+        "motif-balance.execution-receipt/v1"
+    )
+    producer_repository: Literal["motif-balance"] = "motif-balance"
+    producer_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
+    operation: Literal["design"] = "design"
+    execution_status: Literal["completed"] = "completed"
+    started_at_utc: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+    finished_at_utc: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+    normalized_design_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    release_artifact_name: str
+    release_artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    runtime_package_tree_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    package_version: str
+    build_lock_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    bundle_id: str = Field(pattern=r"^bundle-[0-9a-f]{24}$")
+    problem_id: str = Field(pattern=r"^problem-[0-9a-f]{24}$")
+    run_id: str = Field(pattern=r"^run-[0-9a-f]{24}$")
+    manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    search_engine: str
+    search_engine_version: str
+    evaluation_count: Annotated[int, Field(gt=0)]
+    unique_evaluations: Annotated[int, Field(gt=0)]
+    python_version: str
+    platform_system: str
+    platform_machine: str
+    dependencies: tuple[ExecutionDependency, ...]
+
+    @field_validator("release_artifact_name")
+    @classmethod
+    def validate_release_artifact_name(cls, value: str) -> str:
+        if not value or value in {".", ".."} or "/" in value or "\\" in value:
+            raise ValueError("release_artifact_name must be a basename")
+        return value
+
+    @model_validator(mode="after")
+    def validate_execution_receipt(self) -> Self:
+        started = datetime.strptime(self.started_at_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+        finished = datetime.strptime(self.finished_at_utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+        if finished < started:
+            raise ValueError("execution finish cannot precede execution start")
+        names = [item.name for item in self.dependencies]
+        if names != sorted(names) or len(names) != len(set(names)):
+            raise ValueError("execution dependencies must be unique and sorted by name")
+        if self.unique_evaluations > self.evaluation_count:
+            raise ValueError("unique_evaluations cannot exceed evaluation_count")
+        return self
+
+
+class ExecutionResource(FrozenModel):
+    path: str
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    bytes: Annotated[int, Field(ge=0)]
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        parts = value.split("/")
+        if not value or value.startswith("/") or any(part in {"", ".", ".."} for part in parts):
+            raise ValueError("execution resource path must be a normalized relative path")
+        return value
+
+
+class ExecutionReleaseResource(ExecutionResource):
+    producer_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
+
+
+class ExecutionBundleResource(FrozenModel):
+    path: Literal["bundle"] = "bundle"
+    bundle_id: str = Field(pattern=r"^bundle-[0-9a-f]{24}$")
+    manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class ExecutionWorkspace(FrozenModel):
+    schema_version: Literal["motif-balance.execution-workspace/v1"] = (
+        "motif-balance.execution-workspace/v1"
+    )
+    workspace_id: str = Field(pattern=r"^execution-[0-9a-f]{24}$")
+    input: ExecutionResource
+    release: ExecutionReleaseResource
+    checksums: ExecutionResource
+    bundle: ExecutionBundleResource
+    receipt: ExecutionResource
+
+
 class RunManifest(FrozenModel):
-    schema_version: Literal["run-manifest/v1"] = "run-manifest/v1"
+    schema_version: Literal["run-manifest/v2"] = "run-manifest/v2"
     package_version: str
     runtime_contract: str
     build_lock_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -244,13 +403,16 @@ class RunManifest(FrozenModel):
     evaluation_count: Annotated[int, Field(gt=0)]
     unique_evaluations: Annotated[int, Field(gt=0)]
     completion_status: Literal["exhaustive", "budget_exhausted"]
-    optimizer_parity_status: Literal["not_applicable", "not_established"]
+    search_validation_status: Literal["not_applicable", "contract_tested"]
+    search_diagnostics: SearchDiagnostics
     artifacts: tuple[ArtifactDigest, ...]
 
     @model_validator(mode="after")
     def validate_evaluation_counts(self) -> Self:
         if self.unique_evaluations > self.evaluation_count:
             raise ValueError("unique_evaluations cannot exceed evaluation_count")
+        if self.search_diagnostics.checkpoints[-1].evaluations != self.evaluation_count:
+            raise ValueError("final search checkpoint must equal evaluation_count")
         return self
 
 

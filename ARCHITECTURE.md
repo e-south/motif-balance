@@ -15,7 +15,8 @@ doc_type: explanation
 
 Motif Balance is a standalone modular monolith: one repository, one Python
 distribution, one public facade, and no runtime dependency on caller
-repositories.
+repositories. The canonical ontology, semantic versions, and cross-owner
+artifact boundaries are defined in [the information architecture](IA.md).
 
 ## Product boundary
 
@@ -62,6 +63,8 @@ errors, constants, and model
 - `artifacts.py` serializes and verifies canonical bundles. It does not own
   study registration or manuscript import.
 - `report.py` renders typed results and cannot recompute scientific state.
+- `receipt.py` defines the runtime receipt and execution-workspace identity
+  without changing canonical bundle identity.
 - `api.py` is the sole public operation facade.
 - `cli.py` adapts files and arguments to the public facade and contains no
   derivations.
@@ -74,5 +77,5 @@ with an explicit architecture update and tests.
 
 The package produces versioned artifacts. Callers exchange those artifacts,
 digests, and explicit external references; they do not import each other's
-source trees. Legacy Cruncher Sample is a migration comparison authority until
-parity and adoption are proven, not a runtime dependency of this package.
+source trees. Historical parity inputs are isolated in the migration route and
+are never runtime dependencies of this package.

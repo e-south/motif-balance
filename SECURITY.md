@@ -28,7 +28,8 @@ GitHub prerelease from a prerelease version; it has no PyPI permission or job.
 ## Untrusted inputs and paths
 
 Strict schema boundaries reject unknown fields, unsafe alphabets, non-finite
-numbers, and inconsistent matrix dimensions before allocation or search.
+numbers, inconsistent matrix dimensions, and out-of-contract resource budgets
+before compilation or search.
 Readers enforce byte and record-count limits and reject symlinks. YAML uses
 safe loading followed by strict schema validation.
 

@@ -45,6 +45,25 @@
     },
     "balance_score": 0.3333114219047981
   },
+  "motif_balance_output": {
+    "motif_a": {
+      "start": 3,
+      "end": 6,
+      "strand": "+",
+      "matched_sequence": "ACG",
+      "raw_score": 4.456280481510725,
+      "normalized_score": 1.0
+    },
+    "motif_b": {
+      "start": 1,
+      "end": 3,
+      "strand": "+",
+      "matched_sequence": "TT",
+      "raw_score": 0.1634987322828796,
+      "normalized_score": 0.3333114183155274
+    },
+    "balance_score": 0.3333114183155274
+  },
   "comparison": {
     "coordinate_and_strand_policy": "concordant",
     "raw_score_tolerance": 2e-8,

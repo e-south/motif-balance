@@ -34,9 +34,11 @@ biological claim or replace study-owned validation.
 
 ## Boundaries and reproducibility
 
+- [Information architecture](../IA.md)
 - [Limitations](limitations.md)
 - [Reproduce the paper](reproduce-paper.md)
 - [Public contract](reference/public-contract.md)
+- [Execution workspaces and storage objects](reference/execution-receipts.md)
 - [Architecture](../ARCHITECTURE.md)
 - [Engineering contracts](../DESIGN.md)
 - [Reliability](../RELIABILITY.md)

@@ -41,6 +41,8 @@ jobs:
       - name: Build distributions without workspace sources
         run: uv build --no-sources
       - name: Verify exact release distributions
+        env:
+          MOTIF_BALANCE_PRODUCER_REVISION: ${{ github.sha }}
         run: bash ./scripts/wheel-smoke dist
       - name: Record checksums
         run: (cd dist && sha256sum *.whl *.tar.gz > SHA256SUMS)

@@ -28,5 +28,17 @@ search bounds, and diversity constraints are validated explicitly. The design
 operation returns exactly the requested count or reports a typed failure; it
 does not relax constraints or silently return fewer candidates.
 
+## Resource limits
+
+`design-spec/v1` has explicit implementation limits. `length` is at most
+10,000 bases, `count` at most 100,000 candidates, and `evaluations` at most
+1,000,000 evaluator calls. In addition, a request may describe at most
+1,000,000 canonical candidate-motif match rows and 10,000,000 total portfolio
+bases. The evaluator budget must be at least the requested count.
+
+These limits are validation rules, not search heuristics. Requests outside
+them fail before compilation or search. Complete-space checks use bounded
+multiplication and never construct an unbounded `4**length` integer.
+
 See [engineering contracts](../DESIGN.md) for the invariants and
 [reliability](../RELIABILITY.md) for deterministic serialization.

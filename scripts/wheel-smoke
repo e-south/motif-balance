@@ -43,13 +43,13 @@ for forbidden in '/.git/' '/.venv/' '/.artifacts/'; do
     exit 1
   fi
 done
-for required in LICENSE README.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md docs/index.md; do
+for required in LICENSE README.md IA.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md docs/index.md docs/reference/execution-receipts.md; do
   if ! grep -Fq "/$required" <<<"$sdist_contents"; then
     echo "source distribution omits routed content: $required" >&2
     exit 1
   fi
 done
-for required in examples/synthetic-pairwise/design.yaml benchmarks/technical-note/scoring-parity-v1.json; do
+for required in examples/synthetic-pairwise/design.yaml examples/production-pairwise/design.yaml benchmarks/technical-note/scoring-parity-v1.json; do
   if ! grep -Fq "/$required" <<<"$sdist_contents"; then
     echo "source distribution omits reproducibility input: $required" >&2
     exit 1
@@ -60,7 +60,7 @@ uv venv --python 3.12 "$smoke_root/venv"
 uv pip install --python "$smoke_root/venv/bin/python" "$wheel_path"
 uv pip check --python "$smoke_root/venv/bin/python"
 
-contract_program='import inspect,json; import motif_balance as m; names=("MotifModel","DesignSpec","MotifMatch","Evaluation","Candidate","Portfolio"); print(json.dumps({"models":{n:getattr(m,n).model_json_schema() for n in names},"operations":{"design":str(inspect.signature(m.design)),"score":str(inspect.signature(m.score))}},sort_keys=True))'
+contract_program='import inspect,json; import motif_balance as m; names=("MotifModel","DesignSpec","MotifMatch","Evaluation","Candidate","Portfolio"); operations=("compile_spec","convert_motif","design","execute_design_workspace","load_spec","read_motif","read_portfolio","render_bundle_report","score","verify_bundle","verify_execution_workspace"); print(json.dumps({"models":{n:getattr(m,n).model_json_schema() for n in names},"operations":{n:str(inspect.signature(getattr(m,n))) for n in operations}},sort_keys=True))'
 source_contract="$(uv run --locked python -c "$contract_program")"
 wheel_contract="$("$smoke_root/venv/bin/python" -c "$contract_program")"
 if [[ "$source_contract" != "$wheel_contract" ]]; then
@@ -77,6 +77,37 @@ uv run --locked motif-balance design examples/synthetic-pairwise/design.yaml \
 "$smoke_root/venv/bin/motif-balance" design examples/synthetic-pairwise/design.yaml \
   --out "$smoke_root/wheel-result" >/dev/null
 diff -qr "$smoke_root/source-result" "$smoke_root/wheel-result"
+
+uv run --locked motif-balance design examples/production-pairwise/design.yaml \
+  --out "$smoke_root/source-production-result" >/dev/null
+"$smoke_root/venv/bin/motif-balance" design examples/production-pairwise/design.yaml \
+  --out "$smoke_root/wheel-production-result" >/dev/null
+diff -qr "$smoke_root/source-production-result" "$smoke_root/wheel-production-result"
+"$smoke_root/venv/bin/motif-balance" verify "$smoke_root/wheel-production-result" >/dev/null
+
+producer_revision="${MOTIF_BALANCE_PRODUCER_REVISION:-0000000000000000000000000000000000000000}"
+uv run --locked motif-balance execute examples/production-pairwise/design.yaml \
+  --release-artifact "$wheel_path" \
+  --producer-revision "$producer_revision" \
+  --out "$smoke_root/source-execution" >/dev/null
+"$smoke_root/venv/bin/motif-balance" execute examples/production-pairwise/design.yaml \
+  --release-artifact "$wheel_path" \
+  --producer-revision "$producer_revision" \
+  --out "$smoke_root/wheel-execution" >/dev/null
+diff -qr "$smoke_root/source-execution/bundle" "$smoke_root/wheel-execution/bundle"
+release_sha256="$(shasum -a 256 "$wheel_path" | awk '{print $1}')"
+for execution in "$smoke_root/source-execution" "$smoke_root/wheel-execution"; do
+  read -r execution_id receipt_sha256 < <(
+    "$smoke_root/venv/bin/python" -c \
+      'import json,sys; value=json.load(open(sys.argv[1])); print(value["workspace_id"], value["receipt"]["sha256"])' \
+      "$execution/execution-workspace.json"
+  )
+  "$smoke_root/venv/bin/motif-balance" verify-execution "$execution" \
+    --expected-workspace-id "$execution_id" \
+    --expected-receipt-sha256 "$receipt_sha256" \
+    --expected-release-sha256 "$release_sha256" \
+    --expected-producer-revision "$producer_revision" >/dev/null
+done
 
 installed_version="$("$smoke_root/venv/bin/python" -c 'from importlib.metadata import version; print(version("motif-balance"))')"
 project_version="$(uv run --locked python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"

@@ -21,7 +21,7 @@ read results at three levels:
 1. `candidates.tsv` contains one immutable row per selected sequence, including
    its public balance score and deterministic rank.
 2. `matches.tsv` contains one row per candidate and motif, including the chosen
-   span, strand, raw score, normalized score, and tie-breaking identity.
+   span, strand, oriented matched sequence, raw score, and normalized score.
 3. `design.json` and `motifs.json` state the request and model content against
    which those values are meaningful.
 
@@ -34,3 +34,9 @@ Do not claim measured binding, expression, fitness, biological portability, or
 superiority to a baseline from these artifacts alone. Those conclusions require
 a study-owned comparison design and evidence record. Search completion and
 portfolio diversity are also distinct from motif score quality.
+
+`manifest.json` also contains bounded search diagnostics. Best-score
+checkpoints show computational progress, restart-final scores show between-start
+variation, and proposal summaries describe execution. They are optimizer
+diagnostics, not posterior samples, convergence statistics, or biological
+replicates.

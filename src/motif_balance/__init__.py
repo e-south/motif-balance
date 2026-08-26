@@ -6,12 +6,16 @@ from motif_balance.api import (
     MotifModel,
     Portfolio,
     compile_spec,
+    convert_motif,
     design,
+    execute_design_workspace,
     load_spec,
     read_motif,
     read_portfolio,
+    render_bundle_report,
     score,
     verify_bundle,
+    verify_execution_workspace,
 )
 from motif_balance.constants import PACKAGE_VERSION as __version__
 
@@ -24,10 +28,14 @@ __all__ = [
     "Portfolio",
     "__version__",
     "compile_spec",
+    "convert_motif",
     "design",
+    "execute_design_workspace",
     "load_spec",
     "read_motif",
     "read_portfolio",
+    "render_bundle_report",
     "score",
     "verify_bundle",
+    "verify_execution_workspace",
 ]

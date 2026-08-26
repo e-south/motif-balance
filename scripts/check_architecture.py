@@ -19,6 +19,7 @@ KNOWN_LAYERS = {
     "formats",
     "model",
     "report",
+    "receipt",
     "scoring",
     "search",
     "selection",
@@ -34,6 +35,7 @@ ALLOWED_IMPORTS = {
     "selection": {"constants", "errors", "model", "scoring"},
     "artifacts": {"constants", "errors", "model"},
     "report": {"constants", "errors", "model"},
+    "receipt": {"constants", "errors", "model"},
     "api": KNOWN_LAYERS - {"api", "cli"},
     "cli": {"api", "errors"},
 }

@@ -48,6 +48,15 @@ def test_sanitized_cruncher_sample_scoring_snapshot_is_classified() -> None:
     assert actual.balance_score == pytest.approx(
         expected["balance_score"], abs=normalized_tolerance
     )
+    corrected = fixture["motif_balance_output"]
+    for match in actual.matches:
+        expected_match = corrected[match.motif_id]
+        assert match.raw_score == pytest.approx(expected_match["raw_score"], abs=1.0e-14)
+        assert match.normalized_score == pytest.approx(
+            expected_match["normalized_score"], abs=1.0e-14
+        )
+    assert actual.balance_score == pytest.approx(corrected["balance_score"], abs=1.0e-14)
+    assert actual.balance_score != expected["balance_score"]
     assert (
         fixture["comparison"]["score_difference_classification"]
         == "intentional_semantic_correction"

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import itertools
+
 import pytest
 
 from motif_balance.errors import SearchExhausted
@@ -74,3 +76,31 @@ def test_selection_finds_feasible_subset_when_top_ranked_candidate_blocks_it() -
     )
 
     assert [candidate.sequence for candidate in selected] == ["AATT", "TTAA"]
+
+
+def test_zero_distance_selection_is_iterative_above_python_recursion_depth() -> None:
+    sequences = ("".join(bases) for bases in itertools.product("ACGT", repeat=5))
+    evaluations = tuple(_evaluation(sequence, 0.5) for sequence in sequences)
+
+    selected = select_candidates(
+        evaluations,
+        count=len(evaluations),
+        min_distance=0.0,
+        evaluations_used=len(evaluations),
+    )
+
+    assert len(selected) == 1024
+
+
+def test_positive_distance_selection_is_iterative_above_python_recursion_depth() -> None:
+    sequences = ("".join(bases) for bases in itertools.product("ACGT", repeat=5))
+    evaluations = tuple(_evaluation(sequence, 0.5) for sequence in sequences)
+
+    selected = select_candidates(
+        evaluations,
+        count=len(evaluations),
+        min_distance=0.001,
+        evaluations_used=len(evaluations),
+    )
+
+    assert len(selected) == 1024

@@ -1,0 +1,36 @@
+{
+  "claim_boundary": "Deterministic production-engine regression fixture; not comparative or biological evidence.",
+  "expected": {
+    "best_score": 1.0,
+    "candidates": [
+      {"balance_score": "1", "candidate_id": "candidate-4d4087e5bea4b68f", "length": "12", "rank": "1", "sequence": "AACGTAGGATCC"},
+      {"balance_score": "1", "candidate_id": "candidate-c1f66dc5a60ce3a4", "length": "12", "rank": "2", "sequence": "AACGTATGGATC"},
+      {"balance_score": "1", "candidate_id": "candidate-9ef9ca88fa59fe6a", "length": "12", "rank": "3", "sequence": "AACGTGGATCTT"},
+      {"balance_score": "1", "candidate_id": "candidate-1f7376c10f70840e", "length": "12", "rank": "4", "sequence": "ACATACGTGATC"},
+      {"balance_score": "1", "candidate_id": "candidate-4e17e34c77ac1c37", "length": "12", "rank": "5", "sequence": "ACGTAGAAGATC"},
+      {"balance_score": "1", "candidate_id": "candidate-76c8b8a8ad5ddaf8", "length": "12", "rank": "6", "sequence": "ACGTATCGGATC"},
+      {"balance_score": "1", "candidate_id": "candidate-09c6dbcb1ecc9968", "length": "12", "rank": "7", "sequence": "ACGTCCGGGATC"},
+      {"balance_score": "1", "candidate_id": "candidate-bf927d46098a3056", "length": "12", "rank": "8", "sequence": "ACGTCGATCTAC"}
+    ],
+    "evaluation_count": 4096,
+    "problem_id": "problem-e33abe9d393188b48b9fa1cb",
+    "proposal_summaries": [
+      {"accepted": 884, "attempted": 884, "move": "single"},
+      {"accepted": 183, "attempted": 247, "move": "block"},
+      {"accepted": 135, "attempted": 156, "move": "multi"},
+      {"accepted": 132, "attempted": 149, "move": "insertion"}
+    ],
+    "restart_final_scores": [0.6666557091577637, 0.6666557091577637, 0.6666557091577637, 1.0, 1.0, 0.6666557091577637, 0.6666557091577637, 0.6666557091577637],
+    "search_engine": "annealed_multistart_v1",
+    "search_engine_version": "1",
+    "unique_evaluations": 2793
+  },
+  "fixture": "examples/production-pairwise/design.yaml",
+  "schema_version": "search-validation/v1",
+  "semantics": {
+    "objective": "weakest_score_v1",
+    "scoring": "normalized_llr_v1",
+    "selection": "exact_count_distance_no_relaxation",
+    "tie_break": "leftmost_plus_first_v1"
+  }
+}

@@ -26,6 +26,9 @@ location and validation behavior but cannot silently revise that specification.
 - DNA is uppercase `A/C/G/T`; coordinate spans are zero-based and half-open.
 - A design has one exact fixed sequence length and an explicit positive target
   candidate count.
+- Sequence length, candidate count, evaluator calls, portfolio bases, and
+  canonical match rows have explicit public upper bounds. Feasibility checks
+  do not materialize or exponentiate beyond those bounds.
 - Each motif contributes exactly one best match per candidate under declared
   strand and deterministic tie-breaking rules.
 - One scoring implementation is authoritative. The public balance score is the
@@ -41,6 +44,9 @@ location and validation behavior but cannot silently revise that specification.
   `matches.tsv`, and `manifest.json`. FASTA and HTML are derived views.
 - Schema versions, scoring versions, seeds, budgets, and content digests are
   explicit in replayable artifacts.
+- Evidence-producing execution attests that the running package tree equals the
+  retained wheel before and after search, then atomically publishes the resolved
+  input, wheel, bundle, receipt, and execution index.
 
 ## Error channels
 
@@ -56,11 +62,21 @@ meaning change requires an architecture decision, compatibility statement,
 negative tests, and reference-document updates. Optimizer improvements must not
 change scoring or selection semantics accidentally.
 
-## Alpha search boundary
+Version `0.2` reads `run-manifest/v2` only. Exact scientific replay pins the
+wheel, producer revision, runtime contract, build lock, search engine, and
+engine version. Earlier schemas require an explicit compatibility dispatcher;
+they are never accepted through loosened validation.
+
+## Search boundary
 
 Small sequence spaces use deterministic exhaustive enumeration. Larger spaces
-currently use `synthetic_seeded_metropolis_v1`, a compact executable tracer for
-the package and artifact contracts. It is not the Cruncher Sample optimizer,
-does not establish optimizer parity, and cannot support legacy adoption,
-cutover, or comparative performance claims. That later migration is a separate,
-study-owned differential-parity gate.
+use `annealed_multistart_v1`, which combines perturbed multi-chain starts, Gibbs-style
+single-base updates, block and multi-base proposals, motif insertion, targeted
+proposal windows, and annealed acceptance under one exact evaluator-call
+budget. It records bounded checkpoints, restart-final scores, and proposal
+counts rather than raw optimizer-state traces.
+
+That engine is production software, not evidence that it outperforms a
+baseline. Comparative performance, repeated-seed robustness, and migration
+parity remain Research Studies claims over frozen cohorts and released package
+artifacts.

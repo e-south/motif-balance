@@ -40,6 +40,18 @@ def test_verify_rejects_missing_directory(tmp_path: Path) -> None:
         verify_bundle(tmp_path / "missing")
 
 
+def test_verify_rejects_a_symlinked_bundle_root(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+) -> None:
+    output = _bundle(pairwise_spec, tmp_path, "target")
+    link = tmp_path / "linked-bundle"
+    link.symlink_to(output, target_is_directory=True)
+
+    with pytest.raises(ArtifactError, match="unsafe"):
+        verify_bundle(link)
+
+
 def test_verify_rejects_inventory_and_unsafe_entries(
     pairwise_spec: DesignSpec,
     tmp_path: Path,

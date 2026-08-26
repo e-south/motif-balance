@@ -11,6 +11,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ROOT_DOCS = [
+    REPO_ROOT / "IA.md",
     REPO_ROOT / "ARCHITECTURE.md",
     REPO_ROOT / "DESIGN.md",
     REPO_ROOT / "RELIABILITY.md",
