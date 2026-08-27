@@ -58,10 +58,25 @@ fi
 
 bash ./scripts/agent-verify
 source_date_epoch="$(git show -s --format=%ct HEAD)"
+release_revision="$(git rev-parse HEAD)"
+snapshot_root="$(mktemp -d)"
+trap 'rm -rf -- "$snapshot_root"' EXIT
+git archive --format=tar HEAD | tar -xf - -C "$snapshot_root"
 mkdir -p "$out_dir"
-SOURCE_DATE_EPOCH="$source_date_epoch" uv build --no-sources --out-dir "$out_dir"
-MOTIF_BALANCE_PRODUCER_REVISION="$(git rev-parse HEAD)" \
-  bash ./scripts/wheel-smoke "$out_dir"
+(
+  cd "$snapshot_root"
+  SOURCE_DATE_EPOCH="$source_date_epoch" uv build --no-sources --out-dir "$out_dir"
+  MOTIF_BALANCE_PRODUCER_REVISION="$release_revision" \
+    bash ./scripts/wheel-smoke "$out_dir"
+)
+[[ "$(git rev-parse HEAD)" == "$release_revision" ]] || {
+  echo "release source revision changed during build" >&2
+  exit 1
+}
+[[ -z "$(git status --porcelain --untracked-files=all)" ]] || {
+  echo "release checkout changed during build" >&2
+  exit 1
+}
 
 attestation_args=(
   create

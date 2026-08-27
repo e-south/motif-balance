@@ -36,6 +36,10 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _sha256_bytes(raw: bytes) -> str:
+    return hashlib.sha256(raw).hexdigest()
+
+
 def _artifact(path: Path, *, kind: str) -> dict[str, object]:
     if not path.is_file() or path.is_symlink():
         raise ValueError(f"{kind} must be a regular file")
@@ -286,18 +290,33 @@ def _git(repo_root: Path, *args: str) -> str:
     ).stdout.strip()
 
 
+def _git_bytes(repo_root: Path, *args: str) -> bytes:
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    ).stdout
+
+
 def subject_from_repository(repo_root: Path, *, require_tag: bool) -> dict[str, str]:
     """Resolve the expected release subject from an exact source checkout."""
-    project = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    if _git(repo_root, "status", "--porcelain", "--untracked-files=all"):
+        raise ValueError("source repository is not clean")
+    project = tomllib.loads(_git_bytes(repo_root, "show", "HEAD:pyproject.toml").decode())[
+        "project"
+    ]
     version = str(project["version"])
     revision = _git(repo_root, "rev-parse", "HEAD")
     tag = f"v{version}"
     if require_tag:
+        if _git(repo_root, "cat-file", "-t", f"refs/tags/{tag}") != "tag":
+            raise ValueError("release tag must be an annotated tag object")
         tagged_revision = _git(repo_root, "rev-parse", f"refs/tags/{tag}^{{commit}}")
         if tagged_revision != revision:
             raise ValueError("release tag does not point to the expected source revision")
     return {
-        "lock_sha256": _sha256(repo_root / "uv.lock"),
+        "lock_sha256": _sha256_bytes(_git_bytes(repo_root, "show", "HEAD:uv.lock")),
         "repository": REPOSITORY,
         "revision": revision,
         "tag": tag,

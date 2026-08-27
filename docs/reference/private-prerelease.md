@@ -16,6 +16,10 @@ doc_type: how-to
 The release authority is `scripts/prepare-private-prerelease`. It runs the
 complete package gate, builds once from the current clean commit, verifies the
 exact distributions, and emits a canonical build attestation plus checksums.
+The distributions are built from a `git archive` snapshot of `HEAD`, not from
+mutable working-tree files. Attestation identity is derived from committed
+`pyproject.toml` and `uv.lock` bytes, and the source tree is rechecked after the
+build.
 GitHub Actions may invoke the same command, but runner availability is not a
 semantic property of the package or its release bytes. Automation only stages
 short-retention build artifacts; it never publishes a release. A maintainer
@@ -50,7 +54,8 @@ limitations. It contains no machine path or credential.
 
 ## Publish and verify
 
-Create an annotated version tag at the verified commit. Create the private
+Create an annotated version tag object at the verified commit; a lightweight
+tag does not satisfy the verification contract. Create the private
 GitHub prerelease as a draft, upload the unchanged four files, and download
 them into a fresh directory. From the exact tagged source, verify the download:
 

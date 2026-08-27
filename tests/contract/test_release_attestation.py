@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 from pathlib import Path
 from types import ModuleType
 
@@ -255,6 +256,41 @@ def test_release_directory_rejects_extra_entries(tmp_path: Path) -> None:
         module.verify_release_directory(tmp_path, expected_subject=SUBJECT)
 
 
+def test_repository_subject_rejects_dirty_source_and_lightweight_tag(tmp_path: Path) -> None:
+    module = _module()
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Release Test"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "release-test@example.invalid"],
+        cwd=tmp_path,
+        check=True,
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "motif-balance"\nversion = "0.2.0a1"\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "pyproject.toml", "uv.lock"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-qm", "fixture"], cwd=tmp_path, check=True)
+
+    expected = module.subject_from_repository(tmp_path, require_tag=False)
+    (tmp_path / "uv.lock").write_text("version = 2\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="source repository is not clean"):
+        module.subject_from_repository(tmp_path, require_tag=False)
+    subprocess.run(["git", "restore", "uv.lock"], cwd=tmp_path, check=True)
+
+    subprocess.run(["git", "tag", "v0.2.0a1"], cwd=tmp_path, check=True)
+    with pytest.raises(ValueError, match="annotated tag object"):
+        module.subject_from_repository(tmp_path, require_tag=True)
+    subprocess.run(["git", "tag", "-d", "v0.2.0a1"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "tag", "-a", "v0.2.0a1", "-m", "release fixture"],
+        cwd=tmp_path,
+        check=True,
+    )
+    assert module.subject_from_repository(tmp_path, require_tag=True) == expected
+
+
 def test_release_workflow_and_manual_path_share_one_preparation_command() -> None:
     workflow = (REPO_ROOT / ".github/workflows/release.yaml").read_text(encoding="utf-8")
     preparation = REPO_ROOT / "scripts/prepare-private-prerelease"
@@ -262,5 +298,7 @@ def test_release_workflow_and_manual_path_share_one_preparation_command() -> Non
     assert preparation.is_file()
     assert "bash ./scripts/prepare-private-prerelease" in workflow
     assert "gh release create" not in workflow
-    assert "release-build-attestation.json" in preparation.read_text(encoding="utf-8")
-    assert "SHA256SUMS" in preparation.read_text(encoding="utf-8")
+    preparation_text = preparation.read_text(encoding="utf-8")
+    assert "git archive --format=tar HEAD" in preparation_text
+    assert "release-build-attestation.json" in preparation_text
+    assert "SHA256SUMS" in preparation_text
