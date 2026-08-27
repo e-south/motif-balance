@@ -5,35 +5,26 @@ from pathlib import Path
 import pytest
 
 from motif_balance import DesignSpec, design
-from motif_balance.api import render_bundle_report
+from motif_balance.api import inspect_result, render_bundle_report, render_inspection_html
 from motif_balance.errors import ArtifactError
-from motif_balance.report import render_report
 
 
-def test_report_exposes_candidate_match_and_search_interpretation(
+def test_bundle_report_uses_the_one_verified_html_compositor(
+    tmp_path: Path,
     pairwise_spec: DesignSpec,
 ) -> None:
+    bundle = tmp_path / "bundle"
+    out = tmp_path / "review.html"
     portfolio = design(pairwise_spec)
+    portfolio.write(bundle)
 
-    report = render_report(pairwise_spec, portfolio.candidates).decode()
+    bundle_id = render_bundle_report(bundle, out)
 
-    assert "Candidate portfolio" in report
-    assert "Limiting motif" in report
-    assert "Per-motif matches" in report
-    assert "0-based, half-open" in report
-    assert "motif_a" in report
-    assert "motif_b" in report
-    assert portfolio.candidates[0].candidate_id in report
-    assert "Computational scope" in report
-    assert "does not establish binding" in report
-
-
-def test_report_lists_every_tied_limiting_motif(pairwise_spec: DesignSpec) -> None:
-    portfolio = design(pairwise_spec)
-
-    report = render_report(pairwise_spec, portfolio.candidates).decode()
-
-    assert "motif_a, motif_b" in report
+    assert bundle_id == portfolio.manifest.bundle_id
+    assert out.read_bytes() == render_inspection_html(inspect_result(bundle, kind="bundle"))
+    assert b"Candidate realization" in out.read_bytes()
+    assert b"Portfolio balance" in out.read_bytes()
+    assert b"Search record" in out.read_bytes()
 
 
 def test_derived_file_publication_does_not_leave_partial_output(

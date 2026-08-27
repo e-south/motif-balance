@@ -49,7 +49,7 @@ for required in LICENSE README.md IA.md ARCHITECTURE.md DESIGN.md RELIABILITY.md
     exit 1
   fi
 done
-for required in examples/formats/synthetic.jaspar examples/synthetic-pairwise/design.yaml examples/synthetic-multimotif/design.yaml examples/production-pairwise/design.yaml; do
+for required in examples/formats/synthetic.jaspar examples/synthetic-pairwise/design.yaml examples/synthetic-pairwise/candidate-review.svg examples/synthetic-multimotif/design.yaml examples/production-pairwise/design.yaml; do
   if ! grep -Fq "/$required" <<<"$sdist_contents"; then
     echo "source distribution omits reproducibility input: $required" >&2
     exit 1
@@ -60,7 +60,7 @@ uv venv --python 3.12 "$smoke_root/venv"
 uv pip install --python "$smoke_root/venv/bin/python" "$wheel_path"
 uv pip check --python "$smoke_root/venv/bin/python"
 
-contract_program='import inspect,json; import motif_balance as m; names=("MotifModel","DesignSpec","MotifMatch","Evaluation","Candidate","Portfolio","ResultIndex","ResultInspection","ResultCatalog"); operations=("build_result_catalog","compile_spec","convert_motif","design","execute_design_workspace","inspect_result","load_spec","read_motif","read_portfolio","render_bundle_report","render_inspection_html","render_result_catalog_html","score","summarize_inspection","verify_bundle","verify_execution_workspace"); print(json.dumps({"models":{n:getattr(m,n).model_json_schema() for n in names},"operations":{n:str(inspect.signature(getattr(m,n))) for n in operations}},sort_keys=True))'
+contract_program='import inspect,json; import motif_balance as m; names=("MotifModel","DesignSpec","MotifMatch","Candidate","Portfolio"); operations=("design","score"); assert set(m.__all__) == set(names + operations); print(json.dumps({"models":{n:getattr(m,n).model_json_schema() for n in names},"operations":{n:str(inspect.signature(getattr(m,n))) for n in operations}},sort_keys=True))'
 source_contract="$(uv run --locked python -c "$contract_program")"
 wheel_contract="$("$smoke_root/venv/bin/python" -c "$contract_program")"
 if [[ "$source_contract" != "$wheel_contract" ]]; then
@@ -78,12 +78,12 @@ uv run --locked motif-balance design examples/synthetic-pairwise/design.yaml \
   --check >"$smoke_root/wheel-check.txt"
 cmp "$smoke_root/source-check.txt" "$smoke_root/wheel-check.txt"
 
-uv run --locked motif-balance convert-motif examples/formats/synthetic.jaspar \
+uv run --locked motif-balance motif prepare examples/formats/synthetic.jaspar \
   --motif-id converted \
   --background 0.25,0.25,0.25,0.25 \
   --prior-weight 0.1 \
   --out "$smoke_root/source-converted.yaml" >/dev/null
-"$smoke_root/venv/bin/motif-balance" convert-motif examples/formats/synthetic.jaspar \
+"$smoke_root/venv/bin/motif-balance" motif prepare examples/formats/synthetic.jaspar \
   --motif-id converted \
   --background 0.25,0.25,0.25,0.25 \
   --prior-weight 0.1 \
@@ -96,34 +96,88 @@ uv run --locked motif-balance design examples/synthetic-pairwise/design.yaml \
   --out "$smoke_root/wheel-result" >/dev/null
 diff -qr "$smoke_root/source-result" "$smoke_root/wheel-result"
 bundle_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["bundle_id"])' "$smoke_root/source-result/manifest.json")"
-uv run --locked motif-balance verify "$smoke_root/source-result" \
+uv run --locked motif-balance inspect "$smoke_root/source-result" \
   --expected-bundle-id "$bundle_id" >/dev/null
-"$smoke_root/venv/bin/motif-balance" verify "$smoke_root/wheel-result" \
+"$smoke_root/venv/bin/motif-balance" inspect "$smoke_root/wheel-result" \
   --expected-bundle-id "$bundle_id" >/dev/null
-uv run --locked motif-balance inspect "$smoke_root/source-result" --kind bundle \
+uv run --locked motif-balance inspect "$smoke_root/source-result" \
   --expected-bundle-id "$bundle_id" --format html \
   --out "$smoke_root/source-review.html" >/dev/null
-"$smoke_root/venv/bin/motif-balance" inspect "$smoke_root/wheel-result" --kind bundle \
+"$smoke_root/venv/bin/motif-balance" inspect "$smoke_root/wheel-result" \
   --expected-bundle-id "$bundle_id" --format html \
   --out "$smoke_root/wheel-review.html" >/dev/null
 cmp "$smoke_root/source-review.html" "$smoke_root/wheel-review.html"
 
-uv run --locked motif-balance render-report "$smoke_root/source-result" \
-  --out "$smoke_root/source-report.html" >/dev/null
-"$smoke_root/venv/bin/motif-balance" render-report "$smoke_root/wheel-result" \
-  --out "$smoke_root/wheel-report.html" >/dev/null
-cmp "$smoke_root/source-report.html" "$smoke_root/wheel-report.html"
-cmp "$smoke_root/source-report.html" "$smoke_root/source-result/report.html"
+# Exercise the explicit reader for released run-manifest/v2 bundles. The old
+# schema binds a report.html member; v3 deliberately does not publish one.
+"$smoke_root/venv/bin/python" - "$smoke_root/source-result" "$smoke_root/legacy-v2-result" <<'PY'
+import hashlib
+import json
+import shutil
+import sys
+from pathlib import Path
 
-uv run --locked motif-balance catalog \
+from motif_balance.artifacts import bundle_id, manifest_bytes
+from motif_balance.model import ArtifactDigest, RunManifest
+
+source = Path(sys.argv[1])
+target = Path(sys.argv[2])
+shutil.copytree(source, target)
+report = b"<!doctype html><title>Released Motif Balance v2 report</title>\n"
+(target / "report.html").write_bytes(report)
+manifest = json.loads((target / "manifest.json").read_bytes())
+design = json.loads((target / "design.json").read_bytes())
+manifest["schema_version"] = "run-manifest/v2"
+manifest["package_version"] = "0.2.0a3"
+run_payload = {
+    "problem_id": manifest["problem_id"],
+    "count": design["count"],
+    "min_distance": design["min_distance"],
+    "evaluations": design["evaluations"],
+    "seed": design["seed"],
+    "search_engine": manifest["search_engine"],
+    "search_engine_version": manifest["search_engine_version"],
+    "package_version": manifest["package_version"],
+}
+run_digest = hashlib.sha256(
+    json.dumps(run_payload, sort_keys=True, separators=(",", ":")).encode()
+).hexdigest()
+manifest["run_id"] = f"run-{run_digest[:24]}"
+manifest["artifacts"]["report.html"] = {
+    "bytes": len(report),
+    "sha256": hashlib.sha256(report).hexdigest(),
+}
+artifacts = tuple(
+    ArtifactDigest(path=path, **record)
+    for path, record in sorted(manifest["artifacts"].items())
+)
+provisional = RunManifest.model_validate({**manifest, "artifacts": artifacts})
+sealed = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
+(target / "manifest.json").write_bytes(manifest_bytes(sealed))
+PY
+legacy_bundle_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["bundle_id"])' "$smoke_root/legacy-v2-result/manifest.json")"
+uv run --locked motif-balance inspect "$smoke_root/legacy-v2-result" \
+  --expected-bundle-id "$legacy_bundle_id" >/dev/null
+"$smoke_root/venv/bin/motif-balance" inspect "$smoke_root/legacy-v2-result" \
+  --expected-bundle-id "$legacy_bundle_id" >/dev/null
+
+for view in candidate portfolio search; do
+  uv run --locked motif-balance inspect "$smoke_root/source-result" \
+    --format svg --view "$view" --out "$smoke_root/source-${view}.svg" >/dev/null
+  "$smoke_root/venv/bin/motif-balance" inspect "$smoke_root/wheel-result" \
+    --format svg --view "$view" --out "$smoke_root/wheel-${view}.svg" >/dev/null
+  cmp "$smoke_root/source-${view}.svg" "$smoke_root/wheel-${view}.svg"
+done
+
+uv run --locked motif-balance integration catalog \
   --entry smoke=bundle:"$smoke_root/source-result" \
   --out "$smoke_root/source-catalog.json" >/dev/null
-"$smoke_root/venv/bin/motif-balance" catalog \
+"$smoke_root/venv/bin/motif-balance" integration catalog \
   --entry smoke=bundle:"$smoke_root/wheel-result" \
   --out "$smoke_root/wheel-catalog.json" >/dev/null
 cmp "$smoke_root/source-catalog.json" "$smoke_root/wheel-catalog.json"
 
-behavior_program='import json,sys; import motif_balance as m; spec=m.load_spec(sys.argv[1]); portfolio=m.read_portfolio(sys.argv[2]); inspection=m.inspect_result(sys.argv[2],kind="bundle",expected_bundle_id=portfolio.manifest.bundle_id); result={"problem_id":m.compile_spec(spec),"evaluation":m.score("AT",spec).model_dump(mode="json"),"portfolio_id":portfolio.manifest.bundle_id,"catalog":m.build_result_catalog({"smoke":inspection}).model_dump(mode="json")}; print(json.dumps(result,sort_keys=True))'
+behavior_program='import json,sys; import motif_balance as m; import motif_balance.api as a; spec=a.load_spec(sys.argv[1]); portfolio=a.read_portfolio(sys.argv[2]); inspection=a.inspect_result(sys.argv[2],kind="bundle",expected_bundle_id=portfolio.manifest.bundle_id); result={"problem_id":a.compile_spec(spec),"evaluation":m.score("AT",spec).model_dump(mode="json"),"portfolio_id":portfolio.manifest.bundle_id,"catalog":a.build_result_catalog({"smoke":inspection}).model_dump(mode="json")}; print(json.dumps(result,sort_keys=True))'
 source_behavior="$(uv run --locked python -c "$behavior_program" examples/synthetic-pairwise/design.yaml "$smoke_root/source-result")"
 wheel_behavior="$("$smoke_root/venv/bin/python" -c "$behavior_program" examples/synthetic-pairwise/design.yaml "$smoke_root/wheel-result")"
 if [[ "$source_behavior" != "$wheel_behavior" ]]; then
@@ -136,11 +190,11 @@ uv run --locked motif-balance design examples/synthetic-multimotif/design.yaml \
 "$smoke_root/venv/bin/motif-balance" design examples/synthetic-multimotif/design.yaml \
   --out "$smoke_root/wheel-multimotif-result" >/dev/null
 diff -qr "$smoke_root/source-multimotif-result" "$smoke_root/wheel-multimotif-result"
-"$smoke_root/venv/bin/motif-balance" verify "$smoke_root/wheel-multimotif-result" >/dev/null
-uv run --locked motif-balance inspect "$smoke_root/source-multimotif-result" --kind bundle \
+"$smoke_root/venv/bin/motif-balance" inspect "$smoke_root/wheel-multimotif-result" >/dev/null
+uv run --locked motif-balance inspect "$smoke_root/source-multimotif-result" \
   --format html --out "$smoke_root/source-multimotif-review.html" >/dev/null
 "$smoke_root/venv/bin/motif-balance" inspect "$smoke_root/wheel-multimotif-result" \
-  --kind bundle --format html --out "$smoke_root/wheel-multimotif-review.html" >/dev/null
+  --format html --out "$smoke_root/wheel-multimotif-review.html" >/dev/null
 cmp "$smoke_root/source-multimotif-review.html" "$smoke_root/wheel-multimotif-review.html"
 
 uv run --locked motif-balance design examples/production-pairwise/design.yaml \
@@ -148,19 +202,19 @@ uv run --locked motif-balance design examples/production-pairwise/design.yaml \
 "$smoke_root/venv/bin/motif-balance" design examples/production-pairwise/design.yaml \
   --out "$smoke_root/wheel-production-result" >/dev/null
 diff -qr "$smoke_root/source-production-result" "$smoke_root/wheel-production-result"
-"$smoke_root/venv/bin/motif-balance" verify "$smoke_root/wheel-production-result" >/dev/null
+"$smoke_root/venv/bin/motif-balance" inspect "$smoke_root/wheel-production-result" >/dev/null
 uv run --locked motif-balance inspect "$smoke_root/source-production-result" \
-  --kind bundle --format json >"$smoke_root/source-inspection.json"
+  --format json >"$smoke_root/source-inspection.json"
 "$smoke_root/venv/bin/motif-balance" inspect "$smoke_root/wheel-production-result" \
-  --kind bundle --format json >"$smoke_root/wheel-inspection.json"
+  --format json >"$smoke_root/wheel-inspection.json"
 cmp "$smoke_root/source-inspection.json" "$smoke_root/wheel-inspection.json"
 
 producer_revision="${MOTIF_BALANCE_PRODUCER_REVISION:-0000000000000000000000000000000000000000}"
-uv run --locked motif-balance execute examples/production-pairwise/design.yaml \
+uv run --locked motif-balance orchestration execute examples/production-pairwise/design.yaml \
   --release-artifact "$wheel_path" \
   --producer-revision "$producer_revision" \
   --out "$smoke_root/source-execution" >/dev/null
-"$smoke_root/venv/bin/motif-balance" execute examples/production-pairwise/design.yaml \
+"$smoke_root/venv/bin/motif-balance" orchestration execute examples/production-pairwise/design.yaml \
   --release-artifact "$wheel_path" \
   --producer-revision "$producer_revision" \
   --out "$smoke_root/wheel-execution" >/dev/null
@@ -172,12 +226,12 @@ for execution in "$smoke_root/source-execution" "$smoke_root/wheel-execution"; d
       'import json,sys; value=json.load(open(sys.argv[1])); print(value["workspace_id"], value["receipt"]["sha256"])' \
       "$execution/execution-workspace.json"
   )
-  "$smoke_root/venv/bin/motif-balance" verify-execution "$execution" \
+  "$smoke_root/venv/bin/motif-balance" inspect "$execution" --source execution \
     --expected-workspace-id "$execution_id" \
     --expected-receipt-sha256 "$receipt_sha256" \
     --expected-release-sha256 "$release_sha256" \
     --expected-producer-revision "$producer_revision" >/dev/null
-  "$smoke_root/venv/bin/motif-balance" inspect "$execution" --kind execution \
+  "$smoke_root/venv/bin/motif-balance" inspect "$execution" --source execution \
     --expected-workspace-id "$execution_id" \
     --expected-receipt-sha256 "$receipt_sha256" \
     --expected-release-sha256 "$release_sha256" \

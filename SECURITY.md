@@ -7,7 +7,7 @@ audience:
   - security reviewers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: reference
 ---
 
@@ -30,13 +30,17 @@ GitHub prerelease from a prerelease version; it has no PyPI permission or job.
 Strict schema boundaries reject unknown fields, unsafe alphabets, non-finite
 numbers, inconsistent matrix dimensions, and out-of-contract resource budgets
 before compilation or search.
-Readers enforce byte and record-count limits and reject symlinks. YAML uses
-safe duplicate-key rejection followed by strict schema validation.
+Readers enforce byte and record-count limits and reject symlinks. Bundle
+inspection pins the directory descriptor, reads each regular member at most
+once with `O_NOFOLLOW`, checks inode and size before and after the bounded read,
+and parses only that immutable byte snapshot. YAML uses safe duplicate-key
+rejection followed by strict schema validation.
 
-Product inspection never recursively discovers result roots. Callers declare
-the current artifact kind, and derived output is rejected if it would land at
-or below an inspected result root. Inspection records contain no source path
-and do not execute, import, or fetch anything named by the inspected object.
+Product inspection never recursively discovers result roots. Inspection uses
+the bundle contract by default and requires an explicit execution-source mode.
+Derived output is rejected if it would land at or below an inspected result
+root. Inspection records contain no source path and do not execute, import, or
+fetch anything named by the inspected object.
 
 Artifact paths are normalized relative POSIX paths. Parent traversal, absolute
 paths, symlinks, special files, and pre-existing output directories are

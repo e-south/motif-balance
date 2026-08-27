@@ -1,29 +1,33 @@
 from __future__ import annotations
 
+import importlib
 import json
+import os
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from motif_balance import DesignSpec, build_result_catalog, design, inspect_result, read_portfolio
-from motif_balance.artifacts import manifest_bytes
+from motif_balance import DesignSpec, design
+from motif_balance.api import build_result_catalog, inspect_result
+from motif_balance.artifacts import read_bundle_snapshot
 from motif_balance.errors import ArtifactError
 from motif_balance.inspection import (
     CatalogEntry,
+    DeliveryInspection,
     DistanceInspection,
-    InspectionPortfolio,
+    IntegrityInspection,
     ResultCatalog,
-    ResultIndex,
     ResultInspection,
-    _distance_inspection,
-    build_result_index,
-    catalog_html,
-    inspection_html,
+    VerifiedResultSource,
+    project_result,
+    render_catalog_html,
+    render_html,
 )
+from motif_balance.inspection.project import _distance_inspection
 
 
-def test_bundle_inspection_replays_and_summarizes_every_product_plane(
+def test_bundle_inspection_replays_every_product_plane(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
 ) -> None:
@@ -33,36 +37,31 @@ def test_bundle_inspection_replays_and_summarizes_every_product_plane(
 
     inspection = inspect_result(bundle, kind="bundle")
 
-    assert inspection.integrity_status == "verified"
-    assert inspection.trust_basis == "self_consistent"
-    assert isinstance(inspection.result, ResultIndex)
-    assert inspection.result.problem.problem_id == portfolio.problem_id
-    assert inspection.result.run.bundle_id == portfolio.manifest.bundle_id
-    assert inspection.result.portfolio.returned_count == pairwise_spec.count
-    assert inspection.result.portfolio.distance.status == "exact"
-    assert inspection.result.portfolio.distance.actual_min_distance == pairwise_spec.min_distance
-    assert inspection.result.portfolio.distance.closest_candidate_ids is not None
-    assert {artifact.path for artifact in inspection.result.artifacts} == {
+    assert isinstance(inspection, ResultInspection)
+    assert inspection.integrity.state == "self_consistent"
+    assert inspection.problem.problem_id == portfolio.problem_id
+    assert inspection.run.bundle_id == portfolio.manifest.bundle_id
+    assert inspection.delivery.delivered_count == pairwise_spec.count
+    assert inspection.portfolio.distance.status == "exact"
+    assert inspection.portfolio.distance.actual_min_distance == pairwise_spec.min_distance
+    assert {artifact.path for artifact in inspection.artifacts} == {
         "candidates.fasta",
         "candidates.tsv",
         "design.json",
         "manifest.json",
         "matches.tsv",
         "motifs.json",
-        "report.html",
     }
-    html = inspection_html(inspection).decode()
+    html = render_html(inspection).decode()
     assert portfolio.manifest.bundle_id in html
-    assert "Optimizer diagnostics" in html
-    assert "Artifact integrity" in html
-    assert "Per-candidate motif matches" in html
-    assert "<details>" in html
+    assert "Provenance and integrity" in html
+    assert "Exact records" in html
     assert str(tmp_path) not in html
     assert "https://" not in html
     assert "<script" not in html
 
 
-def test_bundle_inspection_distinguishes_an_external_identity(
+def test_external_bundle_identity_is_a_distinct_integrity_state(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
 ) -> None:
@@ -76,28 +75,116 @@ def test_bundle_inspection_distinguishes_an_external_identity(
         expected_bundle_id=portfolio.manifest.bundle_id,
     )
 
-    assert inspection.trust_basis == "external_bundle_id"
-    assert inspection.trusted_identities_checked == ("bundle_id",)
+    assert inspection.integrity.state == "externally_verified"
+    assert inspection.integrity.trust_basis == "external_bundle_id"
+    assert inspection.integrity.checked_identities == ("bundle_id",)
 
 
-def test_result_projection_rechecks_artifact_bytes_after_portfolio_read(
+def test_projection_consumes_only_the_frozen_bundle_snapshot(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
     design(pairwise_spec).write(bundle)
-    portfolio = read_portfolio(bundle)
-    (bundle / "report.html").write_text("changed after verification")
+    snapshot = read_bundle_snapshot(bundle)
+    (bundle / "candidates.fasta").write_text("changed after verification")
 
-    with pytest.raises(ArtifactError, match="changed during inspection"):
-        build_result_index(
-            bundle,
-            portfolio,
-            canonical_manifest=manifest_bytes(portfolio.manifest),
-        )
+    source = VerifiedResultSource(
+        portfolio=snapshot.portfolio,
+        canonical_manifest=snapshot.payload("manifest.json"),
+        artifacts=tuple(
+            (record, snapshot.payload(record.path))
+            for record in snapshot.portfolio.manifest.artifacts
+        ),
+        subject_kind="bundle",
+        integrity_state="self_consistent",
+        trust_basis="self_consistent",
+        checked_identities=(),
+    )
+    inspection = project_result(source)
+    fasta = next(item for item in inspection.artifacts if item.path == "candidates.fasta")
+    assert fasta.bytes == len(snapshot.payload("candidates.fasta"))
 
 
-def test_catalog_is_sorted_and_rejects_duplicate_or_invalid_ids(
+def test_public_inspection_never_uses_path_read_bytes_after_snapshot(
+    tmp_path: Path,
+    pairwise_spec: DesignSpec,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle = tmp_path / "bundle"
+    design(pairwise_spec).write(bundle)
+
+    def reject_path_read(_path: Path) -> bytes:
+        raise RuntimeError("UNBOUNDED_PATH_READ_REACHED")
+
+    monkeypatch.setattr(Path, "read_bytes", reject_path_read)
+    inspection = inspect_result(bundle, kind="bundle")
+    assert inspection.delivery.status == "complete"
+
+
+@pytest.mark.parametrize("substitution", ["inode", "symlink"])
+def test_public_inspection_rejects_member_substitution_during_snapshot(
+    tmp_path: Path,
+    pairwise_spec: DesignSpec,
+    monkeypatch: pytest.MonkeyPatch,
+    substitution: str,
+) -> None:
+    bundle = tmp_path / "bundle"
+    design(pairwise_spec).write(bundle)
+    artifacts_module = importlib.import_module("motif_balance.artifacts")
+    real_open = os.open
+    changed = False
+
+    def substitute_then_open(
+        file: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        *args: object,
+        **kwargs: object,
+    ) -> int:
+        nonlocal changed
+        if file == "candidates.tsv" and not changed:
+            changed = True
+            target = bundle / "candidates.tsv"
+            original = bundle / "candidates-original.tsv"
+            target.rename(original)
+            if substitution == "symlink":
+                target.symlink_to(original.name)
+            else:
+                target.write_bytes(original.read_bytes())
+        return real_open(file, flags, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(artifacts_module.os, "open", substitute_then_open)
+    with pytest.raises(ArtifactError, match=r"unsafe|changed during bundle snapshot"):
+        inspect_result(bundle, kind="bundle")
+
+
+def test_public_inspection_rejects_member_growth_during_snapshot(
+    tmp_path: Path,
+    pairwise_spec: DesignSpec,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle = tmp_path / "bundle"
+    design(pairwise_spec).write(bundle)
+    artifacts_module = importlib.import_module("motif_balance.artifacts")
+    target = bundle / "candidates.tsv"
+    target_inode = target.stat().st_ino
+    real_read = os.read
+    changed = False
+
+    def grow_then_read(descriptor: int, size: int) -> bytes:
+        nonlocal changed
+        if os.fstat(descriptor).st_ino == target_inode and not changed:
+            changed = True
+            with target.open("ab") as handle:
+                handle.write(b"x")
+        return real_read(descriptor, size)
+
+    monkeypatch.setattr(artifacts_module.os, "read", grow_then_read)
+    with pytest.raises(ArtifactError, match="changed during bundle snapshot"):
+        inspect_result(bundle, kind="bundle")
+
+
+def test_catalog_is_sorted_bounded_and_does_not_rank(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
 ) -> None:
@@ -105,11 +192,12 @@ def test_catalog_is_sorted_and_rejects_duplicate_or_invalid_ids(
     design(pairwise_spec).write(bundle)
     inspection = inspect_result(bundle, kind="bundle")
 
-    result = build_result_catalog({"zeta": inspection, "alpha": inspection})
+    catalog = build_result_catalog({"zeta": inspection, "alpha": inspection})
 
-    assert [entry.entry_id for entry in result.entries] == ["alpha", "zeta"]
-    assert "candidates" not in result.model_dump_json()
-    assert "does not rank" in catalog_html(result).decode()
+    assert catalog.schema_version == "motif-balance.result-catalog/v2"
+    assert [entry.entry_id for entry in catalog.entries] == ["alpha", "zeta"]
+    assert "candidates" not in catalog.model_dump_json()
+    assert "does not rank" in render_catalog_html(catalog).decode()
     with pytest.raises(ValueError, match="entry_id"):
         build_result_catalog({"Not Portable": inspection})
 
@@ -131,15 +219,7 @@ def test_inspection_rejects_cross_kind_trust_options(
         inspect_result(bundle, kind="unknown")  # type: ignore[arg-type]
 
 
-def test_public_result_schema_contains_only_supported_product_kinds() -> None:
-    schema = json.dumps(ResultInspection.model_json_schema(), sort_keys=True)
-
-    assert '"bundle"' in schema
-    assert '"execution"' in schema
-    assert '"unknown"' not in schema
-
-
-def test_distance_inspection_refuses_unbounded_exact_pairwise_work(
+def test_distance_projection_refuses_unbounded_pairwise_work(
     pairwise_spec: DesignSpec,
 ) -> None:
     candidate = design(pairwise_spec).candidates[0]
@@ -152,70 +232,36 @@ def test_distance_inspection_refuses_unbounded_exact_pairwise_work(
 
 
 @pytest.mark.parametrize(
-    ("payload", "message"),
+    ("model", "payload", "message"),
     [
         (
+            DistanceInspection,
             {"status": "exact", "base_comparisons": 4},
             "requires a value and candidate pair",
         ),
         (
-            {
-                "status": "not_applicable",
-                "base_comparisons": 0,
-                "actual_min_distance": 0.5,
-            },
-            "cannot report an exact result",
+            DeliveryInspection,
+            {"requested_count": 3, "delivered_count": 2, "status": "complete"},
+            "must reflect",
         ),
         (
-            {"status": "not_computed_limit", "base_comparisons": 10},
-            "requires work above",
+            IntegrityInspection,
+            {
+                "state": "self_consistent",
+                "trust_basis": "external_bundle_id",
+                "checked_identities": (),
+            },
+            "inconsistent",
         ),
     ],
 )
-def test_distance_inspection_rejects_incoherent_states(
+def test_inspection_models_reject_incoherent_states(
+    model: type[DistanceInspection] | type[DeliveryInspection] | type[IntegrityInspection],
     payload: dict[str, object],
     message: str,
 ) -> None:
     with pytest.raises(ValidationError, match=message):
-        DistanceInspection.model_validate(payload)
-
-
-def test_inspection_models_reject_incoherent_summaries(
-    tmp_path: Path,
-    pairwise_spec: DesignSpec,
-) -> None:
-    bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
-    inspection = inspect_result(bundle, kind="bundle")
-    portfolio_payload = inspection.result.portfolio.model_dump(mode="python")
-
-    for field, value, message in (
-        ("returned_count", 99, "returned_count"),
-        ("score_min", 0.0, "score_min"),
-        ("score_max", 99.0, "score_max"),
-    ):
-        with pytest.raises(ValidationError, match=message):
-            InspectionPortfolio.model_validate({**portfolio_payload, field: value})
-
-    inspection_payload = inspection.model_dump(mode="python")
-    with pytest.raises(ValidationError, match="trust fields"):
-        ResultInspection.model_validate(
-            {**inspection_payload, "integrity_status": "readable_untrusted"}
-        )
-    with pytest.raises(ValidationError, match="requires execution provenance"):
-        ResultInspection.model_validate(
-            {
-                **inspection_payload,
-                "subject_kind": "execution",
-                "integrity_status": "readable_untrusted",
-                "trust_basis": "self_consistent",
-            }
-        )
-    index_payload = inspection.result.model_dump(mode="python")
-    with pytest.raises(ValidationError, match="unique and sorted"):
-        ResultIndex.model_validate(
-            {**index_payload, "artifacts": tuple(reversed(index_payload["artifacts"]))}
-        )
+        model.model_validate(payload)
 
 
 def test_catalog_models_reject_incoherent_or_unbounded_entries(
@@ -224,8 +270,7 @@ def test_catalog_models_reject_incoherent_or_unbounded_entries(
 ) -> None:
     bundle = tmp_path / "bundle"
     design(pairwise_spec).write(bundle)
-    inspection = inspect_result(bundle, kind="bundle")
-    entry = build_result_catalog({"alpha": inspection}).entries[0]
+    entry = build_result_catalog({"alpha": inspect_result(bundle, kind="bundle")}).entries[0]
     payload = entry.model_dump(mode="python")
 
     for update, message in (
@@ -237,67 +282,34 @@ def test_catalog_models_reject_incoherent_or_unbounded_entries(
             CatalogEntry.model_validate({**payload, **update})
     with pytest.raises(ValidationError, match=r"1\.\.100"):
         ResultCatalog(entries=())
-    duplicate = entry.model_copy(update={"entry_id": "alpha"})
-    with pytest.raises(ValidationError, match="unique and sorted"):
-        ResultCatalog(entries=(duplicate, duplicate))
 
 
-def test_catalog_html_escapes_a_forged_problem_identifier(
+def test_renderers_escape_forged_identifiers(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
     design(pairwise_spec).write(bundle)
-    catalog = build_result_catalog({"alpha": inspect_result(bundle, kind="bundle")})
-    forged_entry = catalog.entries[0].model_copy(
-        update={"problem_id": '<script src="https://example.invalid/x.js"></script>'}
+    inspection = inspect_result(bundle, kind="bundle")
+    candidate = inspection.portfolio.candidates[0]
+    forged_candidate = candidate.model_copy(update={"candidate_id": '<script src="x"></script>'})
+    forged_portfolio = inspection.portfolio.model_copy(
+        update={"candidates": (forged_candidate, *inspection.portfolio.candidates[1:])}
     )
-    forged = catalog.model_copy(update={"entries": (forged_entry,)})
+    forged = inspection.model_copy(update={"portfolio": forged_portfolio})
 
-    html = catalog_html(forged).decode()
+    with pytest.raises(ArtifactError, match="invalid candidate identifier"):
+        render_html(forged)
 
+    catalog = build_result_catalog({"alpha": inspection})
+    entry = catalog.entries[0].model_copy(update={"problem_id": "<script>x</script>"})
+    html = render_catalog_html(catalog.model_copy(update={"entries": (entry,)})).decode()
     assert "<script" not in html
     assert "&lt;script" in html
 
 
-def test_html_progressive_view_bounds_large_tables(
-    tmp_path: Path,
-    pairwise_spec: DesignSpec,
-) -> None:
-    bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
-    inspection = inspect_result(bundle, kind="bundle")
-    candidate = inspection.result.portfolio.candidates[0]
-    expanded_portfolio = inspection.result.portfolio.model_copy(
-        update={"returned_count": 501, "candidates": (candidate,) * 501}
-    )
-    expanded_result = inspection.result.model_copy(update={"portfolio": expanded_portfolio})
-    expanded = inspection.model_copy(update={"result": expanded_result})
-
-    html = inspection_html(expanded).decode()
-
-    assert "Showing 500 of 501 candidates" in html
-    assert "Showing 1000 of 1002 matches" in html
-
-
-def test_html_rejects_a_forged_candidate_identifier(
-    tmp_path: Path,
-    pairwise_spec: DesignSpec,
-) -> None:
-    bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
-    inspection = inspect_result(bundle, kind="bundle")
-    candidate = inspection.result.portfolio.candidates[0]
-    forged_candidate = candidate.model_copy(
-        update={"candidate_id": '<script src="https://example.invalid/x.js"></script>'}
-    )
-    forged_portfolio = inspection.result.portfolio.model_copy(
-        update={
-            "candidates": (forged_candidate, *inspection.result.portfolio.candidates[1:]),
-        }
-    )
-    forged_result = inspection.result.model_copy(update={"portfolio": forged_portfolio})
-    forged = inspection.model_copy(update={"result": forged_result})
-
-    with pytest.raises(ArtifactError, match="invalid candidate identifier"):
-        inspection_html(forged)
+def test_public_result_schema_contains_only_supported_product_kinds() -> None:
+    schema = json.dumps(ResultInspection.model_json_schema(), sort_keys=True)
+    assert '"bundle"' in schema
+    assert '"execution"' in schema
+    assert '"unknown"' not in schema

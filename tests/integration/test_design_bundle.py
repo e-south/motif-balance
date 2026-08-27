@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from motif_balance import DesignSpec, design, read_portfolio, verify_bundle
+from motif_balance import DesignSpec, design
+from motif_balance.api import read_portfolio, verify_bundle
 from motif_balance.errors import ArtifactError
 
 
@@ -31,7 +32,6 @@ def test_synthetic_pairwise_design_is_deterministic_and_writes_canonical_bundle(
         "matches.tsv",
         "manifest.json",
         "candidates.fasta",
-        "report.html",
     }
     assert verify_bundle(output) == first.manifest.bundle_id
     assert (
@@ -50,7 +50,6 @@ def test_synthetic_pairwise_design_is_deterministic_and_writes_canonical_bundle(
         "design.json",
         "matches.tsv",
         "motifs.json",
-        "report.html",
     }
 
 

@@ -7,7 +7,7 @@ audience:
   - CLI users
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: tutorial
 journey:
   - install
@@ -27,10 +27,10 @@ uv run motif-balance --help
 ```
 
 A released wheel can instead be installed into a clean environment with
-`uv pip install /path/to/motif_balance-0.2.0a3-py3-none-any.whl`. Installation
+`uv pip install /path/to/motif_balance-0.3.0a1-py3-none-any.whl`. Installation
 by package name is not supported during the prerelease.
 
-## Validate, design, and verify
+## Validate, design, and inspect
 
 The bundled example uses synthetic motif models:
 
@@ -38,10 +38,11 @@ The bundled example uses synthetic motif models:
 uv run motif-balance design examples/synthetic-pairwise/design.yaml --check
 uv run motif-balance design examples/synthetic-pairwise/design.yaml \
   --out /tmp/motif-balance-result
-uv run motif-balance verify /tmp/motif-balance-result
-uv run motif-balance inspect /tmp/motif-balance-result --kind bundle
-uv run motif-balance inspect /tmp/motif-balance-result --kind bundle \
+uv run motif-balance inspect /tmp/motif-balance-result
+uv run motif-balance inspect /tmp/motif-balance-result \
   --format html --out /tmp/motif-balance-review.html
+uv run motif-balance inspect /tmp/motif-balance-result \
+  --format svg --view candidate --out /tmp/motif-balance-candidate.svg
 ```
 
 `--check` resolves motif references, validates resource bounds, compiles the
@@ -49,16 +50,16 @@ scoring problem, and reports whether search will be exhaustive or annealed. It
 does not search or write a result.
 
 The design command writes a new directory atomically. Choose another path if
-the destination already exists. A successful directory contains the canonical
-JSON and TSV files plus derived FASTA and HTML views. Always verify it before
-reading a table; supply `--expected-bundle-id` when the identity came from an
-independent channel.
+the destination already exists. A successful directory contains the five
+canonical JSON and TSV files plus a derived FASTA member. `inspect` verifies
+the bundle before reading it; supply `--expected-bundle-id` when the identity
+came from an independent channel.
 
-Open `/tmp/motif-balance-review.html` for the shortest visual walkthrough. It
-shows the method sequence, best motif-match coordinates for the top candidate,
-within-portfolio motif scores, and best-so-far recorded search checkpoints.
-The file is a bounded, script-free projection created after verification. It is
-not part of the bundle and cannot change its identity.
+Open `/tmp/motif-balance-review.html` for the optional linear walkthrough. It
+separates delivery, search completion, and integrity; then shows exact duplex
+placement, the candidate-by-motif balance matrix, and the recorded running
+maximum of the hard score. The SVG is the smaller vector review artifact.
+Both are bounded, script-free projections outside the bundle.
 
 ## If it fails
 

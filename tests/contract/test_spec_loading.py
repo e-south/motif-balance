@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from motif_balance import load_spec, read_motif
+from motif_balance.api import load_spec
 from motif_balance.errors import InvalidDesign, InvalidMotif
+from motif_balance.formats import read_motif
 
 
 def test_load_spec_resolves_relative_motif_file(tmp_path: Path) -> None:

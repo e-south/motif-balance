@@ -6,26 +6,26 @@ from pathlib import Path
 
 import pytest
 
-from motif_balance import DesignSpec, Portfolio, design, verify_bundle
-from motif_balance.api import _bundle_payloads
+from motif_balance import DesignSpec, Portfolio, design
+from motif_balance.api import _bundle_payloads, verify_bundle
 from motif_balance.artifacts import artifact_records, bundle_id, manifest_bytes
 from motif_balance.errors import ArtifactError
 from motif_balance.model import ArtifactDigest, RunManifest
 
 
-def test_resealed_derived_report_still_fails_semantic_replay(
+def test_resealed_derived_fasta_still_fails_semantic_replay(
     pairwise_spec: DesignSpec,
     tmp_path: Path,
 ) -> None:
     output = tmp_path / "result"
     design(pairwise_spec).write(output)
-    report = output / "report.html"
-    replacement = b"<html><body>unsupported claim</body></html>\n"
-    report.write_bytes(replacement)
+    fasta = output / "candidates.fasta"
+    replacement = b">forged\nAAAA\n"
+    fasta.write_bytes(replacement)
 
     manifest_path = output / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
-    manifest["artifacts"]["report.html"] = {
+    manifest["artifacts"]["candidates.fasta"] = {
         "sha256": hashlib.sha256(replacement).hexdigest(),
         "bytes": len(replacement),
     }

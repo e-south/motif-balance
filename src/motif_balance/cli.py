@@ -19,21 +19,35 @@ from motif_balance.api import (
     execute_design_workspace,
     inspect_result,
     load_spec,
-    render_bundle_report,
     render_inspection_html,
+    render_inspection_json,
+    render_inspection_svg,
     render_result_catalog_html,
+    score,
     summarize_inspection,
-    verify_bundle,
-    verify_execution_workspace,
 )
 from motif_balance.errors import ArtifactError, InvalidDesign, InvalidMotif, MotifBalanceError
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
+integration_app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    pretty_exceptions_enable=False,
+)
+motif_app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
+orchestration_app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    pretty_exceptions_enable=False,
+)
+app.add_typer(integration_app, name="integration", hidden=True)
+app.add_typer(motif_app, name="motif", hidden=True)
+app.add_typer(orchestration_app, name="orchestration", hidden=True)
 
 
 @app.callback()
 def root() -> None:
-    """Design fixed-length DNA sequences against explicit motif models."""
+    """Design, score, and inspect fixed-length DNA sequences against motif models."""
 
 
 def _validation_error(exc: ValidationError, *, domain: str) -> MotifBalanceError:
@@ -83,90 +97,6 @@ def _emit_error(exc: Exception, *, debug: bool, domain: str) -> NoReturn:
     raise typer.Exit(code=2)
 
 
-@app.command("design")
-def design_command(
-    specification: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
-    out: Annotated[Path | None, typer.Option("--out", help="Immutable output directory.")] = None,
-    check: Annotated[
-        bool, typer.Option("--check", help="Compile and validate without search.")
-    ] = False,
-    debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
-) -> None:
-    """Compile or execute one immutable scientific design specification."""
-    try:
-        spec = load_spec(specification)
-        problem_id = compile_spec(spec)
-        if check:
-            search_kind = _planned_search_kind(spec)
-            typer.echo(f"valid {problem_id}")
-            typer.echo(
-                f"motifs={len(spec.motifs)} length={spec.length} count={spec.count} "
-                f"strands={spec.strands} evaluations={spec.evaluations} "
-                f"min_distance={spec.min_distance} search={search_kind}"
-            )
-            return
-        if out is None:
-            raise InvalidDesign(
-                "--out is required unless --check is used.",
-                field="out",
-                hint="Supply a new output directory with --out.",
-            )
-        portfolio = design(spec)
-        portfolio.write(out)
-        typer.echo(f"complete {portfolio.manifest.bundle_id} {out}")
-    except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
-        _emit_error(exc, debug=debug, domain="design")
-
-
-@app.command("verify")
-def verify_command(
-    bundle: Annotated[Path, typer.Argument(exists=True, file_okay=False, readable=True)],
-    expected_bundle_id: Annotated[
-        str | None,
-        typer.Option("--expected-bundle-id", help="Externally trusted bundle identity."),
-    ] = None,
-    debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
-) -> None:
-    """Verify bytes, schemas, identities, and scientific replay."""
-    try:
-        identity = verify_bundle(bundle, expected_bundle_id=expected_bundle_id)
-        typer.echo(f"valid {identity}")
-    except (MotifBalanceError, ValidationError, ValueError) as exc:
-        _emit_error(exc, debug=debug, domain="artifact")
-
-
-@app.command("render-report")
-def render_report_command(
-    bundle: Annotated[Path, typer.Argument(exists=True, file_okay=False, readable=True)],
-    out: Annotated[Path, typer.Option("--out", help="New HTML report path.")],
-    debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
-) -> None:
-    """Regenerate a report from a verified canonical bundle."""
-    try:
-        bundle_id = render_bundle_report(bundle, out)
-        typer.echo(f"complete {bundle_id} {out}")
-    except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
-        _emit_error(exc, debug=debug, domain="artifact")
-
-
-def _inspection_payload(
-    value: ResultInspection | ResultCatalog,
-    *,
-    format_name: str,
-) -> bytes:
-    if format_name == "json":
-        return (value.model_dump_json(indent=2) + "\n").encode()
-    if isinstance(value, ResultCatalog):
-        if format_name == "html":
-            return render_result_catalog_html(value)
-        raise ArtifactError("result catalogs support JSON or HTML output")
-    if format_name == "text":
-        return summarize_inspection(value).encode()
-    if format_name == "html":
-        return render_inspection_html(value)
-    raise ArtifactError(f"unsupported inspection format '{format_name}'")
-
-
 def _publish_or_emit(
     payload: bytes,
     out: Path | None,
@@ -186,17 +116,119 @@ def _publish_or_emit(
     _write_new_file(out, payload, label="inspection output")
 
 
+@app.command("design")
+def design_command(
+    specification: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
+    out: Annotated[Path | None, typer.Option("--out", help="Immutable output directory.")] = None,
+    check: Annotated[
+        bool, typer.Option("--check", help="Compile and validate without search.")
+    ] = False,
+    debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
+) -> None:
+    """Validate or execute one immutable DesignSpec."""
+
+    try:
+        spec = load_spec(specification)
+        problem_id = compile_spec(spec)
+        if check:
+            typer.echo(f"valid {problem_id}")
+            typer.echo(
+                f"motifs={len(spec.motifs)} length={spec.length} count={spec.count} "
+                f"strands={spec.strands} evaluations={spec.evaluations} "
+                f"min_distance={spec.min_distance} search={_planned_search_kind(spec)}"
+            )
+            return
+        if out is None:
+            raise InvalidDesign(
+                "--out is required unless --check is used.",
+                field="out",
+                hint="Supply a new output directory with --out.",
+            )
+        portfolio = design(spec)
+        portfolio.write(out)
+        typer.echo(f"complete {portfolio.manifest.bundle_id} {out}")
+    except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
+        _emit_error(exc, debug=debug, domain="design")
+
+
+@app.command("score")
+def score_command(
+    specification: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
+    sequence: Annotated[str, typer.Argument(help="Exact A/C/G/T sequence to score.")],
+    format_name: Annotated[
+        Literal["text", "json"],
+        typer.Option("--format", help="Terminal or machine-readable result."),
+    ] = "text",
+    out: Annotated[Path | None, typer.Option("--out", help="New output file.")] = None,
+    debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
+) -> None:
+    """Score one sequence under an explicit DesignSpec."""
+
+    try:
+        evaluation = score(sequence, load_spec(specification))
+        if format_name == "json":
+            payload = (evaluation.model_dump_json(indent=2) + "\n").encode()
+        else:
+            matches = "\n".join(
+                f"{match.motif_id}: normalized={match.normalized_score:.17g} "
+                f"raw={match.raw_score:.17g} strand={match.strand} "
+                f"coordinates=[{match.start}, {match.end})"
+                for match in evaluation.matches
+            )
+            payload = (
+                f"balance_score={evaluation.balance_score:.17g}\n"
+                f"sequence={evaluation.sequence}\n{matches}\n"
+            ).encode()
+        _publish_or_emit(payload, out)
+    except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
+        _emit_error(exc, debug=debug, domain="design")
+
+
+def _inspection_payload(
+    value: ResultInspection | ResultCatalog,
+    *,
+    format_name: Literal["text", "json", "html", "svg"],
+    view: Literal["candidate", "portfolio", "search"] | None = None,
+    candidate_rank: int = 1,
+) -> bytes:
+    if isinstance(value, ResultCatalog):
+        if format_name == "json":
+            return (value.model_dump_json(indent=2) + "\n").encode()
+        if format_name == "html":
+            return render_result_catalog_html(value)
+        raise ArtifactError("integration catalogs support JSON or HTML output")
+    if format_name == "text":
+        return summarize_inspection(value).encode()
+    if format_name == "json":
+        return render_inspection_json(value)
+    if format_name == "html":
+        return render_inspection_html(value)
+    if format_name == "svg":
+        if view is None:
+            raise ArtifactError("SVG inspection requires --view candidate, portfolio, or search")
+        return render_inspection_svg(value, view=view, candidate_rank=candidate_rank)
+    raise ArtifactError(f"unsupported inspection format '{format_name}'")
+
+
 @app.command("inspect")
 def inspect_command(
     subject: Annotated[Path, typer.Argument(exists=True, file_okay=False, readable=True)],
-    kind: Annotated[
+    source: Annotated[
         Literal["bundle", "execution"],
-        typer.Option("--kind", help="Explicit artifact contract; never inferred."),
-    ],
+        typer.Option("--source", help="Explicit result source contract."),
+    ] = "bundle",
     format_name: Annotated[
-        Literal["text", "json", "html"],
-        typer.Option("--format", help="Read-only projection format."),
+        Literal["text", "json", "html", "svg"],
+        typer.Option("--format", help="Review projection format."),
     ] = "text",
+    view: Annotated[
+        Literal["candidate", "portfolio", "search"] | None,
+        typer.Option("--view", help="Required only for SVG output."),
+    ] = None,
+    candidate_rank: Annotated[
+        int,
+        typer.Option("--candidate", min=1, help="Candidate rank for the candidate SVG."),
+    ] = 1,
     out: Annotated[Path | None, typer.Option("--out", help="New derived output file.")] = None,
     expected_bundle_id: Annotated[str | None, typer.Option("--expected-bundle-id")] = None,
     expected_workspace_id: Annotated[str | None, typer.Option("--expected-workspace-id")] = None,
@@ -211,11 +243,22 @@ def inspect_command(
     ] = None,
     debug: Annotated[bool, typer.Option("--debug")] = False,
 ) -> None:
-    """Inspect one explicit result contract without modifying its source."""
+    """Verify and review one immutable result."""
+
     try:
+        if format_name in {"html", "svg"} and out is None:
+            raise ArtifactError(
+                f"--out is required for {format_name.upper()} inspection.",
+                field="out",
+                hint="Choose a new file outside the inspected result.",
+            )
+        if format_name != "svg" and view is not None:
+            raise ArtifactError("--view is valid only with --format svg")
+        if view != "candidate" and candidate_rank != 1:
+            raise ArtifactError("--candidate is valid only for the candidate SVG view")
         result = inspect_result(
             subject,
-            kind=kind,
+            kind=source,
             expected_bundle_id=expected_bundle_id,
             expected_workspace_id=expected_workspace_id,
             expected_receipt_sha256=expected_receipt_sha256,
@@ -223,9 +266,34 @@ def inspect_command(
             expected_producer_revision=expected_producer_revision,
         )
         _publish_or_emit(
-            _inspection_payload(result, format_name=format_name),
+            _inspection_payload(
+                result,
+                format_name=format_name,
+                view=view,
+                candidate_rank=candidate_rank,
+            ),
             out,
             subject_roots=(subject,),
+        )
+    except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
+        _emit_error(exc, debug=debug, domain="artifact")
+
+
+@app.command("render-report", hidden=True, deprecated=True)
+def render_report_alias(
+    bundle: Annotated[Path, typer.Argument(exists=True, file_okay=False, readable=True)],
+    out: Annotated[Path, typer.Option("--out", help="New HTML review path.")],
+    debug: Annotated[bool, typer.Option("--debug")] = False,
+) -> None:
+    """Deprecated alias for inspect --format html."""
+
+    typer.echo("deprecated: use 'motif-balance inspect RESULT --format html --out FILE'", err=True)
+    try:
+        result = inspect_result(bundle, kind="bundle")
+        _publish_or_emit(
+            render_inspection_html(result),
+            out,
+            subject_roots=(bundle,),
         )
     except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
         _emit_error(exc, debug=debug, domain="artifact")
@@ -239,34 +307,32 @@ def _catalog_entry(value: str) -> tuple[str, Literal["bundle", "execution"], Pat
     return entry_id, kind, Path(raw_path)  # type: ignore[return-value]
 
 
-@app.command("catalog")
+@integration_app.command("catalog")
 def catalog_command(
-    entries: Annotated[
-        list[str],
-        typer.Option("--entry", help="Explicit ID=KIND:PATH result reference; repeatable."),
-    ],
-    format_name: Annotated[
-        Literal["json", "html"],
-        typer.Option("--format", help="Derived catalog projection format."),
-    ] = "json",
-    out: Annotated[Path | None, typer.Option("--out", help="New derived catalog output.")] = None,
+    entries: Annotated[list[str], typer.Option("--entry", help="Explicit ID=KIND:PATH reference.")],
+    format_name: Annotated[Literal["json", "html"], typer.Option("--format")] = "json",
+    out: Annotated[Path | None, typer.Option("--out")] = None,
     debug: Annotated[bool, typer.Option("--debug")] = False,
 ) -> None:
-    """Build a deterministic catalog from explicit read-only inspections."""
+    """Build a developer catalog from explicit result references."""
+
     try:
         if not entries:
             raise ArtifactError("catalog requires at least one --entry")
-        inspected = {}
-        subject_roots = []
+        inspected: dict[str, ResultInspection] = {}
+        roots: list[Path] = []
         for raw in entries:
             entry_id, kind, path = _catalog_entry(raw)
             if entry_id in inspected:
                 raise ArtifactError(f"duplicate catalog entry identifier '{entry_id}'")
             inspected[entry_id] = inspect_result(path, kind=kind)
-            subject_roots.append(path)
+            roots.append(path)
         result = build_result_catalog(inspected)
-        payload = _inspection_payload(result, format_name=format_name)
-        _publish_or_emit(payload, out, subject_roots=tuple(subject_roots))
+        _publish_or_emit(
+            _inspection_payload(result, format_name=format_name),
+            out,
+            subject_roots=tuple(roots),
+        )
     except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
         _emit_error(exc, debug=debug, domain="artifact")
 
@@ -289,22 +355,17 @@ def _background(value: str) -> tuple[float, float, float, float]:
     return parsed[0], parsed[1], parsed[2], parsed[3]
 
 
-@app.command("convert-motif")
-def convert_motif_command(
+@motif_app.command("prepare")
+def prepare_motif_command(
     source: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
-    motif_id: Annotated[str, typer.Option("--motif-id", help="Canonical output motif ID.")],
-    background: Annotated[
-        str,
-        typer.Option("--background", help="Explicit A,C,G,T background frequencies."),
-    ],
-    prior_weight: Annotated[
-        float,
-        typer.Option("--prior-weight", min=0.0, help="Explicit probability-mixture weight."),
-    ],
-    out: Annotated[Path, typer.Option("--out", help="New canonical YAML model path.")],
-    debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
+    motif_id: Annotated[str, typer.Option("--motif-id")],
+    background: Annotated[str, typer.Option("--background")],
+    prior_weight: Annotated[float, typer.Option("--prior-weight", min=0.0)],
+    out: Annotated[Path, typer.Option("--out")],
+    debug: Annotated[bool, typer.Option("--debug")] = False,
 ) -> None:
-    """Convert one JASPAR count matrix under explicit scientific semantics."""
+    """Prepare one canonical motif model from a supported source file."""
+
     try:
         motif = convert_motif(
             source,
@@ -316,41 +377,25 @@ def convert_motif_command(
             motif.model_dump(mode="json", exclude_none=True),
             sort_keys=False,
         ).encode()
-        try:
-            with out.open("xb") as handle:
-                handle.write(payload)
-        except FileExistsError as exc:
-            raise ArtifactError(
-                f"Refusing to replace existing motif model '{out.name}'.",
-                field="out",
-                hint="Choose a new output path.",
-            ) from exc
+        _write_new_file(out, payload, label="motif model")
         typer.echo(f"complete {motif.model_digest} {out}")
     except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
         _emit_error(exc, debug=debug, domain="motif")
 
 
-@app.command("execute")
+@orchestration_app.command("execute")
 def execute_command(
     specification: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
-    producer_revision: Annotated[
-        str,
-        typer.Option("--producer-revision", help="Exact 40-character source revision."),
-    ],
+    producer_revision: Annotated[str, typer.Option("--producer-revision")],
     release_artifact: Annotated[
         Path,
-        typer.Option(
-            "--release-artifact",
-            exists=True,
-            dir_okay=False,
-            readable=True,
-            help="Exact wheel whose package tree must match the running implementation.",
-        ),
+        typer.Option("--release-artifact", exists=True, dir_okay=False, readable=True),
     ],
-    out: Annotated[Path, typer.Option("--out", help="New atomic execution workspace.")],
-    debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
+    out: Annotated[Path, typer.Option("--out")],
+    debug: Annotated[bool, typer.Option("--debug")] = False,
 ) -> None:
-    """Execute design and atomically publish input, release, bundle, and receipt."""
+    """Publish one release-attested execution workspace."""
+
     try:
         workspace = execute_design_workspace(
             specification,
@@ -361,29 +406,6 @@ def execute_command(
         typer.echo(f"complete {workspace.workspace_id} {out}")
     except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
         _emit_error(exc, debug=debug, domain="design")
-
-
-@app.command("verify-execution")
-def verify_execution_command(
-    workspace: Annotated[Path, typer.Argument(exists=True, file_okay=False, readable=True)],
-    expected_workspace_id: Annotated[str, typer.Option("--expected-workspace-id")],
-    expected_receipt_sha256: Annotated[str, typer.Option("--expected-receipt-sha256")],
-    expected_release_sha256: Annotated[str, typer.Option("--expected-release-sha256")],
-    expected_producer_revision: Annotated[str, typer.Option("--expected-producer-revision")],
-    debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
-) -> None:
-    """Verify an execution workspace against externally trusted identities."""
-    try:
-        identity = verify_execution_workspace(
-            workspace,
-            expected_workspace_id=expected_workspace_id,
-            expected_receipt_sha256=expected_receipt_sha256,
-            expected_release_sha256=expected_release_sha256,
-            expected_producer_revision=expected_producer_revision,
-        )
-        typer.echo(f"valid {identity}")
-    except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
-        _emit_error(exc, debug=debug, domain="artifact")
 
 
 def main() -> Any:
