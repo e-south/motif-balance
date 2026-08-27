@@ -24,6 +24,6 @@ private datasets, application-specific identities, credentials, local paths,
 or generated output from neighboring repositories. See
 [the security policy](SECURITY.md) for sensitive reports.
 
-Private release preparation and independent download verification use the
+Prerelease preparation and independent download verification use the
 single owner command documented in the
-[private prerelease procedure](docs/reference/private-prerelease.md).
+[prerelease procedure](docs/reference/prerelease.md).

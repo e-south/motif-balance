@@ -37,7 +37,7 @@ and its declared distribution metadata, and validates every `RECORD` digest.
 It publishes through a temporary sibling directory, self-verifies the completed
 workspace, and refuses an existing destination. Attestation proves which
 package bytes ran. The producer revision remains an externally supplied release
-identity and must be checked against the private release record; it is not
+identity and must be checked against the release record; it is not
 derived from the wheel. Attestation does not certify downstream acceptance or
 comparison quality.
 

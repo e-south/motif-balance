@@ -1,4 +1,4 @@
-"""Contracts for immutable private-prerelease build attestations."""
+"""Contracts for immutable prerelease build attestations."""
 
 from __future__ import annotations
 
@@ -293,10 +293,10 @@ def test_repository_subject_rejects_dirty_source_and_lightweight_tag(tmp_path: P
 
 def test_release_workflow_and_manual_path_share_one_preparation_command() -> None:
     workflow = (REPO_ROOT / ".github/workflows/release.yaml").read_text(encoding="utf-8")
-    preparation = REPO_ROOT / "scripts/prepare-private-prerelease"
+    preparation = REPO_ROOT / "scripts/prepare-prerelease"
 
     assert preparation.is_file()
-    assert "bash ./scripts/prepare-private-prerelease" in workflow
+    assert "bash ./scripts/prepare-prerelease" in workflow
     assert '--out "${RUNNER_TEMP}/motif-balance-dist"' in workflow
     assert "path: ${{ runner.temp }}/motif-balance-dist/" in workflow
     assert "gh release create" not in workflow
@@ -322,7 +322,7 @@ def test_release_preparation_rejects_relative_output_before_build() -> None:
     completed = subprocess.run(
         [
             "bash",
-            "./scripts/prepare-private-prerelease",
+            "./scripts/prepare-prerelease",
             "--out",
             "dist-release",
             "--builder-kind",

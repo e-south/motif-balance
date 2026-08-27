@@ -186,4 +186,4 @@ uv run --locked python scripts/release_attestation.py verify \
 test -f "$out_dir/release-build-attestation.json"
 test -f "$out_dir/SHA256SUMS"
 
-echo "Private prerelease assets prepared: $out_dir"
+echo "Prerelease assets prepared: $out_dir"

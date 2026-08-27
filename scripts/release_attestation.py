@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create and verify immutable Motif Balance private-release attestations."""
+"""Create and verify immutable Motif Balance prerelease attestations."""
 
 from __future__ import annotations
 
