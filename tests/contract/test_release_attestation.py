@@ -301,7 +301,13 @@ def test_release_workflow_and_manual_path_share_one_preparation_command() -> Non
     assert "path: ${{ runner.temp }}/motif-balance-dist/" in workflow
     assert "gh release create" not in workflow
     preparation_text = preparation.read_text(encoding="utf-8")
-    assert "git archive --format=tar HEAD" in preparation_text
+    release_revision = preparation_text.index('release_revision="$(git rev-parse HEAD)"')
+    verification = preparation_text.index("bash ./scripts/agent-verify")
+    archive = preparation_text.index('git archive --format=tar "$release_revision"')
+    output_creation = preparation_text.index('mkdir -- "$out_dir"')
+    assert release_revision < verification < archive
+    assert output_creation < verification
+    assert 'mkdir -p "$out_dir"' not in preparation_text
     assert "release-build-attestation.json" in preparation_text
     assert "SHA256SUMS" in preparation_text
 
