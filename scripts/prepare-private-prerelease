@@ -76,7 +76,11 @@ out_identity="$(output_identity)"
 release_revision="$(git rev-parse HEAD)"
 git merge-base --is-ancestor "$release_revision" origin/main
 
-version="$(python3 -c 'import subprocess,sys,tomllib; raw=subprocess.check_output(["git","show",f"{sys.argv[1]}:pyproject.toml"],text=True); print(tomllib.loads(raw)["project"]["version"])' "$release_revision")"
+version="$(
+  git show "${release_revision}:pyproject.toml" |
+    uv run --locked python -c \
+      'import sys,tomllib; print(tomllib.loads(sys.stdin.read())["project"]["version"])'
+)"
 uv run --locked python -c \
   'import re,sys; assert re.fullmatch(r"[0-9]+(?:\.[0-9]+){2}(?:a|b|rc)[0-9]+", sys.argv[1])' \
   "$version"
