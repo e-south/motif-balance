@@ -32,16 +32,12 @@ jobs:
       - name: Verify release commit is on main
         run: |
           git merge-base --is-ancestor "${GITHUB_SHA}" origin/main
-      - name: Verify repository
-        run: bash ./scripts/agent-verify
-      - name: Build distributions without workspace sources
-        run: uv build --no-sources
-      - name: Verify exact release distributions
-        env:
-          MOTIF_BALANCE_PRODUCER_REVISION: ${{ github.sha }}
-        run: bash ./scripts/wheel-smoke dist
-      - name: Record checksums
-        run: (cd dist && sha256sum *.whl *.tar.gz > SHA256SUMS)
+      - name: Prepare attested private prerelease
+        run: >-
+          bash ./scripts/prepare-private-prerelease
+          --out dist
+          --builder-kind github_actions
+          --limitation independent_rebuild_not_performed
       - name: Stage verified distributions
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

@@ -46,7 +46,10 @@ content. Network access stays outside the deterministic core.
 ## Reporting and release
 
 Report vulnerabilities through a private GitHub Security Advisory. Before any
-GitHub release, run `bash ./scripts/agent-verify`, inspect wheel and source-
-distribution contents, review dependency and code scans, and verify the exact
-artifacts in a clean environment. Never put sensitive sequences or credentials
-in an issue or diagnostic attachment.
+GitHub release, use the
+[private prerelease procedure](docs/reference/private-prerelease.md). It runs
+the owner gate, inspects and smoke-tests the exact distributions, records
+available dependency and code-review evidence, and binds unavailable checks as
+explicit attestation limitations. Independently download and verify the
+unchanged release assets before publishing the draft. Never put sensitive
+sequences or credentials in an issue or diagnostic attachment.
