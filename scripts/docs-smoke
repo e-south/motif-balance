@@ -68,12 +68,9 @@ for view in candidate portfolio search; do
   fi
 done
 grep -Fq 'id="primary-sequence"' "$smoke_root/candidate.svg"
+grep -Fq 'id="motif-models"' "$smoke_root/candidate.svg"
 grep -Fq 'id="score-matrix"' "$smoke_root/portfolio.svg"
 grep -Fq 'id="search-record"' "$smoke_root/search.svg"
 cmp "$smoke_root/candidate.svg" examples/synthetic-pairwise/candidate-review.svg
-
-uv run --locked motif-balance integration catalog \
-  --entry smoke=bundle:"$smoke_root/result" \
-  --format html --out "$smoke_root/catalog.html" >/dev/null
 
 echo "Documentation smoke: ok"

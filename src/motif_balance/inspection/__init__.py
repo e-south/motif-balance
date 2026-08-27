@@ -1,64 +1,6 @@
-from .catalog import CatalogEntry, ResultCatalog, build_catalog, render_catalog_html
-from .model import (
-    DeliveryInspection,
-    DistanceInspection,
-    ExecutionInspection,
-    InspectionArtifact,
-    InspectionCandidate,
-    InspectionMatch,
-    InspectionMotif,
-    InspectionPortfolio,
-    InspectionProblem,
-    InspectionRun,
-    IntegrityInspection,
-    LimitingMotifCount,
-    PositionSupport,
-    ResultInspection,
-    SearchInspection,
-)
-from .project import (
-    project_candidate,
-    project_execution,
-    project_result,
-)
-from .render import (
-    render_candidate_svg,
-    render_html,
-    render_inspection_json,
-    render_portfolio_svg,
-    render_search_svg,
-    render_text,
-)
-from .verify import VerifiedResultSource
+"""Intentional advanced contract for reviewing one immutable result."""
 
-__all__ = [
-    "CatalogEntry",
-    "DeliveryInspection",
-    "DistanceInspection",
-    "ExecutionInspection",
-    "InspectionArtifact",
-    "InspectionCandidate",
-    "InspectionMatch",
-    "InspectionMotif",
-    "InspectionPortfolio",
-    "InspectionProblem",
-    "InspectionRun",
-    "IntegrityInspection",
-    "LimitingMotifCount",
-    "PositionSupport",
-    "ResultCatalog",
-    "ResultInspection",
-    "SearchInspection",
-    "VerifiedResultSource",
-    "build_catalog",
-    "project_candidate",
-    "project_execution",
-    "project_result",
-    "render_candidate_svg",
-    "render_catalog_html",
-    "render_html",
-    "render_inspection_json",
-    "render_portfolio_svg",
-    "render_search_svg",
-    "render_text",
-]
+from .api import inspect_result
+from .model import ResultInspection
+
+__all__ = ["ResultInspection", "inspect_result"]

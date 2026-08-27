@@ -7,8 +7,13 @@ from pathlib import Path
 import pytest
 
 from motif_balance import DesignSpec, Portfolio, design
-from motif_balance.api import _bundle_payloads, verify_bundle
-from motif_balance.artifacts import artifact_records, bundle_id, manifest_bytes
+from motif_balance.artifacts import (
+    artifact_records,
+    base_artifact_payloads,
+    bundle_id,
+    manifest_bytes,
+    verify_bundle,
+)
 from motif_balance.errors import ArtifactError
 from motif_balance.model import ArtifactDigest, RunManifest
 
@@ -60,7 +65,7 @@ def test_resealed_scientific_scores_fail_authoritative_scoring_replay(
         )
         for candidate in portfolio.candidates
     )
-    payloads = _bundle_payloads(pairwise_spec, forged_candidates)
+    payloads = base_artifact_payloads(pairwise_spec, forged_candidates)
     for path, payload in payloads.items():
         (output / path).write_bytes(payload)
     artifacts = artifact_records(payloads)
@@ -89,7 +94,7 @@ def test_publication_rejects_caller_forged_scientific_state(
         )
         for candidate in portfolio.candidates
     )
-    payloads = _bundle_payloads(pairwise_spec, forged_candidates)
+    payloads = base_artifact_payloads(pairwise_spec, forged_candidates)
     provisional = portfolio.manifest.model_copy(update={"artifacts": artifact_records(payloads)})
     forged_manifest = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
     forged = Portfolio.model_validate(

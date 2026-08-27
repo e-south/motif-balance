@@ -35,7 +35,6 @@ verify, or inspect that operation.
 | What crosses a repository boundary? | canonical bundle | `run-manifest/v3` |
 | Which released bytes performed a run? | execution workspace | `motif-balance.execution-workspace/v1` |
 | How is one result explained without mutation? | `ResultInspection` | `motif-balance.result-inspection/v2` |
-| How are explicit result references browsed together? | integration catalog | `motif-balance.result-catalog/v2` |
 
 ## Ontology
 
@@ -101,7 +100,10 @@ state traces are not product artifacts.
 
 Selection ranks immutable evaluations by descending balance score and then
 sequence. It applies the declared distance rule without relaxation. It returns
-the exact requested count or raises a structured `SearchExhausted` error.
+the exact requested count or raises a typed `SearchBudgetExhausted`,
+`PortfolioInfeasible`, or `SelectionLimitReached` failure. The last state means
+the bounded subset traversal did not resolve feasibility; it is not proof that
+no feasible portfolio exists.
 
 ## Artifact contract
 
@@ -134,10 +136,9 @@ execution. Verification and score replay produce `ResultInspection`; every
 renderer consumes only that projection. A renderer cannot read a workspace,
 rescan a sequence, recompute a score, contact a network, compare runs, or
 accept evidence. It therefore cannot create a circular artifact identity.
-A hidden integration catalog joins only explicit inspection records; it does
-not discover Storage, choose a benchmark cohort, or accept evidence. These
-operational views expose the product ontology without adding another scientific
-noun or workspace authority.
+Inspection is deliberately limited to one explicit result. Joining results,
+discovering Storage, choosing a benchmark cohort, and accepting evidence remain
+outside the package.
 
 ## Product boundary
 
@@ -159,7 +160,6 @@ the route their task requires:
 - concepts and first design for users;
 - model, specification, and result references for scientific interpretation;
 - public contract and bundle verification for integrators;
-- [result inspection](docs/reference/result-inspection.md) for read-only review
-  and explicit catalogs;
+- [result inspection](docs/reference/result-inspection.md) for read-only review;
 - this IA, [architecture](ARCHITECTURE.md), and [engineering contracts](DESIGN.md)
   for maintainers.

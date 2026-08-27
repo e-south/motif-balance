@@ -169,15 +169,7 @@ for view in candidate portfolio search; do
   cmp "$smoke_root/source-${view}.svg" "$smoke_root/wheel-${view}.svg"
 done
 
-uv run --locked motif-balance integration catalog \
-  --entry smoke=bundle:"$smoke_root/source-result" \
-  --out "$smoke_root/source-catalog.json" >/dev/null
-"$smoke_root/venv/bin/motif-balance" integration catalog \
-  --entry smoke=bundle:"$smoke_root/wheel-result" \
-  --out "$smoke_root/wheel-catalog.json" >/dev/null
-cmp "$smoke_root/source-catalog.json" "$smoke_root/wheel-catalog.json"
-
-behavior_program='import json,sys; import motif_balance as m; import motif_balance.api as a; spec=a.load_spec(sys.argv[1]); portfolio=a.read_portfolio(sys.argv[2]); inspection=a.inspect_result(sys.argv[2],kind="bundle",expected_bundle_id=portfolio.manifest.bundle_id); result={"problem_id":a.compile_spec(spec),"evaluation":m.score("AT",spec).model_dump(mode="json"),"portfolio_id":portfolio.manifest.bundle_id,"catalog":a.build_result_catalog({"smoke":inspection}).model_dump(mode="json")}; print(json.dumps(result,sort_keys=True))'
+behavior_program='import json,sys; import motif_balance as m; from motif_balance.artifacts import read_verified_portfolio; from motif_balance.compile import compile_design; from motif_balance.formats.design import load_design_spec; from motif_balance.inspection import inspect_result; spec=load_design_spec(sys.argv[1]); portfolio=read_verified_portfolio(sys.argv[2]); inspection=inspect_result(sys.argv[2],kind="bundle",expected_bundle_id=portfolio.manifest.bundle_id); result={"problem_id":compile_design(spec).problem_id,"evaluation":m.score("AT",spec).model_dump(mode="json"),"portfolio_id":portfolio.manifest.bundle_id,"inspection_id":inspection.run.bundle_id}; print(json.dumps(result,sort_keys=True))'
 source_behavior="$(uv run --locked python -c "$behavior_program" examples/synthetic-pairwise/design.yaml "$smoke_root/source-result")"
 wheel_behavior="$("$smoke_root/venv/bin/python" -c "$behavior_program" examples/synthetic-pairwise/design.yaml "$smoke_root/wheel-result")"
 if [[ "$source_behavior" != "$wheel_behavior" ]]; then

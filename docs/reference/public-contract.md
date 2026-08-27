@@ -36,10 +36,16 @@ sequence. `design(spec)` returns exactly `spec.count` ranked candidates or
 raises a typed error. `Portfolio.write(path)` atomically publishes a new result
 bundle. Inputs and public models are strict and immutable.
 
-Operational readers, conversion helpers, execution attestation, inspection
-projection, and renderers are package implementation surfaces used by the CLI.
-They are intentionally absent from the scientific facade and may evolve with
-their versioned artifact schemas.
+Serialized numeric fields must be native YAML or JSON numbers; quoted numeric
+strings are rejected. One advanced review contract is intentional:
+
+```python
+from motif_balance.inspection import ResultInspection, inspect_result
+```
+
+Renderers, conversion helpers, bundle readers, and execution attestation remain
+deliberate submodule or CLI surfaces. They are absent from the top-level
+scientific facade and may evolve with their versioned artifact schemas.
 
 ## Command line
 
@@ -61,16 +67,11 @@ Advanced integration commands are intentionally hidden from ordinary help:
 ```text
 motif-balance motif prepare ...
 motif-balance orchestration execute ...
-motif-balance integration catalog ...
 ```
 
 Motif preparation converts one explicitly supplied supported source. It does
 not discover or fetch databases. Orchestration binds an execution to an exact
-wheel and producer revision. The integration catalog joins only explicit
-result references. None of these operations adds a new scientific verb.
-
-`render-report` is a hidden deprecated alias for `inspect --format html`. It
-uses the same compositor and may be removed after the alpha transition.
+wheel and producer revision. Neither operation adds a new scientific verb.
 
 ## Artifacts
 

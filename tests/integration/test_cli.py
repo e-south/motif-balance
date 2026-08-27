@@ -42,9 +42,9 @@ def _write_runtime_equivalent_wheel(path: Path) -> None:
         entries[f"motif_balance/{source.relative_to(package_root).as_posix()}"] = (
             source.read_bytes()
         )
-    dist_info = "motif_balance-0.3.0a1.dist-info/"
+    dist_info = "motif_balance-0.3.0a2.dist-info/"
     entries[f"{dist_info}METADATA"] = (
-        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a1\n"
+        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a2\n"
     )
     entries[f"{dist_info}WHEEL"] = b"Wheel-Version: 1.0\n"
     entries[f"{dist_info}entry_points.txt"] = (
@@ -113,6 +113,9 @@ def test_cli_scores_one_sequence_and_exports_one_candidate_svg(tmp_path: Path) -
     assert scored.exit_code == 0
     assert "balance_score=" in scored.stdout
     assert designed.exit_code == 0
+    assert "Returned 2 of 2 candidates" in designed.stdout
+    assert "Search completed after exhausting all 16 sequences" in designed.stdout
+    assert "Result written to" in designed.stdout
     assert rendered.exit_code == 0
     assert b'id="candidate-realization-view"' in candidate_svg.read_bytes()
 
@@ -141,7 +144,8 @@ def test_cli_design_writes_verified_bundle(tmp_path: Path) -> None:
     result = runner.invoke(app, ["design", str(spec), "--out", str(output)])
 
     assert result.exit_code == 0
-    assert result.stdout.startswith("complete bundle-")
+    assert result.stdout.startswith("Returned 2 of 2 candidates")
+    assert "Bundle: bundle-" in result.stdout
     assert (output / "manifest.json").is_file()
 
 
@@ -202,40 +206,31 @@ def test_cli_rejects_duplicate_and_boolean_scientific_values(tmp_path: Path) -> 
     assert "boolean values are not valid" in boolean_result.stderr
 
 
-def test_cli_inspection_verifies_and_deprecated_report_alias_uses_same_html(
-    tmp_path: Path,
-) -> None:
+def test_cli_inspection_verifies_and_exports_one_html_composition(tmp_path: Path) -> None:
     spec = tmp_path / "design.yaml"
     bundle = tmp_path / "result"
-    regenerated = tmp_path / "review.html"
-    direct = tmp_path / "direct.html"
+    review = tmp_path / "review.html"
     spec.write_text(_DESIGN)
     assert runner.invoke(app, ["design", str(spec), "--out", str(bundle)]).exit_code == 0
 
     inspected = runner.invoke(app, ["inspect", str(bundle)])
     rendered = runner.invoke(
         app,
-        ["render-report", str(bundle), "--out", str(regenerated)],
-    )
-    direct_render = runner.invoke(
-        app,
-        ["inspect", str(bundle), "--format", "html", "--out", str(direct)],
+        ["inspect", str(bundle), "--format", "html", "--out", str(review)],
     )
 
     assert inspected.exit_code == 0
-    assert "Artifact integrity: self consistent" in inspected.stdout
+    assert "Status: delivery complete · search exhaustive · integrity self consistent" in (
+        inspected.stdout
+    )
     assert rendered.exit_code == 0
-    assert "deprecated" in rendered.stderr.lower()
-    assert direct_render.exit_code == 0
-    assert regenerated.read_bytes() == direct.read_bytes()
+    assert "Motif Balance result review" in review.read_text()
 
 
-def test_cli_inspects_and_catalogs_explicit_bundle_references(tmp_path: Path) -> None:
+def test_cli_inspects_one_explicit_bundle_reference(tmp_path: Path) -> None:
     spec = tmp_path / "design.yaml"
     bundle = tmp_path / "result"
     review = tmp_path / "review.html"
-    catalog = tmp_path / "catalog.json"
-    catalog_review = tmp_path / "catalog.html"
     spec.write_text(_DESIGN)
     assert runner.invoke(app, ["design", str(spec), "--out", str(bundle)]).exit_code == 0
 
@@ -251,43 +246,12 @@ def test_cli_inspects_and_catalogs_explicit_bundle_references(tmp_path: Path) ->
             str(review),
         ],
     )
-    indexed = runner.invoke(
-        app,
-        [
-            "integration",
-            "catalog",
-            "--entry",
-            f"pairwise=bundle:{bundle}",
-            "--out",
-            str(catalog),
-        ],
-    )
-    rendered_catalog = runner.invoke(
-        app,
-        [
-            "integration",
-            "catalog",
-            "--entry",
-            f"pairwise=bundle:{bundle}",
-            "--format",
-            "html",
-            "--out",
-            str(catalog_review),
-        ],
-    )
-
     assert inspected.exit_code == 0
-    assert "Portfolio delivery: complete" in inspected.stdout
-    assert "Artifact integrity: self consistent" in inspected.stdout
-    assert "Search completion: exhaustive" in inspected.stdout
+    assert "Status: delivery complete · search exhaustive · integrity self consistent" in (
+        inspected.stdout
+    )
     assert rendered.exit_code == 0
     assert "Motif Balance result review" in review.read_text()
-    assert indexed.exit_code == 0
-    payload = json.loads(catalog.read_text())
-    assert payload["schema_version"] == "motif-balance.result-catalog/v2"
-    assert payload["entries"][0]["entry_id"] == "pairwise"
-    assert rendered_catalog.exit_code == 0
-    assert "does not rank" in catalog_review.read_text()
 
 
 def test_cli_inspection_refuses_existing_output(tmp_path: Path) -> None:
@@ -332,24 +296,9 @@ def test_cli_inspection_refuses_output_inside_the_subject(tmp_path: Path) -> Non
             str(bundle / "inspection.html"),
         ],
     )
-    cataloged = runner.invoke(
-        app,
-        [
-            "integration",
-            "catalog",
-            "--entry",
-            f"pairwise=bundle:{bundle}",
-            "--out",
-            str(bundle / "catalog.json"),
-        ],
-    )
-
     assert inspected.exit_code == 2
-    assert cataloged.exit_code == 2
     assert "outside every inspected result root" in inspected.stderr
-    assert "outside every inspected result root" in cataloged.stderr
     assert not (bundle / "inspection.html").exists()
-    assert not (bundle / "catalog.json").exists()
 
 
 def test_cli_reports_an_unsupported_manifest_as_an_artifact_error(tmp_path: Path) -> None:
@@ -457,7 +406,7 @@ def test_cli_convert_motif_sanitizes_an_unwritable_destination(tmp_path: Path) -
 def test_cli_executes_and_verifies_an_atomic_execution_workspace(tmp_path: Path) -> None:
     spec = tmp_path / "design.yaml"
     workspace = tmp_path / "execution"
-    release = tmp_path / "motif_balance-0.3.0a1-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.3.0a2-py3-none-any.whl"
     spec.write_text(_DESIGN)
     _write_runtime_equivalent_wheel(release)
 
@@ -508,7 +457,7 @@ def test_cli_executes_and_verifies_an_atomic_execution_workspace(tmp_path: Path)
 
     assert verified.exit_code == 0
     assert index["workspace_id"] in verified.stdout
-    assert "Artifact integrity: externally verified" in verified.stdout
+    assert "integrity externally verified" in verified.stdout
 
 
 def test_cli_rejects_a_wheel_with_a_corrupt_member_without_a_traceback(
@@ -516,7 +465,7 @@ def test_cli_rejects_a_wheel_with_a_corrupt_member_without_a_traceback(
 ) -> None:
     spec = tmp_path / "design.yaml"
     workspace = tmp_path / "execution"
-    release = tmp_path / "motif_balance-0.3.0a1-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.3.0a2-py3-none-any.whl"
     spec.write_text(_DESIGN)
     _write_runtime_equivalent_wheel(release)
     _corrupt_stored_wheel_member(release, "motif_balance/__init__.py")

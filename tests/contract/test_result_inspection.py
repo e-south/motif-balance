@@ -9,22 +9,17 @@ import pytest
 from pydantic import ValidationError
 
 from motif_balance import DesignSpec, design
-from motif_balance.api import build_result_catalog, inspect_result
 from motif_balance.artifacts import read_bundle_snapshot
 from motif_balance.errors import ArtifactError
-from motif_balance.inspection import (
-    CatalogEntry,
+from motif_balance.inspection import ResultInspection, inspect_result
+from motif_balance.inspection.model import (
     DeliveryInspection,
     DistanceInspection,
     IntegrityInspection,
-    ResultCatalog,
-    ResultInspection,
-    VerifiedResultSource,
-    project_result,
-    render_catalog_html,
-    render_html,
 )
-from motif_balance.inspection.project import _distance_inspection
+from motif_balance.inspection.project import _distance_inspection, project_result
+from motif_balance.inspection.render import render_html
+from motif_balance.inspection.verify import VerifiedResultSource
 
 
 def test_bundle_inspection_replays_every_product_plane(
@@ -184,24 +179,6 @@ def test_public_inspection_rejects_member_growth_during_snapshot(
         inspect_result(bundle, kind="bundle")
 
 
-def test_catalog_is_sorted_bounded_and_does_not_rank(
-    tmp_path: Path,
-    pairwise_spec: DesignSpec,
-) -> None:
-    bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
-    inspection = inspect_result(bundle, kind="bundle")
-
-    catalog = build_result_catalog({"zeta": inspection, "alpha": inspection})
-
-    assert catalog.schema_version == "motif-balance.result-catalog/v2"
-    assert [entry.entry_id for entry in catalog.entries] == ["alpha", "zeta"]
-    assert "candidates" not in catalog.model_dump_json()
-    assert "does not rank" in render_catalog_html(catalog).decode()
-    with pytest.raises(ValueError, match="entry_id"):
-        build_result_catalog({"Not Portable": inspection})
-
-
 def test_inspection_rejects_cross_kind_trust_options(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
@@ -264,26 +241,6 @@ def test_inspection_models_reject_incoherent_states(
         model.model_validate(payload)
 
 
-def test_catalog_models_reject_incoherent_or_unbounded_entries(
-    tmp_path: Path,
-    pairwise_spec: DesignSpec,
-) -> None:
-    bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
-    entry = build_result_catalog({"alpha": inspect_result(bundle, kind="bundle")}).entries[0]
-    payload = entry.model_dump(mode="python")
-
-    for update, message in (
-        ({"subject_kind": "execution"}, "workspace identity"),
-        ({"score_min": 2.0, "score_max": 1.0}, "score range"),
-        ({"motif_ids": ("motif_a", "motif_a")}, "motif identifiers"),
-    ):
-        with pytest.raises(ValidationError, match=message):
-            CatalogEntry.model_validate({**payload, **update})
-    with pytest.raises(ValidationError, match=r"1\.\.100"):
-        ResultCatalog(entries=())
-
-
 def test_renderers_escape_forged_identifiers(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
@@ -300,12 +257,6 @@ def test_renderers_escape_forged_identifiers(
 
     with pytest.raises(ArtifactError, match="invalid candidate identifier"):
         render_html(forged)
-
-    catalog = build_result_catalog({"alpha": inspection})
-    entry = catalog.entries[0].model_copy(update={"problem_id": "<script>x</script>"})
-    html = render_catalog_html(catalog.model_copy(update={"entries": (entry,)})).decode()
-    assert "<script" not in html
-    assert "&lt;script" in html
 
 
 def test_public_result_schema_contains_only_supported_product_kinds() -> None:

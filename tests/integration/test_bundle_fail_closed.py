@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 
 from motif_balance import DesignSpec, design
-from motif_balance.api import inspect_result, verify_bundle
-from motif_balance.artifacts import bundle_id
+from motif_balance.artifacts import bundle_id, verify_bundle
 from motif_balance.constants import MAX_INPUT_BYTES
 from motif_balance.errors import ArtifactError
+from motif_balance.inspection import inspect_result
 from motif_balance.model import ArtifactDigest, RunManifest
 
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import ast
+import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,14 @@ FORBIDDEN_PRODUCT_SURFACES = (
     Path("migration"),
     Path("tests/migration"),
 )
+_FALLBACK_IGNORED_PARTS = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+}
 
 KNOWN_LAYERS = {
     "api",
@@ -23,6 +32,7 @@ KNOWN_LAYERS = {
     "compile",
     "constants",
     "errors",
+    "execution",
     "formats",
     "inspection",
     "model",
@@ -40,11 +50,30 @@ ALLOWED_IMPORTS = {
     "scoring": {"compile", "constants", "errors", "model"},
     "search": {"compile", "constants", "errors", "model", "scoring"},
     "selection": {"constants", "errors", "model", "scoring"},
-    "artifacts": {"constants", "errors", "model"},
+    "artifacts": {"compile", "constants", "errors", "model", "scoring", "selection"},
     "receipt": {"constants", "errors", "model"},
-    "inspection": {"compile", "constants", "errors", "model", "scoring"},
-    "api": KNOWN_LAYERS - {"api", "cli"},
-    "cli": {"api", "errors"},
+    "api": {
+        "artifacts",
+        "compile",
+        "constants",
+        "errors",
+        "model",
+        "scoring",
+        "search",
+        "selection",
+    },
+    "execution": {"api", "artifacts", "constants", "errors", "formats", "model", "receipt"},
+    "inspection": {
+        "artifacts",
+        "compile",
+        "constants",
+        "errors",
+        "execution",
+        "model",
+        "receipt",
+        "scoring",
+    },
+    "cli": {"api", "compile", "errors", "execution", "formats", "inspection"},
 }
 
 
@@ -161,17 +190,41 @@ def violations_for_source(relative_path: Path, source: str) -> list[str]:
     return errors
 
 
+def repository_owned_paths(repo_root: Path) -> set[Path]:
+    """Return tracked and nonignored untracked files, independent of cache residue."""
+
+    if (repo_root / ".git").exists():
+        result = subprocess.run(
+            ("git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"),
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+        return {Path(raw.decode("utf-8")) for raw in result.stdout.split(b"\0") if raw}
+    return {
+        path.relative_to(repo_root)
+        for path in repo_root.rglob("*")
+        if path.is_file() and not (_FALLBACK_IGNORED_PARTS & set(path.relative_to(repo_root).parts))
+    }
+
+
+def forbidden_surface_violations(owned_paths: set[Path]) -> list[str]:
+    """Report forbidden source surfaces present in repository-owned content."""
+
+    return [
+        f"non-product surface must live with its owning workflow: {surface.as_posix()}"
+        for surface in FORBIDDEN_PRODUCT_SURFACES
+        if any(path == surface or surface in path.parents for path in owned_paths)
+    ]
+
+
 def main() -> int:
     """Check every package module and report all inversions."""
     if not PACKAGE_ROOT.is_dir():
         print(f"Architecture invariant failures:\n- missing package root: {PACKAGE_ROOT}")
         return 1
 
-    errors = [
-        f"non-product surface must live with its owning workflow: {path.as_posix()}"
-        for path in FORBIDDEN_PRODUCT_SURFACES
-        if (REPO_ROOT / path).exists()
-    ]
+    errors = forbidden_surface_violations(repository_owned_paths(REPO_ROOT))
     for path in sorted(PACKAGE_ROOT.rglob("*.py")):
         relative = path.relative_to(PACKAGE_ROOT)
         errors.extend(violations_for_source(relative, path.read_text(encoding="utf-8")))

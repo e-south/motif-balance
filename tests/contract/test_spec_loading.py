@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from motif_balance.api import load_spec
 from motif_balance.errors import InvalidDesign, InvalidMotif
 from motif_balance.formats import read_motif
+from motif_balance.formats.design import load_design_spec
 
 
 def test_load_spec_resolves_relative_motif_file(tmp_path: Path) -> None:
@@ -28,7 +28,7 @@ seed: 0
 """
     )
 
-    spec = load_spec(design_path)
+    spec = load_design_spec(design_path)
     assert spec.motifs[0].source_name == "motif.yaml"
 
 
@@ -51,12 +51,12 @@ def test_load_spec_rejects_malformed_surfaces(
     path = tmp_path / "design.yaml"
     path.write_text(content)
     with pytest.raises(InvalidDesign, match=message):
-        load_spec(path)
+        load_design_spec(path)
 
 
 def test_load_spec_reports_missing_file(tmp_path: Path) -> None:
     with pytest.raises(InvalidDesign, match="Unable to read"):
-        load_spec(tmp_path / "missing.yaml")
+        load_design_spec(tmp_path / "missing.yaml")
 
 
 def test_structured_inputs_reject_duplicate_keys(tmp_path: Path) -> None:
@@ -74,7 +74,7 @@ def test_structured_inputs_reject_duplicate_keys(tmp_path: Path) -> None:
         "seed: 0\n"
     )
     with pytest.raises(InvalidDesign, match="duplicate key 'length'"):
-        load_spec(design_path)
+        load_design_spec(design_path)
 
     motif_path = tmp_path / "motif.yaml"
     motif_path.write_text(
@@ -114,14 +114,14 @@ def test_load_spec_rejects_traversal_and_symlink_motif_references(tmp_path: Path
             f"motifs:\n  leaked: {reference}\nlength: 1\ncount: 1\nevaluations: 1\nseed: 0\n"
         )
         with pytest.raises(InvalidDesign, match=r"contained|symbolic"):
-            load_spec(design_path)
+            load_design_spec(design_path)
 
 
 def test_load_spec_and_motif_loader_enforce_byte_bounds(tmp_path: Path) -> None:
     design_path = tmp_path / "oversized-design.yaml"
     design_path.write_bytes(b" " * 1_000_001)
     with pytest.raises(InvalidDesign, match="byte limit"):
-        load_spec(design_path)
+        load_design_spec(design_path)
 
     motif_path = tmp_path / "oversized-motif.yaml"
     motif_path.write_bytes(b" " * 1_000_001)
@@ -130,4 +130,4 @@ def test_load_spec_and_motif_loader_enforce_byte_bounds(tmp_path: Path) -> None:
         "motifs:\n  fixture: oversized-motif.yaml\nlength: 1\ncount: 1\nevaluations: 1\nseed: 0\n"
     )
     with pytest.raises(InvalidDesign, match="byte limit"):
-        load_spec(design_path)
+        load_design_spec(design_path)

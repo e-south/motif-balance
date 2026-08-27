@@ -23,6 +23,10 @@ float formatting, and one trailing newline. Host paths, usernames, timestamps,
 thread completion order, and environment mapping order do not enter content
 identity.
 
+That same-byte claim is release-gated on the hosted Linux CPython 3.12-3.14
+matrix. Local macOS checks establish alpha operability, but the project does not
+claim cross-host byte identity beyond the published release evidence.
+
 `build_lock_sha256` identifies the repository lock used to build this alpha;
 it is not a claim that a wheel consumer installed that exact environment.
 Runtime versions are deliberately excluded from canonical bundle identity and
@@ -64,8 +68,8 @@ systems may register their locations and digests without changing the software
 artifact identity.
 
 Result inspections are derived after verification and are never inserted into
-`run-manifest/v2` or `run-manifest/v3`. A catalog is built from explicit references and fails the
-requested operation rather than silently omitting an unreadable entry. Exact
+`run-manifest/v2` or `run-manifest/v3`. Inspection accepts one explicit result;
+cross-result joining remains a caller responsibility. Exact
 pairwise distance inspection has an explicit base-comparison limit and reports
 `not_computed_limit` instead of entering unbounded quadratic work. HTML and SVG
 views bound rendered candidates, matches, motifs, and checkpoints while

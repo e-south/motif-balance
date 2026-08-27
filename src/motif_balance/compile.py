@@ -46,6 +46,42 @@ def sequence_space_at_most(length: int, limit: int) -> int | None:
     return sequence_space
 
 
+def planned_search_kind(spec: DesignSpec) -> str:
+    """Return the bounded search classification used by preflight surfaces."""
+
+    return (
+        "exhaustive"
+        if sequence_space_at_most(spec.length, spec.evaluations) is not None
+        else "annealed"
+    )
+
+
+def build_run_id(
+    spec: DesignSpec,
+    problem_id: str,
+    engine: str,
+    engine_version: str,
+    *,
+    package_version: str,
+) -> str:
+    """Bind the complete run contract without coupling it to publication code."""
+
+    payload = {
+        "problem_id": problem_id,
+        "count": spec.count,
+        "min_distance": spec.min_distance,
+        "evaluations": spec.evaluations,
+        "seed": spec.seed,
+        "search_engine": engine,
+        "search_engine_version": engine_version,
+        "package_version": package_version,
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return f"run-{digest[:24]}"
+
+
 def _null_mean(log_odds: np.ndarray, background: np.ndarray) -> float:
     discretized = np.round(log_odds * _LOGODDS_SCALE).astype(np.int64)
     return float(

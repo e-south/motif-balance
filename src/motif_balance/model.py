@@ -60,7 +60,10 @@ class MotifConversion(FrozenModel):
         "jaspar_counts_to_probabilities_v1",
         "probability_matrix_prior_mixture_v1",
     ]
-    prior_weight: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
+    prior_weight: Annotated[
+        float,
+        Field(strict=True, ge=0.0, allow_inf_nan=False),
+    ]
     source_motif_id: str | None = None
 
     @model_validator(mode="after")
@@ -78,8 +81,21 @@ class MotifModel(FrozenModel):
     schema_version: Literal["motif-model/v1"] = "motif-model/v1"
     motif_id: str = Field(min_length=1, pattern=r"^[A-Za-z][A-Za-z0-9_.-]*$")
     alphabet: tuple[Literal["A", "C", "G", "T"], ...] = DNA_ALPHABET
-    probabilities: tuple[tuple[float, float, float, float], ...]
-    background: tuple[float, float, float, float]
+    probabilities: tuple[
+        tuple[
+            Annotated[float, Field(strict=True)],
+            Annotated[float, Field(strict=True)],
+            Annotated[float, Field(strict=True)],
+            Annotated[float, Field(strict=True)],
+        ],
+        ...,
+    ]
+    background: tuple[
+        Annotated[float, Field(strict=True)],
+        Annotated[float, Field(strict=True)],
+        Annotated[float, Field(strict=True)],
+        Annotated[float, Field(strict=True)],
+    ]
     source_digest: str | None = None
     source_name: str | None = None
     canonical_file_digest: str | None = None
@@ -160,12 +176,12 @@ class MotifModel(FrozenModel):
 class DesignSpec(FrozenModel):
     schema_version: Literal["design-spec/v1"] = "design-spec/v1"
     motifs: tuple[MotifModel, ...]
-    length: Annotated[int, Field(gt=0, le=MAX_SEQUENCE_LENGTH)]
-    count: Annotated[int, Field(gt=0, le=MAX_CANDIDATE_COUNT)]
+    length: Annotated[int, Field(strict=True, gt=0, le=MAX_SEQUENCE_LENGTH)]
+    count: Annotated[int, Field(strict=True, gt=0, le=MAX_CANDIDATE_COUNT)]
     strands: Literal["forward", "both"] = "both"
-    evaluations: Annotated[int, Field(gt=0, le=MAX_EVALUATIONS)]
-    seed: Annotated[int, Field(ge=0)]
-    min_distance: Annotated[float, Field(ge=0.0, le=1.0)] | None = None
+    evaluations: Annotated[int, Field(strict=True, gt=0, le=MAX_EVALUATIONS)]
+    seed: Annotated[int, Field(strict=True, ge=0)]
+    min_distance: Annotated[float, Field(strict=True, ge=0.0, le=1.0)] | None = None
     scoring_semantics: Literal["normalized_llr_v1"] = SCORING_SEMANTICS
     objective_semantics: Literal["weakest_score_v1"] = OBJECTIVE_SEMANTICS
     tie_break_semantics: Literal["leftmost_plus_first_v1"] = TIE_BREAK_SEMANTICS
@@ -237,12 +253,12 @@ class DesignSpec(FrozenModel):
 
 class MotifMatch(FrozenModel):
     motif_id: str
-    start: Annotated[int, Field(ge=0)]
-    end: Annotated[int, Field(gt=0)]
+    start: Annotated[int, Field(strict=True, ge=0)]
+    end: Annotated[int, Field(strict=True, gt=0)]
     strand: Literal["+", "-"]
     matched_sequence: str
-    raw_score: float
-    normalized_score: Annotated[float, Field(ge=0.0)]
+    raw_score: Annotated[float, Field(strict=True)]
+    normalized_score: Annotated[float, Field(strict=True, ge=0.0)]
 
     @model_validator(mode="after")
     def validate_coordinates(self) -> Self:
@@ -259,7 +275,7 @@ class MotifMatch(FrozenModel):
 
 class Evaluation(FrozenModel):
     sequence: str
-    balance_score: Annotated[float, Field(ge=0.0)]
+    balance_score: Annotated[float, Field(strict=True, ge=0.0)]
     matches: tuple[MotifMatch, ...]
 
     @model_validator(mode="after")
@@ -276,9 +292,9 @@ class Evaluation(FrozenModel):
 
 class Candidate(FrozenModel):
     candidate_id: str = Field(pattern=r"^candidate-[0-9a-f]{16}$")
-    rank: Annotated[int, Field(gt=0)]
+    rank: Annotated[int, Field(strict=True, gt=0)]
     sequence: str
-    balance_score: Annotated[float, Field(ge=0.0)]
+    balance_score: Annotated[float, Field(strict=True, ge=0.0)]
     matches: tuple[MotifMatch, ...]
 
     @model_validator(mode="after")
@@ -483,6 +499,7 @@ class PortfolioRecord(FrozenModel):
         if len(self.candidates) != self.spec.count:
             raise ValueError("portfolio must contain exactly spec.count candidates")
         expected_ids = {motif.motif_id for motif in self.spec.motifs}
+        seen_candidate_ids: set[str] = set()
         seen_sequences: set[str] = set()
         previous_key: tuple[float, str] | None = None
         for expected_rank, candidate in enumerate(self.candidates, start=1):
@@ -496,6 +513,9 @@ class PortfolioRecord(FrozenModel):
                 raise ValueError("candidate contains duplicate motif matches")
             if candidate.sequence in seen_sequences:
                 raise ValueError("candidate sequences must be unique")
+            if candidate.candidate_id in seen_candidate_ids:
+                raise ValueError("candidate identifiers must be unique")
+            seen_candidate_ids.add(candidate.candidate_id)
             seen_sequences.add(candidate.sequence)
             key = (-candidate.balance_score, candidate.sequence)
             if previous_key is not None and key < previous_key:
