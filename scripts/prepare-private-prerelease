@@ -37,7 +37,10 @@ done
   exit 2
 }
 [[ ${#limitations[@]} -gt 0 ]] || { echo "at least one --limitation is required" >&2; exit 2; }
-[[ ! -e "$out_dir" ]] || { echo "refusing existing output path: $out_dir" >&2; exit 1; }
+[[ ! -e "$out_dir" && ! -L "$out_dir" ]] || {
+  echo "refusing existing output path: $out_dir" >&2
+  exit 1
+}
 [[ -z "$(git status --porcelain)" ]] || { echo "release checkout is not clean" >&2; exit 1; }
 git merge-base --is-ancestor HEAD origin/main
 
@@ -70,7 +73,9 @@ for limitation in "${limitations[@]}"; do
   attestation_args+=(--limitation "$limitation")
 done
 uv run --locked python scripts/release_attestation.py "${attestation_args[@]}"
-uv run --locked python scripts/release_attestation.py verify --directory "$out_dir"
+uv run --locked python scripts/release_attestation.py verify \
+  --directory "$out_dir" \
+  --repository-root "$repo_root"
 test -f "$out_dir/release-build-attestation.json"
 test -f "$out_dir/SHA256SUMS"
 

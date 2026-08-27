@@ -17,7 +17,9 @@ The release authority is `scripts/prepare-private-prerelease`. It runs the
 complete package gate, builds once from the current clean commit, verifies the
 exact distributions, and emits a canonical build attestation plus checksums.
 GitHub Actions may invoke the same command, but runner availability is not a
-semantic property of the package or its release bytes.
+semantic property of the package or its release bytes. Automation only stages
+short-retention build artifacts; it never publishes a release. A maintainer
+owns the draft, independent download verification, and final publication gate.
 
 ## Prepare exact assets
 
@@ -54,7 +56,9 @@ them into a fresh directory. From the exact tagged source, verify the download:
 
 ```bash
 uv run --locked python scripts/release_attestation.py verify \
-  --directory /path/to/fresh-download
+  --directory /path/to/fresh-download \
+  --repository-root "$(pwd)" \
+  --require-tag
 MOTIF_BALANCE_PRODUCER_REVISION="$(git rev-parse HEAD)" \
   bash ./scripts/wheel-smoke /path/to/fresh-download
 ```

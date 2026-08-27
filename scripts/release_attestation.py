@@ -20,6 +20,7 @@ CHECKSUM_NAME = "SHA256SUMS"
 VERSION_PATTERN = re.compile(r"[0-9]+(?:\.[0-9]+){2}(?:a|b|rc)[0-9]+")
 HEX40 = re.compile(r"[0-9a-f]{40}")
 HEX64 = re.compile(r"[0-9a-f]{64}")
+LIMITATION_PATTERN = re.compile(r"[a-z0-9][a-z0-9_.-]{0,127}")
 BUILDER_KINDS = {"github_actions", "maintainer_local"}
 VERIFICATION = [
     {"gate": "agent_verify", "status": "pass"},
@@ -112,9 +113,12 @@ def _validate_payload(payload: dict[str, Any]) -> None:
         not isinstance(limitations, list)
         or not limitations
         or limitations != sorted(set(limitations))
-        or any(not isinstance(item, str) or not item for item in limitations)
+        or any(
+            not isinstance(item, str) or LIMITATION_PATTERN.fullmatch(item) is None
+            for item in limitations
+        )
     ):
-        raise ValueError("limitations must be a sorted nonempty unique list")
+        raise ValueError("limitations must be sorted unique safe tokens")
 
     artifacts = payload.get("artifacts")
     if not isinstance(artifacts, list) or len(artifacts) != 2:
@@ -158,7 +162,7 @@ def write_attestation(
     limitations: list[str],
 ) -> str:
     """Write one canonical attestation and return its content digest."""
-    if out_path.exists():
+    if out_path.exists() or out_path.is_symlink():
         raise ValueError(f"refusing to overwrite attestation: {out_path.name}")
     payload: dict[str, object] = {
         "artifacts": sorted(
@@ -187,12 +191,21 @@ def write_attestation(
     }
     _validate_payload(payload)
     raw = _canonical(payload)
-    out_path.write_bytes(raw)
+    with out_path.open("xb") as handle:
+        handle.write(raw)
     return f"sha256:{hashlib.sha256(raw).hexdigest()}"
 
 
-def verify_attestation(*, attestation_path: Path, wheel_path: Path, sdist_path: Path) -> str:
+def verify_attestation(
+    *,
+    attestation_path: Path,
+    wheel_path: Path,
+    sdist_path: Path,
+    expected_subject: dict[str, str],
+) -> str:
     """Verify canonical bytes, schema, and both exact release artifacts."""
+    if not attestation_path.is_file() or attestation_path.is_symlink():
+        raise ValueError("attestation must be a regular file")
     raw = attestation_path.read_bytes()
     payload = json.loads(raw)
     if not isinstance(payload, dict):
@@ -200,6 +213,8 @@ def verify_attestation(*, attestation_path: Path, wheel_path: Path, sdist_path: 
     if raw != _canonical(payload):
         raise ValueError("attestation is not canonical sorted JSON")
     _validate_payload(payload)
+    if payload["subject"] != expected_subject:
+        raise ValueError("source provenance disagrees with expected tagged source")
     observed = {
         "sdist": _artifact(sdist_path, kind="sdist"),
         "wheel": _artifact(wheel_path, kind="wheel"),
@@ -218,28 +233,34 @@ def _release_files(directory: Path) -> tuple[Path, Path, Path]:
     return wheels[0], sdists[0], directory / ATTESTATION_NAME
 
 
+def _require_exact_entries(directory: Path, expected_names: set[str]) -> None:
+    entries = list(directory.iterdir())
+    if {entry.name for entry in entries} != expected_names or any(
+        not entry.is_file() or entry.is_symlink() for entry in entries
+    ):
+        raise ValueError("release directory entries drifted")
+
+
 def write_checksum_manifest(directory: Path) -> None:
     """Write checksums over the wheel, sdist, and build attestation."""
     wheel, sdist, attestation = _release_files(directory)
-    if not attestation.is_file():
-        raise ValueError("release directory is missing the build attestation")
     checksum_path = directory / CHECKSUM_NAME
-    if checksum_path.exists():
+    if checksum_path.exists() or checksum_path.is_symlink():
         raise ValueError("refusing to overwrite SHA256SUMS")
+    expected_names = {wheel.name, sdist.name, ATTESTATION_NAME}
+    _require_exact_entries(directory, expected_names)
+    if not attestation.is_file() or attestation.is_symlink():
+        raise ValueError("release directory is missing the build attestation")
     assets = sorted((wheel, sdist, attestation), key=lambda path: path.name)
-    checksum_path.write_text(
-        "".join(f"{_sha256(path)}  {path.name}\n" for path in assets),
-        encoding="utf-8",
-    )
+    with checksum_path.open("x", encoding="utf-8") as handle:
+        handle.write("".join(f"{_sha256(path)}  {path.name}\n" for path in assets))
 
 
-def verify_release_directory(directory: Path) -> str:
+def verify_release_directory(directory: Path, *, expected_subject: dict[str, str]) -> str:
     """Verify the exact four-file release directory and return attestation digest."""
     wheel, sdist, attestation = _release_files(directory)
     expected_names = {wheel.name, sdist.name, ATTESTATION_NAME, CHECKSUM_NAME}
-    observed_names = {path.name for path in directory.iterdir() if path.is_file()}
-    if observed_names != expected_names:
-        raise ValueError("release directory files drifted")
+    _require_exact_entries(directory, expected_names)
     checksum_lines = (directory / CHECKSUM_NAME).read_text(encoding="utf-8").splitlines()
     expected_lines = [
         f"{_sha256(path)}  {path.name}"
@@ -247,7 +268,12 @@ def verify_release_directory(directory: Path) -> str:
     ]
     if checksum_lines != expected_lines:
         raise ValueError("SHA256SUMS disagrees with release assets")
-    return verify_attestation(attestation_path=attestation, wheel_path=wheel, sdist_path=sdist)
+    return verify_attestation(
+        attestation_path=attestation,
+        wheel_path=wheel,
+        sdist_path=sdist,
+        expected_subject=expected_subject,
+    )
 
 
 def _git(repo_root: Path, *args: str) -> str:
@@ -260,12 +286,31 @@ def _git(repo_root: Path, *args: str) -> str:
     ).stdout.strip()
 
 
+def subject_from_repository(repo_root: Path, *, require_tag: bool) -> dict[str, str]:
+    """Resolve the expected release subject from an exact source checkout."""
+    project = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    version = str(project["version"])
+    revision = _git(repo_root, "rev-parse", "HEAD")
+    tag = f"v{version}"
+    if require_tag:
+        tagged_revision = _git(repo_root, "rev-parse", f"refs/tags/{tag}^{{commit}}")
+        if tagged_revision != revision:
+            raise ValueError("release tag does not point to the expected source revision")
+    return {
+        "lock_sha256": _sha256(repo_root / "uv.lock"),
+        "repository": REPOSITORY,
+        "revision": revision,
+        "tag": tag,
+        "tree": _git(repo_root, "rev-parse", "HEAD^{tree}"),
+        "version": version,
+    }
+
+
 def _create_command(args: argparse.Namespace) -> int:
     directory = args.directory.resolve()
     repo_root = Path(__file__).resolve().parents[1]
     wheel, sdist, attestation = _release_files(directory)
-    project = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    version = str(project["version"])
+    subject = subject_from_repository(repo_root, require_tag=False)
     uv_version = subprocess.run(
         ["uv", "--version"],
         check=True,
@@ -277,11 +322,11 @@ def _create_command(args: argparse.Namespace) -> int:
         wheel_path=wheel,
         sdist_path=sdist,
         repository=REPOSITORY,
-        revision=_git(repo_root, "rev-parse", "HEAD"),
-        tree=_git(repo_root, "rev-parse", "HEAD^{tree}"),
-        tag=f"v{version}",
-        version=version,
-        lock_sha256=_sha256(repo_root / "uv.lock"),
+        revision=subject["revision"],
+        tree=subject["tree"],
+        tag=subject["tag"],
+        version=subject["version"],
+        lock_sha256=subject["lock_sha256"],
         builder_kind=args.builder_kind,
         python_version=platform.python_version(),
         uv_version=uv_version,
@@ -291,13 +336,22 @@ def _create_command(args: argparse.Namespace) -> int:
         limitations=args.limitation,
     )
     write_checksum_manifest(directory)
-    verify_release_directory(directory)
+    verify_release_directory(directory, expected_subject=subject)
     print(digest)
     return 0
 
 
 def _verify_command(args: argparse.Namespace) -> int:
-    print(verify_release_directory(args.directory.resolve()))
+    expected_subject = subject_from_repository(
+        args.repository_root.resolve(),
+        require_tag=args.require_tag,
+    )
+    print(
+        verify_release_directory(
+            args.directory.resolve(),
+            expected_subject=expected_subject,
+        )
+    )
     return 0
 
 
@@ -312,6 +366,8 @@ def _parser() -> argparse.ArgumentParser:
     create.set_defaults(handler=_create_command)
     verify = commands.add_parser("verify", help="verify one release directory")
     verify.add_argument("--directory", type=Path, required=True)
+    verify.add_argument("--repository-root", type=Path, required=True)
+    verify.add_argument("--require-tag", action="store_true")
     verify.set_defaults(handler=_verify_command)
     return parser
 
