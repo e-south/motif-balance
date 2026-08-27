@@ -60,7 +60,7 @@ class MotifConversion(FrozenModel):
         "jaspar_counts_to_probabilities_v1",
         "probability_matrix_prior_mixture_v1",
     ]
-    prior_weight: Annotated[float, Field(ge=0.0)]
+    prior_weight: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
     source_motif_id: str | None = None
 
     @model_validator(mode="after")

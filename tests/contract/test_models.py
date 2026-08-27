@@ -105,6 +105,16 @@ def test_probability_matrix_prior_mixture_rejects_incomplete_provenance(
         )
 
 
+@pytest.mark.parametrize("prior_weight", [float("nan"), float("inf")])
+def test_motif_conversion_rejects_nonfinite_prior_weight(prior_weight: float) -> None:
+    with pytest.raises(ValidationError, match="finite number"):
+        MotifConversion(
+            method="probability_matrix_prior_mixture_v1",
+            prior_weight=prior_weight,
+            source_motif_id="source_cpxR",
+        )
+
+
 @pytest.mark.parametrize(
     "probabilities",
     [
