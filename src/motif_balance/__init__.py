@@ -23,18 +23,34 @@ from motif_balance.api import (
     verify_execution_workspace,
 )
 from motif_balance.constants import PACKAGE_VERSION as __version__
+from motif_balance.errors import (
+    ArtifactError,
+    IncompatibleDesign,
+    InvalidDesign,
+    InvalidMotif,
+    InvalidSequence,
+    MotifBalanceError,
+    SearchExhausted,
+)
 from motif_balance.inspection import ResultCatalog, ResultIndex, ResultInspection
 
 __all__ = [
+    "ArtifactError",
     "Candidate",
     "DesignSpec",
     "Evaluation",
+    "IncompatibleDesign",
+    "InvalidDesign",
+    "InvalidMotif",
+    "InvalidSequence",
+    "MotifBalanceError",
     "MotifMatch",
     "MotifModel",
     "Portfolio",
     "ResultCatalog",
     "ResultIndex",
     "ResultInspection",
+    "SearchExhausted",
     "__version__",
     "build_result_catalog",
     "compile_spec",

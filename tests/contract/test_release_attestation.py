@@ -15,9 +15,9 @@ SUBJECT = {
     "lock_sha256": "c" * 64,
     "repository": "e-south/motif-balance",
     "revision": "a" * 40,
-    "tag": "v0.2.0a1",
+    "tag": "v0.2.0a2",
     "tree": "b" * 40,
-    "version": "0.2.0a1",
+    "version": "0.2.0a2",
 }
 
 
@@ -31,8 +31,8 @@ def _module() -> ModuleType:
 
 
 def test_release_attestation_is_canonical_and_binds_exact_artifacts(tmp_path: Path) -> None:
-    wheel = tmp_path / "motif_balance-0.2.0a1-py3-none-any.whl"
-    sdist = tmp_path / "motif_balance-0.2.0a1.tar.gz"
+    wheel = tmp_path / "motif_balance-0.2.0a2-py3-none-any.whl"
+    sdist = tmp_path / "motif_balance-0.2.0a2.tar.gz"
     wheel.write_bytes(b"wheel-bytes")
     sdist.write_bytes(b"sdist-bytes")
     out = tmp_path / "release-build-attestation.json"
@@ -45,8 +45,8 @@ def test_release_attestation_is_canonical_and_binds_exact_artifacts(tmp_path: Pa
         repository="e-south/motif-balance",
         revision="a" * 40,
         tree="b" * 40,
-        tag="v0.2.0a1",
-        version="0.2.0a1",
+        tag="v0.2.0a2",
+        version="0.2.0a2",
         lock_sha256="c" * 64,
         builder_kind="maintainer_local",
         python_version="3.12.14",
@@ -77,8 +77,8 @@ def test_release_attestation_is_canonical_and_binds_exact_artifacts(tmp_path: Pa
 
 
 def test_release_attestation_rejects_substituted_artifact(tmp_path: Path) -> None:
-    wheel = tmp_path / "motif_balance-0.2.0a1-py3-none-any.whl"
-    sdist = tmp_path / "motif_balance-0.2.0a1.tar.gz"
+    wheel = tmp_path / "motif_balance-0.2.0a2-py3-none-any.whl"
+    sdist = tmp_path / "motif_balance-0.2.0a2.tar.gz"
     wheel.write_bytes(b"wheel-bytes")
     sdist.write_bytes(b"sdist-bytes")
     out = tmp_path / "release-build-attestation.json"
@@ -90,8 +90,8 @@ def test_release_attestation_rejects_substituted_artifact(tmp_path: Path) -> Non
         repository="e-south/motif-balance",
         revision="a" * 40,
         tree="b" * 40,
-        tag="v0.2.0a1",
-        version="0.2.0a1",
+        tag="v0.2.0a2",
+        version="0.2.0a2",
         lock_sha256="c" * 64,
         builder_kind="maintainer_local",
         python_version="3.12.14",
@@ -113,8 +113,8 @@ def test_release_attestation_rejects_substituted_artifact(tmp_path: Path) -> Non
 
 
 def test_release_attestation_rejects_false_source_provenance(tmp_path: Path) -> None:
-    wheel = tmp_path / "motif_balance-0.2.0a1-py3-none-any.whl"
-    sdist = tmp_path / "motif_balance-0.2.0a1.tar.gz"
+    wheel = tmp_path / "motif_balance-0.2.0a2-py3-none-any.whl"
+    sdist = tmp_path / "motif_balance-0.2.0a2.tar.gz"
     wheel.write_bytes(b"wheel-bytes")
     sdist.write_bytes(b"sdist-bytes")
     out = tmp_path / "release-build-attestation.json"
@@ -126,8 +126,8 @@ def test_release_attestation_rejects_false_source_provenance(tmp_path: Path) -> 
         repository="e-south/motif-balance",
         revision="a" * 40,
         tree="b" * 40,
-        tag="v0.2.0a1",
-        version="0.2.0a1",
+        tag="v0.2.0a2",
+        version="0.2.0a2",
         lock_sha256="c" * 64,
         builder_kind="maintainer_local",
         python_version="3.12.14",
@@ -148,8 +148,8 @@ def test_release_attestation_rejects_false_source_provenance(tmp_path: Path) -> 
 
 
 def test_release_outputs_reject_dangling_symlinks_and_unsafe_limitations(tmp_path: Path) -> None:
-    wheel = tmp_path / "motif_balance-0.2.0a1-py3-none-any.whl"
-    sdist = tmp_path / "motif_balance-0.2.0a1.tar.gz"
+    wheel = tmp_path / "motif_balance-0.2.0a2-py3-none-any.whl"
+    sdist = tmp_path / "motif_balance-0.2.0a2.tar.gz"
     wheel.write_bytes(b"wheel-bytes")
     sdist.write_bytes(b"sdist-bytes")
     target = tmp_path / "outside.json"
@@ -165,8 +165,8 @@ def test_release_outputs_reject_dangling_symlinks_and_unsafe_limitations(tmp_pat
             repository="e-south/motif-balance",
             revision="a" * 40,
             tree="b" * 40,
-            tag="v0.2.0a1",
-            version="0.2.0a1",
+            tag="v0.2.0a2",
+            version="0.2.0a2",
             lock_sha256="c" * 64,
             builder_kind="maintainer_local",
             python_version="3.12.14",
@@ -187,8 +187,8 @@ def test_release_outputs_reject_dangling_symlinks_and_unsafe_limitations(tmp_pat
             repository="e-south/motif-balance",
             revision="a" * 40,
             tree="b" * 40,
-            tag="v0.2.0a1",
-            version="0.2.0a1",
+            tag="v0.2.0a2",
+            version="0.2.0a2",
             lock_sha256="c" * 64,
             builder_kind="maintainer_local",
             python_version="3.12.14",
@@ -206,8 +206,8 @@ def test_release_outputs_reject_dangling_symlinks_and_unsafe_limitations(tmp_pat
         repository="e-south/motif-balance",
         revision="a" * 40,
         tree="b" * 40,
-        tag="v0.2.0a1",
-        version="0.2.0a1",
+        tag="v0.2.0a2",
+        version="0.2.0a2",
         lock_sha256="c" * 64,
         builder_kind="maintainer_local",
         python_version="3.12.14",
@@ -225,8 +225,8 @@ def test_release_outputs_reject_dangling_symlinks_and_unsafe_limitations(tmp_pat
 
 
 def test_release_directory_rejects_extra_entries(tmp_path: Path) -> None:
-    wheel = tmp_path / "motif_balance-0.2.0a1-py3-none-any.whl"
-    sdist = tmp_path / "motif_balance-0.2.0a1.tar.gz"
+    wheel = tmp_path / "motif_balance-0.2.0a2-py3-none-any.whl"
+    sdist = tmp_path / "motif_balance-0.2.0a2.tar.gz"
     wheel.write_bytes(b"wheel-bytes")
     sdist.write_bytes(b"sdist-bytes")
     out = tmp_path / "release-build-attestation.json"
@@ -238,8 +238,8 @@ def test_release_directory_rejects_extra_entries(tmp_path: Path) -> None:
         repository="e-south/motif-balance",
         revision="a" * 40,
         tree="b" * 40,
-        tag="v0.2.0a1",
-        version="0.2.0a1",
+        tag="v0.2.0a2",
+        version="0.2.0a2",
         lock_sha256="c" * 64,
         builder_kind="maintainer_local",
         python_version="3.12.14",
@@ -266,7 +266,7 @@ def test_repository_subject_rejects_dirty_source_and_lightweight_tag(tmp_path: P
         check=True,
     )
     (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "motif-balance"\nversion = "0.2.0a1"\n',
+        '[project]\nname = "motif-balance"\nversion = "0.2.0a2"\n',
         encoding="utf-8",
     )
     (tmp_path / "uv.lock").write_text("version = 1\n", encoding="utf-8")
@@ -279,12 +279,12 @@ def test_repository_subject_rejects_dirty_source_and_lightweight_tag(tmp_path: P
         module.subject_from_repository(tmp_path, require_tag=False)
     subprocess.run(["git", "restore", "uv.lock"], cwd=tmp_path, check=True)
 
-    subprocess.run(["git", "tag", "v0.2.0a1"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "tag", "v0.2.0a2"], cwd=tmp_path, check=True)
     with pytest.raises(ValueError, match="annotated tag object"):
         module.subject_from_repository(tmp_path, require_tag=True)
-    subprocess.run(["git", "tag", "-d", "v0.2.0a1"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "tag", "-d", "v0.2.0a2"], cwd=tmp_path, check=True)
     subprocess.run(
-        ["git", "tag", "-a", "v0.2.0a1", "-m", "release fixture"],
+        ["git", "tag", "-a", "v0.2.0a2", "-m", "release fixture"],
         cwd=tmp_path,
         check=True,
     )

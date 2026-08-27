@@ -5,8 +5,7 @@ import itertools
 import pytest
 from pydantic import ValidationError
 
-from motif_balance import DesignSpec, Portfolio, design
-from motif_balance.errors import SearchExhausted
+from motif_balance import DesignSpec, Portfolio, SearchExhausted, design
 from motif_balance.model import Evaluation, MotifMatch
 from motif_balance.selection import normalized_hamming_distance, select_candidates
 
@@ -63,6 +62,24 @@ def test_selection_enforces_observable_distance_and_exact_count() -> None:
         )
     assert raised.value.requested_count == 3
     assert raised.value.valid_count == 2
+
+
+def test_search_exhausted_is_a_stable_top_level_error_contract() -> None:
+    assert SearchExhausted.code == "search_exhausted"
+    error = SearchExhausted(
+        requested_count=3,
+        valid_count=2,
+        evaluations_used=16,
+        best_score=1.0,
+        limiting_condition="minimum-distance constraint",
+        hint="Change the design specification.",
+    )
+
+    assert error.requested_count == 3
+    assert error.valid_count == 2
+    assert error.evaluations_used == 16
+    assert error.best_score == 1.0
+    assert error.limiting_condition == "minimum-distance constraint"
 
 
 def test_selection_finds_feasible_subset_when_top_ranked_candidate_blocks_it() -> None:
