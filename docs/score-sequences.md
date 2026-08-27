@@ -36,8 +36,9 @@ for match in evaluation.matches:
     print(match.motif_id, match.start, match.end, match.strand, match.normalized_score)
 ```
 
-The sequence is uppercased, must contain exactly `spec.length` bases, and may
-contain only `A`, `C`, `G`, and `T`. Invalid input raises
+Input DNA is case-insensitive and canonical records are uppercase `A/C/G/T`.
+The sequence must contain exactly `spec.length` bases and no other symbols.
+Invalid input raises
 `motif_balance.errors.InvalidSequence`. The returned `Evaluation` is immutable,
 contains exactly one deterministic best match per motif, and uses the same
 hard-min balance score as candidate design.

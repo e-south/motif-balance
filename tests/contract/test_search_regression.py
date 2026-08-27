@@ -4,13 +4,13 @@ import json
 from pathlib import Path
 
 from motif_balance import design
-from motif_balance.api import load_spec
+from motif_balance.formats.design import load_design_spec
 
 
 def test_annealed_search_snapshot_is_stable_under_current_semantics() -> None:
     root = Path(__file__).resolve().parents[2]
     fixture = json.loads((root / "tests/fixtures/search/annealed-multistart-v1.json").read_text())
-    portfolio = design(load_spec(root / fixture["fixture"]))
+    portfolio = design(load_design_spec(root / fixture["fixture"]))
     expected = fixture["expected"]
 
     candidates = [

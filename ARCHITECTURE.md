@@ -42,9 +42,9 @@ verified artifacts.
 errors, constants, and model
   <- formats, compile, and scoring
   <- search and selection
-  <- artifacts and receipt
+  <- api and artifacts
+  <- receipt and execution
   <- inspection/{verify, project, render}
-  <- api
   <- cli
 ```
 
@@ -60,10 +60,17 @@ errors, constants, and model
   proposal but may not reinterpret a score.
 - `selection.py` chooses from already evaluated candidates and cannot mutate or
   rescore them.
-- `artifacts.py` serializes and verifies canonical bundles. It does not own
-  downstream registration or presentation.
+- `artifacts.py` serializes canonical bundles and replays their identities and
+  scientific records. It does not own downstream registration or presentation.
+- `api.py` contains only the public `design` and `score` operations plus the
+  `Portfolio` publication methods used by the top-level scientific facade.
 - `receipt.py` defines the runtime receipt and execution-workspace identity
   without changing canonical bundle identity.
+- `execution.py` owns exact-wheel validation, runtime attestation, receipts,
+  and atomic execution-workspace publication. It does not discover stores or
+  choose scientific policy.
+- `inspection/api.py` is the single advanced entry point for verifying and
+  projecting one explicit bundle or execution workspace.
 - `inspection/verify.py` carries the path-bound, already verified source into
   review without exposing it to renderers.
 - `inspection/project.py` replays authoritative scores and produces the one
@@ -71,9 +78,6 @@ errors, constants, and model
 - `inspection/render/` turns only that projection into text, JSON, SVG, or one
   self-contained HTML composition. It cannot read artifacts, search, rescore,
   discover stores, compare cohorts, or accept evidence.
-- `inspection/catalog.py` is a hidden integration utility over explicit result
-  references; it is not the product navigation model.
-- `api.py` is the sole public operation facade.
 - `cli.py` adapts files and arguments to the public facade and contains no
   derivations.
 

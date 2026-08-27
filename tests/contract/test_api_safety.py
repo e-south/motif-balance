@@ -12,12 +12,9 @@ from motif_balance import (
     Portfolio,
     design,
 )
-from motif_balance.api import (
-    execute_design_workspace,
-    load_spec,
-    verify_execution_workspace,
-)
 from motif_balance.errors import ArtifactError, InvalidDesign
+from motif_balance.execution import execute_design_workspace, verify_execution_workspace
+from motif_balance.formats.design import load_design_spec
 
 
 def _write_design(path: Path, spec: DesignSpec) -> None:
@@ -112,12 +109,12 @@ def test_load_spec_refuses_symbolic_links_and_nonstring_motif_keys(tmp_path: Pat
     link = tmp_path / "link.yaml"
     link.symlink_to(target)
     with pytest.raises(InvalidDesign, match="symbolic-link"):
-        load_spec(link)
+        load_design_spec(link)
 
     invalid = tmp_path / "invalid.yaml"
     invalid.write_text("motifs:\n  1: {}\nlength: 1\ncount: 1\nevaluations: 1\n")
     with pytest.raises(InvalidDesign, match="keys must be strings"):
-        load_spec(invalid)
+        load_design_spec(invalid)
 
 
 @pytest.mark.parametrize(

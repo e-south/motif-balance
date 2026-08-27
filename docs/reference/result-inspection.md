@@ -52,35 +52,36 @@ Inkscape composition.
 
 ## Reading order
 
-Inspection answers five questions:
+Inspection supports three user outcomes:
 
-| Endpoint | Question |
+| Outcome | Question |
 | --- | --- |
-| Delivery | What did the request return? |
-| Balance | How does each candidate score across the declared motif models? |
-| Realization | Which sequence, coordinates, strand, and bases produced each score? |
-| Search record | What best observed hard score was recorded as evaluator calls accumulated? |
-| Trust | Which integrity checks and external identities were applied? |
+| Design a portfolio | Which ranked sequence alternatives were returned and how do their motif trade-offs differ? |
+| Explain a hypothesis | Which supplied motif models, sequence coordinates, strands, and bases produced each score? |
+| Reproduce the result | Which exact records, semantics, and identities can be checked again? |
 
 Delivery, search completion, and integrity are independent. A complete
 portfolio may have stopped because the evaluation budget was exhausted, while
 its artifact bytes may still be externally verified.
 
-The candidate view shows the supplied sequence 5′→3′ and its
-coordinate-aligned complement 3′→5′. Forward matches appear above the primary
-strand and reverse matches below the complement. Position-support cells are
-the observed-base log-likelihood contributions replayed by scoring; renderers
-do not rescan a motif or recompute a score. Shared coordinates are a union of
-positions covered by more than one representative window, not evidence of
-simultaneous occupancy.
+The review leads with the portfolio because that is the product output. The
+candidate view then shows each supplied motif as a compact
+information-weighted logo, maps it to its selected match, and shows the
+supplied sequence 5′→3′ and its coordinate-aligned complement 3′→5′. Forward
+matches appear above the primary strand and reverse matches below the
+complement. Position-support cells are the observed-base log-likelihood
+contributions replayed by scoring; renderers do not rescan a motif or recompute
+a score. Shared coordinates are a union of positions covered by more than one
+representative window, not evidence of simultaneous occupancy.
 
 The portfolio view is a candidate-by-motif matrix in deterministic rank and
 canonical motif order. Values remain numeric. The color scale begins at zero,
 preserves values above one, and labels `1.0` as a consensus-relative reference,
 not a maximum or probability.
 
-The search view is the running maximum of recorded published hard-minimum
-scores against evaluator calls. It is not accepted-state history, literal hill
+The search view is a closed diagnostic in HTML and remains directly exportable
+as SVG. It is the running maximum of recorded published hard-minimum scores
+against evaluator calls. It is not accepted-state history, literal hill
 climbing, chain dynamics, convergence evidence, or a global-optimality claim.
 It is omitted when a result has no checkpoints.
 
@@ -101,6 +102,6 @@ narrow screen.
 
 Product inspection explains one result. Research workflows own matched
 controls, repeated seeds, exhaustive comparisons, uncertainty, failures,
-cross-task summaries, scaling, and scientific claim acceptance. The hidden
-`integration catalog` command can join explicit result summaries, but it does
-not discover Storage, define a cohort, rank results, or accept evidence.
+cross-task summaries, scaling, and scientific claim acceptance. The package
+does not join result summaries, discover Storage, define a cohort, rank results
+across runs, or accept evidence.

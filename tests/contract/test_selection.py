@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from motif_balance import DesignSpec, Portfolio, design
-from motif_balance.errors import SearchExhausted
+from motif_balance.errors import PortfolioInfeasible, SearchBudgetExhausted
 from motif_balance.model import Evaluation, MotifMatch
 from motif_balance.selection import normalized_hamming_distance, select_candidates
 
@@ -54,7 +54,7 @@ def test_selection_enforces_observable_distance_and_exact_count() -> None:
     assert [candidate.sequence for candidate in selected] == ["AAAA", "TTTT"]
     assert normalized_hamming_distance(*[candidate.sequence for candidate in selected]) == 1.0
 
-    with pytest.raises(SearchExhausted) as raised:
+    with pytest.raises(PortfolioInfeasible) as raised:
         select_candidates(
             evaluations,
             count=3,
@@ -65,14 +65,13 @@ def test_selection_enforces_observable_distance_and_exact_count() -> None:
     assert raised.value.valid_count == 2
 
 
-def test_search_exhausted_is_a_stable_top_level_error_contract() -> None:
-    assert SearchExhausted.code == "search_exhausted"
-    error = SearchExhausted(
+def test_search_budget_exhausted_is_a_stable_error_contract() -> None:
+    assert SearchBudgetExhausted.code == "search_budget_exhausted"
+    error = SearchBudgetExhausted(
         requested_count=3,
         valid_count=2,
         evaluations_used=16,
         best_score=1.0,
-        limiting_condition="minimum-distance constraint",
         hint="Change the design specification.",
     )
 
@@ -80,7 +79,6 @@ def test_search_exhausted_is_a_stable_top_level_error_contract() -> None:
     assert error.valid_count == 2
     assert error.evaluations_used == 16
     assert error.best_score == 1.0
-    assert error.limiting_condition == "minimum-distance constraint"
 
 
 def test_selection_finds_feasible_subset_when_top_ranked_candidate_blocks_it() -> None:

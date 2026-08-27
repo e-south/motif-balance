@@ -20,9 +20,11 @@ def render_text(inspection: ResultInspection) -> str:
             f"{'model' if motif_count == 1 else 'models'} at {best.balance_score:.6g}."
         ),
         "",
-        f"Portfolio delivery: {_words(inspection.delivery.status)}",
-        f"Search completion: {_words(inspection.search.completion)}",
-        f"Artifact integrity: {_words(inspection.integrity.state)}",
+        (
+            f"Status: delivery {_words(inspection.delivery.status)} · "
+            f"search {_words(inspection.search.completion)} · "
+            f"integrity {_words(inspection.integrity.state)}"
+        ),
         "",
         f"Problem: {inspection.problem.problem_id}",
         f"Run: {inspection.run.run_id}",

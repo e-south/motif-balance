@@ -11,10 +11,11 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from motif_balance.api import design, inspect_result, score
+from motif_balance.api import design, score
 from motif_balance.artifacts import bundle_id, manifest_bytes
 from motif_balance.errors import ArtifactError
-from motif_balance.inspection import (
+from motif_balance.inspection import ResultInspection, inspect_result
+from motif_balance.inspection.model import (
     DeliveryInspection,
     InspectionCandidate,
     InspectionMatch,
@@ -22,10 +23,9 @@ from motif_balance.inspection import (
     InspectionPortfolio,
     InspectionProblem,
     IntegrityInspection,
-    ResultInspection,
     SearchInspection,
-    project_candidate,
 )
+from motif_balance.inspection.project import project_candidate
 from motif_balance.inspection.render import (
     render_candidate_svg,
     render_html,
@@ -229,6 +229,10 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
 
     assert b'id="primary-sequence"' in candidate
     assert b'id="complementary-sequence"' in candidate
+    assert b'id="motif-models"' in candidate
+    assert b'class="motif-model"' in candidate
+    assert b"data-model-digest=" in candidate
+    assert b'data-probability="0.69999999999999996"' in candidate
     assert b'id="position-support"' in candidate
     assert "5\u2032\u21923\u2032".encode() in candidate
     assert "3\u2032\u21925\u2032".encode() in candidate
@@ -253,9 +257,8 @@ def test_one_html_compositor_uses_result_reading_order_and_scrolls_wide_figures(
     headings = (
         "Result",
         "Design contract",
-        "Selected candidate",
         "Portfolio balance",
-        "Search record",
+        "Selected candidate",
         "Exact records",
         "Provenance and integrity",
     )
@@ -265,6 +268,10 @@ def test_one_html_compositor_uses_result_reading_order_and_scrolls_wide_figures(
     assert "Search completion" in html
     assert "Artifact integrity" in html
     assert "overall-success" not in html
+    assert '<div class="states"' not in html
+    assert '<p class="status-line"' in html
+    assert "<summary>Search diagnostics</summary>" in html
+    assert "model-defined sequence evidence, not measurements" in html
     assert "figure-scroll" in html
     compact = "".join(html.split())
     assert ".figure-scrollsvg{display:block;max-width:none;min-width:60rem" in compact
@@ -331,9 +338,9 @@ def test_text_and_json_are_rendered_from_the_same_projection(
     payload = json.loads(render_inspection_json(inspection))
 
     assert f"Returned {pairwise_spec.count} of {pairwise_spec.count}" in text
-    assert "Portfolio delivery: complete" in text
-    assert "Search completion: exhaustive" in text
-    assert "Artifact integrity: self consistent" in text
+    assert "Status: delivery complete · search exhaustive · integrity self consistent" in text
+    assert "Portfolio delivery:" not in text
+    assert "Search completion:" not in text
     assert payload == inspection.model_dump(mode="json")
 
 

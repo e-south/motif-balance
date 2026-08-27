@@ -22,6 +22,8 @@ doc_type: explanation
   those constraints are modeled explicitly by a future version.
 - A bounded stochastic search does not prove global optimality. Completion and
   budget status must be read with every portfolio.
+- Reaching the bounded distance-selection node limit leaves feasibility
+  unresolved; it is not evidence that no valid portfolio exists.
 - Diversity in sequence space does not imply mechanistic or biological
   diversity.
 - One successful context does not establish cross-context portability.

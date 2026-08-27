@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import tempfile
 from pathlib import Path
 from typing import Annotated, Any, Literal, NoReturn
 
@@ -7,40 +9,29 @@ import typer
 import yaml
 from pydantic import ValidationError
 
-from motif_balance.api import (
-    ResultCatalog,
-    ResultInspection,
-    _planned_search_kind,
-    _write_new_file,
-    build_result_catalog,
-    compile_spec,
-    convert_motif,
-    design,
-    execute_design_workspace,
-    inspect_result,
-    load_spec,
-    render_inspection_html,
-    render_inspection_json,
-    render_inspection_svg,
-    render_result_catalog_html,
-    score,
-    summarize_inspection,
-)
+from motif_balance.api import design, score
+from motif_balance.compile import compile_design, planned_search_kind
 from motif_balance.errors import ArtifactError, InvalidDesign, InvalidMotif, MotifBalanceError
+from motif_balance.execution import execute_design_workspace
+from motif_balance.formats import convert_jaspar
+from motif_balance.formats.design import load_design_spec
+from motif_balance.inspection import ResultInspection, inspect_result
+from motif_balance.inspection.render import (
+    render_candidate_svg,
+    render_html,
+    render_inspection_json,
+    render_portfolio_svg,
+    render_search_svg,
+    render_text,
+)
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
-integration_app = typer.Typer(
-    add_completion=False,
-    no_args_is_help=True,
-    pretty_exceptions_enable=False,
-)
 motif_app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
 orchestration_app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
     pretty_exceptions_enable=False,
 )
-app.add_typer(integration_app, name="integration", hidden=True)
 app.add_typer(motif_app, name="motif", hidden=True)
 app.add_typer(orchestration_app, name="orchestration", hidden=True)
 
@@ -116,6 +107,37 @@ def _publish_or_emit(
     _write_new_file(out, payload, label="inspection output")
 
 
+def _write_new_file(path: Path, payload: bytes, *, label: str) -> None:
+    temporary: Path | None = None
+    try:
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            dir=path.parent,
+        )
+        temporary = Path(temporary_name)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(temporary, path, follow_symlinks=False)
+    except FileExistsError as exc:
+        raise ArtifactError(
+            f"Refusing to replace existing {label} '{path.name}'.",
+            field="out",
+            hint="Choose a new output path.",
+        ) from exc
+    except OSError as exc:
+        raise ArtifactError(
+            f"Unable to write {label} '{path.name}'.",
+            field="out",
+            hint="Choose a writable output path whose parent directory exists.",
+        ) from exc
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
 @app.command("design")
 def design_command(
     specification: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
@@ -128,14 +150,14 @@ def design_command(
     """Validate or execute one immutable DesignSpec."""
 
     try:
-        spec = load_spec(specification)
-        problem_id = compile_spec(spec)
+        spec = load_design_spec(specification)
+        problem_id = compile_design(spec).problem_id
         if check:
             typer.echo(f"valid {problem_id}")
             typer.echo(
                 f"motifs={len(spec.motifs)} length={spec.length} count={spec.count} "
                 f"strands={spec.strands} evaluations={spec.evaluations} "
-                f"min_distance={spec.min_distance} search={_planned_search_kind(spec)}"
+                f"min_distance={spec.min_distance} search={planned_search_kind(spec)}"
             )
             return
         if out is None:
@@ -146,7 +168,26 @@ def design_command(
             )
         portfolio = design(spec)
         portfolio.write(out)
-        typer.echo(f"complete {portfolio.manifest.bundle_id} {out}")
+        best = portfolio.best
+        typer.echo(
+            f"Returned {len(portfolio.candidates)} of {spec.count} candidates for "
+            f"{', '.join(motif.motif_id for motif in spec.motifs)}, each {spec.length} nt."
+        )
+        typer.echo(f"Best balance score: {best.balance_score:.6g}.")
+        if spec.min_distance is not None and spec.min_distance > 0.0:
+            typer.echo(f"Requested minimum distance: {spec.min_distance:.6g}.")
+        if portfolio.manifest.completion_status == "exhaustive":
+            typer.echo(
+                "Search completed after exhausting all "
+                f"{portfolio.manifest.evaluation_count} sequences."
+            )
+        else:
+            typer.echo(
+                "Search stopped after exhausting "
+                f"{portfolio.manifest.evaluation_count} evaluator calls."
+            )
+        typer.echo(f"Result written to {out}.")
+        typer.echo(f"Bundle: {portfolio.manifest.bundle_id}")
     except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
         _emit_error(exc, debug=debug, domain="design")
 
@@ -165,7 +206,7 @@ def score_command(
     """Score one sequence under an explicit DesignSpec."""
 
     try:
-        evaluation = score(sequence, load_spec(specification))
+        evaluation = score(sequence, load_design_spec(specification))
         if format_name == "json":
             payload = (evaluation.model_dump_json(indent=2) + "\n").encode()
         else:
@@ -185,28 +226,31 @@ def score_command(
 
 
 def _inspection_payload(
-    value: ResultInspection | ResultCatalog,
+    value: ResultInspection,
     *,
     format_name: Literal["text", "json", "html", "svg"],
     view: Literal["candidate", "portfolio", "search"] | None = None,
     candidate_rank: int = 1,
 ) -> bytes:
-    if isinstance(value, ResultCatalog):
-        if format_name == "json":
-            return (value.model_dump_json(indent=2) + "\n").encode()
-        if format_name == "html":
-            return render_result_catalog_html(value)
-        raise ArtifactError("integration catalogs support JSON or HTML output")
     if format_name == "text":
-        return summarize_inspection(value).encode()
+        return render_text(value).encode()
     if format_name == "json":
         return render_inspection_json(value)
     if format_name == "html":
-        return render_inspection_html(value)
+        return render_html(value)
     if format_name == "svg":
         if view is None:
             raise ArtifactError("SVG inspection requires --view candidate, portfolio, or search")
-        return render_inspection_svg(value, view=view, candidate_rank=candidate_rank)
+        if view == "candidate":
+            return render_candidate_svg(value, candidate_rank=candidate_rank)
+        if view == "portfolio":
+            return render_portfolio_svg(value)
+        if view == "search":
+            payload = render_search_svg(value)
+            if payload is None:
+                raise ArtifactError("this result does not contain a recorded search view")
+            return payload
+        raise ArtifactError(f"unsupported inspection view '{view}'")
     raise ArtifactError(f"unsupported inspection format '{format_name}'")
 
 
@@ -279,64 +323,6 @@ def inspect_command(
         _emit_error(exc, debug=debug, domain="artifact")
 
 
-@app.command("render-report", hidden=True, deprecated=True)
-def render_report_alias(
-    bundle: Annotated[Path, typer.Argument(exists=True, file_okay=False, readable=True)],
-    out: Annotated[Path, typer.Option("--out", help="New HTML review path.")],
-    debug: Annotated[bool, typer.Option("--debug")] = False,
-) -> None:
-    """Deprecated alias for inspect --format html."""
-
-    typer.echo("deprecated: use 'motif-balance inspect RESULT --format html --out FILE'", err=True)
-    try:
-        result = inspect_result(bundle, kind="bundle")
-        _publish_or_emit(
-            render_inspection_html(result),
-            out,
-            subject_roots=(bundle,),
-        )
-    except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
-        _emit_error(exc, debug=debug, domain="artifact")
-
-
-def _catalog_entry(value: str) -> tuple[str, Literal["bundle", "execution"], Path]:
-    entry_id, separator, remainder = value.partition("=")
-    kind, kind_separator, raw_path = remainder.partition(":")
-    if not separator or not kind_separator or kind not in {"bundle", "execution"}:
-        raise ArtifactError("catalog entries must use ID=KIND:PATH with an explicit supported kind")
-    return entry_id, kind, Path(raw_path)  # type: ignore[return-value]
-
-
-@integration_app.command("catalog")
-def catalog_command(
-    entries: Annotated[list[str], typer.Option("--entry", help="Explicit ID=KIND:PATH reference.")],
-    format_name: Annotated[Literal["json", "html"], typer.Option("--format")] = "json",
-    out: Annotated[Path | None, typer.Option("--out")] = None,
-    debug: Annotated[bool, typer.Option("--debug")] = False,
-) -> None:
-    """Build a developer catalog from explicit result references."""
-
-    try:
-        if not entries:
-            raise ArtifactError("catalog requires at least one --entry")
-        inspected: dict[str, ResultInspection] = {}
-        roots: list[Path] = []
-        for raw in entries:
-            entry_id, kind, path = _catalog_entry(raw)
-            if entry_id in inspected:
-                raise ArtifactError(f"duplicate catalog entry identifier '{entry_id}'")
-            inspected[entry_id] = inspect_result(path, kind=kind)
-            roots.append(path)
-        result = build_result_catalog(inspected)
-        _publish_or_emit(
-            _inspection_payload(result, format_name=format_name),
-            out,
-            subject_roots=tuple(roots),
-        )
-    except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
-        _emit_error(exc, debug=debug, domain="artifact")
-
-
 def _background(value: str) -> tuple[float, float, float, float]:
     try:
         parsed = tuple(float(part.strip()) for part in value.split(","))
@@ -367,7 +353,7 @@ def prepare_motif_command(
     """Prepare one canonical motif model from a supported source file."""
 
     try:
-        motif = convert_motif(
+        motif = convert_jaspar(
             source,
             motif_id=motif_id,
             background=_background(background),

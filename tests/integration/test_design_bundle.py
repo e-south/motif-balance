@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from motif_balance import DesignSpec, design
-from motif_balance.api import read_portfolio, verify_bundle
+from motif_balance.artifacts import read_verified_portfolio, verify_bundle
 from motif_balance.errors import ArtifactError
 
 
@@ -38,7 +38,9 @@ def test_synthetic_pairwise_design_is_deterministic_and_writes_canonical_bundle(
         verify_bundle(output, expected_bundle_id=first.manifest.bundle_id)
         == first.manifest.bundle_id
     )
-    assert read_portfolio(output) == first
+    assert read_verified_portfolio(output).model_dump(mode="python") == first.model_dump(
+        mode="python"
+    )
 
     with pytest.raises(ArtifactError, match="externally expected"):
         verify_bundle(output, expected_bundle_id="bundle-000000000000000000000000")

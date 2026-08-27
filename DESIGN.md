@@ -17,14 +17,15 @@ doc_type: explanation
 
 The public scientific vocabulary is `MotifModel`, `DesignSpec`, `MotifMatch`,
 `Candidate`, `Portfolio`, `design(spec) -> Portfolio`, and `score(...)`.
-`Evaluation`, `ResultInspection`, and `ResultCatalog` are internal or
-operational typed records, not additional top-level scientific nouns.
+`Evaluation` and `ResultInspection` are internal or operational typed records,
+not additional top-level scientific nouns.
 Scientific inputs belong in an immutable `DesignSpec`; operational CLI options
 may select output or validation behavior but cannot revise that specification.
 
 ## Invariants
 
-- Public models are strict, frozen, and reject unknown fields.
+- Public models are strict, frozen, reject unknown fields, and reject quoted
+  strings where a native numeric scalar is required.
 - Source conversions are explicit `motif-conversion/v1` provenance. A
   probability-matrix prior mixture requires a positive weight and source motif
   identity; compilation never applies a hidden second correction.
@@ -44,6 +45,8 @@ may select output or validation behavior but cannot revise that specification.
   not mutate sequence or scores after that boundary.
 - Selection returns exactly the requested count or fails explicitly. Diversity
   constraints cannot be silently relaxed.
+- Candidate sequences and compact candidate identifiers are independently
+  unique before construction, publication, and read-back.
 - Equal scores have a stable total ordering independent of process scheduling,
   mapping order, locale, or host.
 - Canonical output contains `design.json`, `motifs.json`, `candidates.tsv`,
@@ -64,6 +67,8 @@ Malformed models, unsafe paths, impossible lengths, unknown fields, invalid
 normalization domains, non-deterministic ties, insufficient feasible
 candidates, and artifact-integrity failures raise explicit typed errors.
 Scientific infeasibility is not converted to an empty successful portfolio.
+Evaluator exhaustion, evaluated-pool infeasibility, and the bounded selection
+traversal limit are distinct typed failures.
 
 ## Change discipline
 

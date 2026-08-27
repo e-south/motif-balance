@@ -13,10 +13,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast
 
+from motif_balance.compile import build_run_id, compile_design, sequence_space_at_most
 from motif_balance.constants import (
     MAX_BUNDLE_ARTIFACT_BYTES,
     MAX_BUNDLE_ROWS,
     MAX_INPUT_BYTES,
+    RNG_NAME,
+    SEARCH_ENGINE,
+    SEARCH_ENGINE_VERSION,
 )
 from motif_balance.errors import ArtifactError
 from motif_balance.model import (
@@ -28,6 +32,8 @@ from motif_balance.model import (
     PortfolioRecord,
     RunManifest,
 )
+from motif_balance.scoring import evaluate
+from motif_balance.selection import candidate_id_for_sequence
 
 _CANONICAL_FILES = {
     "design.json",
@@ -455,12 +461,113 @@ def read_bundle_snapshot(directory: str | Path) -> BundleSnapshot:
     return BundleSnapshot(portfolio=portfolio, members=tuple(sorted(members.items())))
 
 
-def verify_bundle_base(directory: str | Path) -> str:
-    return read_bundle_snapshot(directory).portfolio.manifest.bundle_id
-
-
 def read_portfolio_record(directory: str | Path) -> PortfolioRecord:
     return read_bundle_snapshot(directory).portfolio
+
+
+def verify_portfolio_record(portfolio: PortfolioRecord) -> None:
+    """Replay identities, search provenance, and every published candidate score."""
+
+    problem = compile_design(portfolio.spec)
+    if problem.problem_id != portfolio.manifest.problem_id:
+        raise ArtifactError("scientific replay found a problem identity mismatch")
+    expected_run = build_run_id(
+        portfolio.spec,
+        problem.problem_id,
+        portfolio.manifest.search_engine,
+        portfolio.manifest.search_engine_version,
+        package_version=portfolio.manifest.package_version,
+    )
+    if expected_run != portfolio.manifest.run_id:
+        raise ArtifactError("scientific replay found a run identity mismatch")
+
+    sequence_space = sequence_space_at_most(portfolio.spec.length, portfolio.spec.evaluations)
+    if sequence_space is not None:
+        expected_metadata = (
+            "exhaustive_v1",
+            SEARCH_ENGINE_VERSION,
+            "none",
+            "exhaustive",
+            "not_applicable",
+            sequence_space,
+        )
+    else:
+        expected_metadata = (
+            SEARCH_ENGINE,
+            SEARCH_ENGINE_VERSION,
+            RNG_NAME,
+            "budget_exhausted",
+            "contract_tested",
+            portfolio.spec.evaluations,
+        )
+    actual_metadata = (
+        portfolio.manifest.search_engine,
+        portfolio.manifest.search_engine_version,
+        portfolio.manifest.rng,
+        portfolio.manifest.completion_status,
+        portfolio.manifest.search_validation_status,
+        portfolio.manifest.evaluation_count,
+    )
+    if actual_metadata != expected_metadata:
+        raise ArtifactError("scientific replay found inconsistent search provenance")
+    if portfolio.manifest.unique_evaluations > portfolio.manifest.evaluation_count:
+        raise ArtifactError("scientific replay found impossible evaluation counts")
+
+    seen_ids: set[str] = set()
+    for candidate in portfolio.candidates:
+        if candidate.candidate_id in seen_ids:
+            raise ArtifactError("scientific replay found duplicate candidate identifiers")
+        seen_ids.add(candidate.candidate_id)
+        authoritative = evaluate(candidate.sequence, problem)
+        if candidate.candidate_id != candidate_id_for_sequence(candidate.sequence):
+            raise ArtifactError(
+                f"scientific replay found a candidate identity mismatch for rank {candidate.rank}"
+            )
+        if (
+            candidate.balance_score != authoritative.balance_score
+            or candidate.matches != authoritative.matches
+        ):
+            raise ArtifactError(
+                f"scientific replay found scoring drift for '{candidate.candidate_id}'"
+            )
+
+
+def read_verified_portfolio_snapshot(
+    directory: str | Path,
+    *,
+    expected_bundle_id: str | None = None,
+) -> tuple[PortfolioRecord, BundleSnapshot]:
+    """Read one descriptor-bound bundle snapshot and replay its scientific records."""
+
+    snapshot = read_bundle_snapshot(directory)
+    portfolio = snapshot.portfolio
+    if expected_bundle_id is not None and portfolio.manifest.bundle_id != expected_bundle_id:
+        raise ArtifactError("bundle identity does not match the externally expected identity")
+    verify_portfolio_record(portfolio)
+    return portfolio, snapshot
+
+
+def read_verified_portfolio(
+    directory: str | Path,
+    *,
+    expected_bundle_id: str | None = None,
+) -> PortfolioRecord:
+    portfolio, _snapshot = read_verified_portfolio_snapshot(
+        directory,
+        expected_bundle_id=expected_bundle_id,
+    )
+    return portfolio
+
+
+def verify_bundle(
+    directory: str | Path,
+    *,
+    expected_bundle_id: str | None = None,
+) -> str:
+    return read_verified_portfolio(
+        directory,
+        expected_bundle_id=expected_bundle_id,
+    ).manifest.bundle_id
 
 
 def bundle_id(manifest: RunManifest) -> str:

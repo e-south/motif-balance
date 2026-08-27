@@ -2,8 +2,15 @@ from __future__ import annotations
 
 import hashlib
 
-from motif_balance.errors import SearchExhausted
+from motif_balance.errors import (
+    ArtifactError,
+    PortfolioInfeasible,
+    SearchBudgetExhausted,
+    SelectionLimitReached,
+)
 from motif_balance.model import Candidate, Evaluation
+
+SELECTION_NODE_LIMIT = 1_000_000
 
 
 def normalized_hamming_distance(left: str, right: str) -> float:
@@ -27,14 +34,13 @@ def _exact_distance_subset(
     *,
     count: int,
     min_distance: float,
-) -> tuple[list[Evaluation] | None, int, bool]:
+) -> tuple[list[Evaluation] | None, int, int, bool]:
     best: list[Evaluation] = []
     nodes = 1
-    node_limit = 1_000_000
     # This is the same deterministic depth-first traversal as the recursive
     # formulation without coupling valid portfolio size to Python's call stack.
     stack: list[tuple[int, list[Evaluation]]] = [(0, [])]
-    while stack and nodes <= node_limit:
+    while stack and nodes <= SELECTION_NODE_LIMIT:
         next_index, selected = stack[-1]
         if next_index >= len(ranked):
             stack.pop()
@@ -52,11 +58,11 @@ def _exact_distance_subset(
         if len(child) > len(best):
             best = child
         if len(child) == count:
-            return child, len(child), False
+            return child, len(child), nodes, False
         child_position = next_index + 1
         if len(child) + len(ranked) - child_position >= count:
             stack.append((child_position, child))
-    return None, len(best), nodes > node_limit
+    return None, len(best), nodes, nodes > SELECTION_NODE_LIMIT
 
 
 def select_candidates(
@@ -76,7 +82,7 @@ def select_candidates(
         selected = ranked[:count]
         selection_limited = False
     else:
-        selected_result, valid_count, selection_limited = _exact_distance_subset(
+        selected_result, valid_count, nodes_explored, selection_limited = _exact_distance_subset(
             ranked,
             count=count,
             min_distance=min_distance,
@@ -85,21 +91,31 @@ def select_candidates(
         if selected_result is not None:
             valid_count = len(selected)
     if len(selected) != count:
-        raise SearchExhausted(
+        best_score = ranked[0].balance_score if ranked else None
+        if selection_limited:
+            raise SelectionLimitReached(
+                nodes_explored=nodes_explored,
+                node_limit=SELECTION_NODE_LIMIT,
+                candidate_pool_size=len(ranked),
+                requested_count=count,
+                minimum_distance=min_distance or 0.0,
+            )
+        if min_distance is not None and min_distance > 0.0:
+            raise PortfolioInfeasible(
+                requested_count=count,
+                valid_count=valid_count,
+                candidate_pool_size=len(ranked),
+                minimum_distance=min_distance,
+                evaluations_used=evaluations_used,
+                best_score=best_score,
+            )
+        raise SearchBudgetExhausted(
             requested_count=count,
-            valid_count=valid_count if min_distance is not None else len(selected),
+            valid_count=len(selected),
             evaluations_used=evaluations_used,
-            best_score=ranked[0].balance_score if ranked else None,
-            limiting_condition=(
-                "selection search node budget"
-                if selection_limited
-                else "minimum-distance constraint"
-                if min_distance is not None
-                else "unique candidates"
-            ),
-            hint="Increase evaluations, reduce count, or relax min_distance.",
+            best_score=best_score,
         )
-    return tuple(
+    candidates = tuple(
         Candidate(
             candidate_id=_candidate_id(evaluation.sequence),
             rank=rank,
@@ -109,3 +125,6 @@ def select_candidates(
         )
         for rank, evaluation in enumerate(selected, start=1)
     )
+    if len({candidate.candidate_id for candidate in candidates}) != len(candidates):
+        raise ArtifactError("candidate identifiers must be unique before portfolio construction")
+    return candidates

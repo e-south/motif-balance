@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import math
+
 from motif_balance.errors import ArtifactError
 
 from ..limits import MAX_SVG_MATCHES
-from ..model import InspectionCandidate, InspectionMatch, ResultInspection
+from ..model import InspectionCandidate, InspectionMatch, InspectionMotif, ResultInspection
 from .svg_primitives import (
     ACCENT,
     INK,
@@ -20,6 +22,8 @@ from .svg_primitives import (
     svg_start,
     text,
 )
+
+_BASE_COLORS = {"A": "#1B7F5A", "C": "#315F9E", "G": "#B7791F", "T": "#B64A3A"}
 
 
 def _candidate(inspection: ResultInspection, rank: int) -> InspectionCandidate:
@@ -78,6 +82,70 @@ def _match_lane(
     )
 
 
+def _motif_model(
+    motif: InspectionMotif,
+    match: InspectionMatch,
+    *,
+    top: int,
+    left: int,
+    cell: int,
+) -> str:
+    """Render one small information-weighted logo beside its selected match contract."""
+
+    model_name = motif_id(motif.motif_id)
+    baseline = top + 58
+    parts = [
+        f'<g class="motif-model" data-motif-id="{model_name}" '
+        f'data-model-digest="{motif.model_digest}" data-match-start="{match.start}" '
+        f'data-match-end="{match.end}" data-match-strand="{match.strand}">',
+        text(20, top + 18, model_name, size=12, weight=650),
+        text(
+            20,
+            top + 38,
+            f"width {motif.width} · best [{match.start}, {match.end}) {match.strand}",
+            size=10,
+            fill=MUTED,
+        ),
+        f'<line x1="{left}" y1="{baseline}" x2="{left + motif.width * cell}" '
+        f'y2="{baseline}" stroke="{LINE}"/>',
+    ]
+    for position, row in enumerate(motif.probabilities):
+        information = max(0.0, 2.0 + math.fsum(p * math.log2(p) for p in row))
+        glyphs = sorted(zip("ACGT", row, strict=True), key=lambda item: (item[1], item[0]))
+        cursor = float(baseline)
+        for base, probability in glyphs:
+            glyph_height = max(4, round(54 * probability * information / 2.0))
+            cursor -= glyph_height
+            parts.append(
+                text(
+                    left + (position + 0.5) * cell,
+                    cursor + glyph_height,
+                    base,
+                    size=glyph_height,
+                    anchor="middle",
+                    weight=700,
+                    fill=_BASE_COLORS[base],
+                    family="ui-monospace,monospace",
+                    extra=(
+                        f' data-motif-position="{position}" data-base="{base}" '
+                        f'data-probability="{probability:.17g}"'
+                    ),
+                )
+            )
+        parts.append(
+            text(
+                left + (position + 0.5) * cell,
+                baseline + 13,
+                position,
+                size=8,
+                anchor="middle",
+                fill=MUTED,
+            )
+        )
+    parts.append("</g>")
+    return "".join(parts)
+
+
 def render_candidate_svg(
     inspection: ResultInspection,
     *,
@@ -87,13 +155,16 @@ def render_candidate_svg(
 
     candidate = _candidate(inspection, candidate_rank)
     shown = _shown_matches(candidate)
+    motifs_by_id = {motif.motif_id: motif for motif in inspection.problem.motifs}
     forward = tuple(match for match in shown if match.strand == "+")
     reverse = tuple(match for match in shown if match.strand == "-")
     cell = 24
-    left = 190
+    left = 210
     right = 42
     width = max(960, left + len(candidate.sequence) * cell + right)
-    primary_y = 105 + 30 * max(1, len(forward))
+    logo_top = 88
+    logo_row_height = 82
+    primary_y = logo_top + logo_row_height * len(shown) + 42 + 30 * max(1, len(forward))
     complement_y = primary_y + 44
     support_y = complement_y + 44 + 30 * max(1, len(reverse))
     height = support_y + 34 * len(shown) + 70
@@ -126,6 +197,25 @@ def render_candidate_svg(
                 size=13,
                 fill=MUTED,
             ),
+            '<g id="motif-models">',
+            text(
+                20,
+                78,
+                "Supplied motif models (information-weighted logos) → selected matches",
+                size=12,
+                weight=650,
+            ),
+            *(
+                _motif_model(
+                    motifs_by_id[match.motif_id],
+                    match,
+                    top=logo_top + index * logo_row_height,
+                    left=left,
+                    cell=cell,
+                )
+                for index, match in enumerate(shown)
+            ),
+            "</g>",
             '<g id="shared-coordinates">',
         ]
     )

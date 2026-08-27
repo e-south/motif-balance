@@ -172,28 +172,25 @@ def _styles() -> str:
   --paper:#fbfcfa; --accent:#d97757;
 }
 * { box-sizing:border-box; }
+html, body { max-width:100%; overflow-x:hidden; }
 body {
   margin:0; background:var(--paper); color:var(--ink);
   font:16px/1.5 system-ui,sans-serif;
 }
-main { max-width:1180px; margin:auto; padding:2.5rem 1.1rem 5rem; }
-h1 { font-size:clamp(2rem,5vw,3.2rem); line-height:1.05; margin:0 0 .8rem; }
+main { width:100%; min-width:0; max-width:1180px; margin:auto; padding:2.5rem 1.1rem 5rem; }
+h1 { font-size:clamp(2rem,5vw,3.2rem); line-height:1.05; margin:0 0 .8rem; overflow-wrap:anywhere; }
 h2 { margin:2.8rem 0 1rem; border-top:1px solid var(--line); padding-top:1rem; }
 h3 { margin-top:1.6rem; }
 .lede { max-width:74ch; color:var(--muted); font-size:1.12rem; }
-.states {
-  display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:1rem; margin:1.8rem 0;
-}
-.state { border-top:3px solid var(--accent); padding:.65rem 0; }
-.state strong { display:block; }
-.state span { color:var(--muted); font-size:.88rem; }
+.contract { font-weight:650; letter-spacing:.01em; overflow-wrap:anywhere; }
+.status-line { color:var(--muted); margin:1rem 0 2rem; }
+.status-line span { white-space:nowrap; }
 .figure-scroll {
-  overflow-x:auto; inline-size:100%; border:1px solid var(--line);
+  overflow-x:auto; inline-size:100%; max-width:100%; min-width:0; border:1px solid var(--line);
   padding:.5rem; background:var(--paper);
 }
 .figure-scroll svg { display:block; max-width:none; min-width:60rem; height:auto; }
-.table-wrap { overflow-x:auto; }
+.table-wrap { overflow-x:auto; max-width:100%; min-width:0; }
 table { border-collapse:collapse; width:max-content; min-width:48rem; font-size:.9rem; }
 th { text-align:left; color:var(--muted); }
 th,td { border-bottom:1px solid var(--line); padding:.58rem; vertical-align:top; }
@@ -205,8 +202,8 @@ summary { cursor:pointer; font-weight:650; }
 .print-records { display:none; }
 .scope { border-left:3px solid var(--accent); padding:.2rem 1rem; max-width:82ch; }
 @media(max-width:720px) {
-  .states { grid-template-columns:1fr; }
   main { padding-inline:.8rem; }
+  h1 { max-width:14ch; font-size:1.85rem; }
 }
 @media print {
   main { max-width:none; }
@@ -309,23 +306,19 @@ def _provenance_section(inspection: ResultInspection) -> str:
     )
 
 
-def _state_cards(inspection: ResultInspection) -> str:
+def _status_line(inspection: ResultInspection) -> str:
     delivery = (
-        f"{inspection.delivery.delivered_count} / "
-        f"{inspection.delivery.requested_count} returned · "
-        f"{escape(_words(inspection.delivery.status))}"
+        f"Portfolio delivery: {inspection.delivery.delivered_count}/"
+        f"{inspection.delivery.requested_count} {escape(_words(inspection.delivery.status))}"
     )
     completion = (
-        f"{escape(_words(inspection.search.completion))} · "
+        f"Search completion: {escape(_words(inspection.search.completion))} at "
         f"{inspection.search.evaluator_calls} evaluator calls"
     )
-    integrity = escape(_words(inspection.integrity.state))
+    integrity = f"Artifact integrity: {escape(_words(inspection.integrity.state))}"
     return (
-        '<div class="states" aria-label="Independent result states">'
-        f'<div class="state"><strong>Portfolio delivery</strong><span>{delivery}</span></div>'
-        f'<div class="state"><strong>Search completion</strong><span>{completion}</span></div>'
-        f'<div class="state"><strong>Artifact integrity</strong><span>{integrity}</span></div>'
-        "</div>"
+        '<p class="status-line" aria-label="Independent result states">'
+        f"<span>{delivery}</span> · <span>{completion}</span> · <span>{integrity}</span></p>"
     )
 
 
@@ -339,18 +332,6 @@ def render_html(
     selected = _selected_candidate(inspection, candidate_rank)
     candidate_svg = render_candidate_svg(inspection, candidate_rank=candidate_rank).decode()
     portfolio_svg = render_portfolio_svg(inspection).decode()
-    design_rows = _rows(
-        [
-            ("Sequence length", f"{inspection.problem.length} nt"),
-            ("Motif models", ", ".join(m.motif_id for m in inspection.problem.motifs)),
-            ("Strand policy", inspection.problem.strands),
-            ("Candidate count", inspection.delivery.requested_count),
-            ("Minimum distance", inspection.run.min_distance_requested),
-            ("Scoring", inspection.problem.scoring_semantics),
-            ("Objective", inspection.problem.objective_semantics),
-            ("Tie break", inspection.problem.tie_break_semantics),
-        ]
-    )
     lede = (
         f"Returned {inspection.delivery.delivered_count} of "
         f"{inspection.delivery.requested_count} requested sequences. The selected rank "
@@ -358,28 +339,41 @@ def render_html(
         f"at {selected.balance_score:.6g}."
     )
     scope = " ".join(inspection.claim_scope)
+    distance = (
+        "no minimum distance"
+        if inspection.run.min_distance_requested is None
+        else f"minimum distance {inspection.run.min_distance_requested:.6g}"
+    )
+    contract = (
+        f"{' + '.join(m.motif_id for m in inspection.problem.motifs)} · "
+        f"{inspection.problem.length} nt · {inspection.problem.strands} strands · "
+        f"{inspection.delivery.requested_count} candidates · {distance}"
+    )
     body = "".join(
         (
             "<h1>Motif Balance result review</h1>",
             f'<h2>Result</h2><p class="lede">{escape(lede)}</p>',
-            _state_cards(inspection),
-            '<h2>Design contract</h2><div class="table-wrap">',
-            f"<table><tbody>{design_rows}</tbody></table></div>",
-            "<h2>Selected candidate</h2>",
-            f"<p>Rank {selected.rank} is shown by default. The colored windows are best "
-            "computational matches; shared coordinates do not imply simultaneous occupancy.</p>",
-            '<div class="figure-scroll" aria-label="Selected candidate realization figure">',
-            f"{candidate_svg}</div>",
+            _status_line(inspection),
+            f'<h2>Design contract</h2><p class="contract">{escape(contract)}</p>',
             "<h2>Portfolio balance</h2>",
             "<p>Rows retain deterministic rank order and columns retain canonical motif order. "
             "Numeric values are authoritative; color is only a reading aid.</p>",
             '<div class="figure-scroll" aria-label="Portfolio balance figure">',
             f"{portfolio_svg}</div>",
-            f"<h2>Search record</h2>{_search_section(inspection)}",
-            f"<h2>Exact records</h2>{_exact_records(inspection)}",
-            _provenance_section(inspection),
+            "<h2>Selected candidate</h2>",
+            f"<p>Rank {selected.rank} is shown by default. Supplied motif models map to one "
+            "representative match per motif, including exact strand, coordinates, overlap, "
+            "and observed-base score support.</p>",
+            '<div class="figure-scroll" aria-label="Selected candidate realization figure">',
+            f"{candidate_svg}</div>",
             '<div class="scope"><h3>Interpretation boundary</h3>',
-            f"<p>{escape(scope)}</p></div>",
+            "<p>Predicted motif matches are model-defined sequence evidence, not measurements "
+            "of binding, occupancy, competition, cooperativity, expression, or regulatory "
+            "function.</p></div>",
+            f"<h2>Exact records</h2>{_exact_records(inspection)}",
+            _details("Search diagnostics", _search_section(inspection)),
+            _provenance_section(inspection),
+            f'<p class="lede">Full claim scope: {escape(scope)}</p>',
         )
     )
     document = (

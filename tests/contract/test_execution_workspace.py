@@ -10,17 +10,12 @@ import pytest
 from pydantic import ValidationError
 
 import motif_balance
-import motif_balance.api as api_module
+import motif_balance.execution as execution_module
 from motif_balance import DesignSpec
-from motif_balance.api import (
-    build_result_catalog,
-    execute_design_workspace,
-    inspect_result,
-    render_inspection_html,
-    verify_execution_workspace,
-)
 from motif_balance.errors import ArtifactError
-from motif_balance.inspection import ResultInspection
+from motif_balance.execution import execute_design_workspace, verify_execution_workspace
+from motif_balance.inspection import ResultInspection, inspect_result
+from motif_balance.inspection.render import render_html
 from motif_balance.model import ExecutionWorkspace
 from motif_balance.receipt import workspace_bytes, workspace_id
 
@@ -195,11 +190,9 @@ def test_execution_inspection_distinguishes_internal_and_external_trust(
     assert external.integrity.trust_basis == "external_execution_identities"
     assert external.execution is not None
     assert external.execution.workspace_id == workspace["workspace_id"]
-    html = render_inspection_html(external).decode()
+    html = render_html(external).decode()
     assert "Execution provenance" in html
     assert "Runtime package tree SHA-256" in html
-    catalog = build_result_catalog({"execution": external})
-    assert catalog.entries[0].workspace_id == workspace["workspace_id"]
 
     external_payload = external.model_dump(mode="python")
     with pytest.raises(ValidationError, match="kind and provenance must agree"):
@@ -232,7 +225,7 @@ def test_execution_inspection_binds_projected_receipt_bytes(
     forged_record = json.loads(genuine)
     forged_record["platform_machine"] = "FORGED-INTERMEDIATE"
     forged = (json.dumps(forged_record, indent=2, sort_keys=True) + "\n").encode()
-    original_read = api_module._read_workspace_file
+    original_read = execution_module._read_workspace_file
     receipt_reads = 0
 
     def substitute_intermediate_receipt(root: Path, relative: str) -> bytes:
@@ -244,7 +237,7 @@ def test_execution_inspection_binds_projected_receipt_bytes(
                 return forged
         return payload
 
-    monkeypatch.setattr(api_module, "_read_workspace_file", substitute_intermediate_receipt)
+    monkeypatch.setattr(execution_module, "_read_workspace_file", substitute_intermediate_receipt)
 
     with pytest.raises(ArtifactError, match="resource digest mismatch"):
         inspect_result(

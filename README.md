@@ -1,16 +1,18 @@
 # ![Motif Balance — balanced motif design](assets/motif-balance-banner.svg)
 
-Motif Balance is a deterministic inverse-design package for fixed-length DNA
-sequences evaluated against explicit motif models. Under
-`normalized_llr_v1`, it maximizes the weakest normalized motif score and
-returns an exact number of distinct, fully re-evaluated candidates. An optional
-minimum-distance constraint can make that portfolio sequence-diverse.
+Design DNA against several motif models at once. Motif Balance lets researchers
+declare which motif preferences should coexist within a finite sequence, then
+returns an exact-size ranked portfolio without requiring the sequence, motif
+variant, placement, strand, or shared-coordinate pattern to be prescribed in
+advance. Under `normalized_llr_v1`, it maximizes the weakest normalized motif
+score; an optional minimum-distance constraint can keep the returned sequences
+distinct.
 
 This repository is a public prerelease and is not approved for PyPI publication.
 The `0.3` alpha supports CPython 3.12–3.14 on POSIX systems; Linux is the hosted
 CI authority and macOS is exercised locally. Windows is not yet a supported
 runtime.
-Outputs are model-relative computational results; they do not establish
+Outputs are inspectable sequence hypotheses under the supplied models. They do not establish
 binding, expression, synthesis readiness, biological function, or global
 optimality.
 
@@ -30,7 +32,9 @@ uv run motif-balance inspect /tmp/motif-balance-result \
 ```
 
 The sanitized [committed candidate review](examples/synthetic-pairwise/candidate-review.svg)
-previews the same review grammar without requiring a browser application.
+connects each supplied motif model to its selected strand-aware match, shared
+sequence coordinates, and base-level score support without requiring a browser
+application.
 
 The immutable bundle contains five canonical files—`design.json`,
 `motifs.json`, `candidates.tsv`, `matches.tsv`, and `manifest.json`—plus a
