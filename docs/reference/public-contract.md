@@ -21,6 +21,9 @@ Import supported contracts and operations only from `motif_balance`:
 
 - Data contracts: `MotifModel`, `DesignSpec`, `MotifMatch`, `Evaluation`,
   `Candidate`, and `Portfolio`.
+- Error contracts: `MotifBalanceError`, `InvalidMotif`, `InvalidDesign`,
+  `InvalidSequence`, `IncompatibleDesign`, `SearchExhausted`, and
+  `ArtifactError`.
 - Scientific operations: `compile_spec`, `design`, and `score`.
 - Input operations: `read_motif`, `convert_motif`, and `load_spec`.
 - Artifact operations: `read_portfolio`, `verify_bundle`,
@@ -32,6 +35,12 @@ Import supported contracts and operations only from `motif_balance`:
 
 `score(sequence, spec) -> Evaluation` returns the authoritative immutable match
 and scoring record for one sequence.
+
+`design(spec) -> Portfolio` either returns exactly `spec.count` candidates or
+raises the top-level `SearchExhausted` contract. Its structured fields record
+the requested and valid counts, evaluations used, best observed score, and the
+limiting condition. Consumers must not parse exception prose or import
+`motif_balance.errors` as a compatibility seam.
 
 `Portfolio.write(path)` is the supported convenience for publishing a canonical
 bundle. The public facade owns that orchestration even if its implementation is
