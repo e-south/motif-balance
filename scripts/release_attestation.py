@@ -301,13 +301,13 @@ def _git_bytes(repo_root: Path, *args: str) -> bytes:
 
 def subject_from_repository(repo_root: Path, *, require_tag: bool) -> dict[str, str]:
     """Resolve the expected release subject from an exact source checkout."""
+    revision = _git(repo_root, "rev-parse", "HEAD")
     if _git(repo_root, "status", "--porcelain", "--untracked-files=all"):
         raise ValueError("source repository is not clean")
-    project = tomllib.loads(_git_bytes(repo_root, "show", "HEAD:pyproject.toml").decode())[
+    project = tomllib.loads(_git_bytes(repo_root, "show", f"{revision}:pyproject.toml").decode())[
         "project"
     ]
     version = str(project["version"])
-    revision = _git(repo_root, "rev-parse", "HEAD")
     tag = f"v{version}"
     if require_tag:
         if _git(repo_root, "cat-file", "-t", f"refs/tags/{tag}") != "tag":
@@ -315,12 +315,16 @@ def subject_from_repository(repo_root: Path, *, require_tag: bool) -> dict[str, 
         tagged_revision = _git(repo_root, "rev-parse", f"refs/tags/{tag}^{{commit}}")
         if tagged_revision != revision:
             raise ValueError("release tag does not point to the expected source revision")
+    if _git(repo_root, "rev-parse", "HEAD") != revision or _git(
+        repo_root, "status", "--porcelain", "--untracked-files=all"
+    ):
+        raise ValueError("source repository changed while resolving provenance")
     return {
-        "lock_sha256": _sha256_bytes(_git_bytes(repo_root, "show", "HEAD:uv.lock")),
+        "lock_sha256": _sha256_bytes(_git_bytes(repo_root, "show", f"{revision}:uv.lock")),
         "repository": REPOSITORY,
         "revision": revision,
         "tag": tag,
-        "tree": _git(repo_root, "rev-parse", "HEAD^{tree}"),
+        "tree": _git(repo_root, "rev-parse", f"{revision}^{{tree}}"),
         "version": version,
     }
 
@@ -330,6 +334,10 @@ def _create_command(args: argparse.Namespace) -> int:
     repo_root = Path(__file__).resolve().parents[1]
     wheel, sdist, attestation = _release_files(directory)
     subject = subject_from_repository(repo_root, require_tag=False)
+    if HEX40.fullmatch(args.expected_revision) is None:
+        raise ValueError("expected release revision is invalid")
+    if subject["revision"] != args.expected_revision:
+        raise ValueError("source revision disagrees with the pinned release revision")
     uv_version = subprocess.run(
         ["uv", "--version"],
         check=True,
@@ -381,6 +389,7 @@ def _parser() -> argparse.ArgumentParser:
     create.add_argument("--directory", type=Path, required=True)
     create.add_argument("--builder-kind", choices=sorted(BUILDER_KINDS), required=True)
     create.add_argument("--source-date-epoch", type=int, required=True)
+    create.add_argument("--expected-revision", required=True)
     create.add_argument("--limitation", action="append", required=True)
     create.set_defaults(handler=_create_command)
     verify = commands.add_parser("verify", help="verify one release directory")

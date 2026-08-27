@@ -133,14 +133,31 @@ attestation_args=(
   --directory "$out_dir"
   --builder-kind "$builder_kind"
   --source-date-epoch "$source_date_epoch"
+  --expected-revision "$release_revision"
 )
 for limitation in "${limitations[@]}"; do
   attestation_args+=(--limitation "$limitation")
 done
 uv run --locked python scripts/release_attestation.py "${attestation_args[@]}"
+[[ "$(output_identity)" == "$out_identity" ]] || {
+  echo "release output directory changed during attestation" >&2
+  exit 1
+}
 uv run --locked python scripts/release_attestation.py verify \
   --directory "$out_dir" \
   --repository-root "$repo_root"
+[[ "$(git rev-parse HEAD)" == "$release_revision" ]] || {
+  echo "release source revision changed during attestation verification" >&2
+  exit 1
+}
+[[ -z "$(git status --porcelain --untracked-files=all)" ]] || {
+  echo "release checkout changed during attestation verification" >&2
+  exit 1
+}
+[[ "$(output_identity)" == "$out_identity" ]] || {
+  echo "release output directory changed during attestation verification" >&2
+  exit 1
+}
 test -f "$out_dir/release-build-attestation.json"
 test -f "$out_dir/SHA256SUMS"
 
