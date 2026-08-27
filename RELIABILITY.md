@@ -7,7 +7,7 @@ audience:
   - bundle consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: reference
 ---
 
@@ -52,8 +52,10 @@ positions; it does not materialize the combinatorial null-score distribution.
 `manifest.json` inventories every other bundle artifact with a normalized
 relative path, byte count, and SHA-256 digest. Verification rejects
 missing, symlinked, modified, unmanifested, path-traversing, or schema-invalid
-content. JSON, bundle bytes, and semantic table rows have explicit pre-read or
-streaming bounds. Bundle publication writes to a sibling temporary directory, verifies
+content. Verification parses and replays one descriptor-bound, bounded byte
+snapshot; it does not reread member paths after verification. JSON, bundle
+bytes, and semantic table rows have explicit pre-read or streaming bounds.
+Bundle publication writes to a sibling temporary directory, verifies
 the complete result, and renames it atomically. Existing output paths are never
 merged, replaced, or partially repaired.
 
@@ -62,16 +64,20 @@ systems may register their locations and digests without changing the software
 artifact identity.
 
 Result inspections are derived after verification and are never inserted into
-`run-manifest/v2`. A catalog is built from explicit references and fails the
+`run-manifest/v2` or `run-manifest/v3`. A catalog is built from explicit references and fails the
 requested operation rather than silently omitting an unreadable entry. Exact
 pairwise distance inspection has an explicit base-comparison limit and reports
-`not_computed_limit` instead of entering unbounded quadratic work. HTML views
-bound rendered candidate and match rows while preserving the complete JSON and
-verified TSV surfaces.
+`not_computed_limit` instead of entering unbounded quadratic work. HTML and SVG
+views bound rendered candidates, matches, motifs, and checkpoints while
+preserving exact displayed and total counts. Wide SVGs keep explicit dimensions
+and are horizontally scrollable rather than illegibly compressed. Print output
+uses a bounded print-only copy of progressively disclosed tables because
+Chromium does not print descendants of closed `details` elements.
 
 ## Degraded behavior
 
 There is no permissive fallback for an unknown schema, scoring version, strand
 rule, corrupted motif model, incomplete artifact inventory, or unavailable
-candidate count. Derived FASTA and HTML views are verified bundle members but
-are not scientific authorities; they may not recompute candidate or match state.
+candidate count. Derived FASTA is a verified bundle member. On-demand text,
+JSON, SVG, and HTML reviews are not bundle members or scientific authorities;
+they may not recompute candidate or match state.

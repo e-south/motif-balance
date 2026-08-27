@@ -4,10 +4,10 @@ title: Execution workspace and storage object contract
 intent: Define attested runtime provenance and durable dogfood object boundaries.
 audience:
   - integrators
-  - evidence producers
+  - execution producers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: reference
 ---
 
@@ -24,8 +24,8 @@ revision, package-tree digest, search engine, and evaluation counts.
 Create the workspace in the same operation that performs the design:
 
 ```bash
-motif-balance execute design.yaml \
-  --release-artifact dist/motif_balance-0.2.0a3-py3-none-any.whl \
+motif-balance orchestration execute design.yaml \
+  --release-artifact dist/motif_balance-0.3.0a1-py3-none-any.whl \
   --producer-revision <40-character-commit> \
   --out execution-workspace
 ```
@@ -57,14 +57,13 @@ bundle/
   matches.tsv
   manifest.json
   candidates.fasta
-  report.html
 ```
 
 Verification requires four values from an authority outside the object being
 checked: workspace ID, receipt digest, release digest, and producer revision.
 
 ```bash
-motif-balance verify-execution execution-workspace \
+motif-balance inspect execution-workspace --source execution \
   --expected-workspace-id <execution-id> \
   --expected-receipt-sha256 <sha256> \
   --expected-release-sha256 <sha256> \
@@ -104,8 +103,9 @@ object closure. The execution index owns the product workspace inventory. The
 bundle manifest remains the authority for scientific result content. No
 manifest replaces another owner's contract.
 
-Run Storage validation against the envelope root and
-`motif-balance verify-execution` against the nested `workspace/`. Adding the
+Run Storage validation against the envelope root and `motif-balance inspect
+workspace/ --source execution` with all four external anchors against the
+nested product workspace. Adding the
 Storage envelope to the product root is invalid because both contracts close
 their own inventories.
 
@@ -116,8 +116,8 @@ or the canonical bundle.
 
 ## Supported schemas
 
-Motif Balance `0.2` verifies `run-manifest/v2`, execution receipt v1, and
-execution workspace v1. It rejects earlier or unknown schemas. Retain the exact
+Motif Balance `0.3` verifies `run-manifest/v2` and `run-manifest/v3`, execution
+receipt v1, and execution workspace v1. It rejects earlier or unknown schemas. Retain the exact
 wheel because scientific replay is exact-build replay; a package version alone
 is not enough. Future compatibility must be implemented as an explicit schema
 dispatcher with tests, never as permissive parsing.

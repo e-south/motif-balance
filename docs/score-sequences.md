@@ -7,7 +7,7 @@ audience:
   - users
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: how-to
 journey:
   - score
@@ -15,13 +15,20 @@ journey:
 
 # Score an existing sequence
 
-Use the Python facade when you already have a sequence and need the same
-matching and score semantics used by design:
+Use the CLI when you already have a sequence and need the same matching and
+score semantics used by design:
+
+```bash
+motif-balance score examples/synthetic-pairwise/design.yaml ACGT
+motif-balance score examples/synthetic-pairwise/design.yaml ACGT \
+  --format json --out score.json
+```
+
+The Python verb accepts an already constructed `DesignSpec`:
 
 ```python
-from motif_balance import load_spec, score
+from motif_balance import score
 
-spec = load_spec("examples/synthetic-pairwise/design.yaml")
 evaluation = score("ACGT", spec)
 
 print(evaluation.balance_score)

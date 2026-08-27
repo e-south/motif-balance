@@ -26,12 +26,10 @@ KNOWN_LAYERS = {
     "formats",
     "inspection",
     "model",
-    "report",
     "receipt",
     "scoring",
     "search",
     "selection",
-    "visualization",
 }
 ALLOWED_IMPORTS = {
     "constants": set(),
@@ -43,10 +41,8 @@ ALLOWED_IMPORTS = {
     "search": {"compile", "constants", "errors", "model", "scoring"},
     "selection": {"constants", "errors", "model", "scoring"},
     "artifacts": {"constants", "errors", "model"},
-    "report": {"constants", "errors", "model"},
     "receipt": {"constants", "errors", "model"},
-    "visualization": {"errors", "model"},
-    "inspection": {"constants", "errors", "model", "visualization"},
+    "inspection": {"compile", "constants", "errors", "model", "scoring"},
     "api": KNOWN_LAYERS - {"api", "cli"},
     "cli": {"api", "errors"},
 }
@@ -56,8 +52,8 @@ def _source_layer(relative_path: Path) -> str | None:
     """Return the declared layer for one package source path."""
     if relative_path == Path("__init__.py"):
         return None
-    if relative_path.parts[0] == "formats":
-        return "formats"
+    if relative_path.parts[0] in {"formats", "inspection"}:
+        return relative_path.parts[0]
     if len(relative_path.parts) != 1:
         raise ValueError(f"unknown first-party package path {relative_path.as_posix()!r}")
     layer = relative_path.stem
@@ -79,8 +75,9 @@ def _absolute_module(relative_path: Path, node: ast.ImportFrom) -> str:
     return ".".join(prefix)
 
 
-def imported_layers(relative_path: Path, node: ast.Import | ast.ImportFrom) -> set[str]:
-    """Return first-party top-level layers imported by one AST node."""
+def imported_modules(relative_path: Path, node: ast.Import | ast.ImportFrom) -> set[str]:
+    """Return first-party module paths imported by one AST node."""
+
     modules: list[str] = []
     if isinstance(node, ast.Import):
         modules.extend(alias.name for alias in node.names)
@@ -90,12 +87,53 @@ def imported_layers(relative_path: Path, node: ast.Import | ast.ImportFrom) -> s
         if base == "motif_balance":
             modules.extend(f"motif_balance.{alias.name}" for alias in node.names)
 
+    return {
+        module
+        for module in modules
+        if module == "motif_balance" or module.startswith("motif_balance.")
+    }
+
+
+def imported_layers(relative_path: Path, node: ast.Import | ast.ImportFrom) -> set[str]:
+    """Return first-party top-level layers imported by one AST node."""
+
     layers: set[str] = set()
-    for module in modules:
+    for module in imported_modules(relative_path, node):
         parts = module.split(".")
         if len(parts) >= 2 and parts[0] == "motif_balance":
             layers.add(parts[1])
     return layers
+
+
+def inspection_boundary_violations(
+    relative_path: Path,
+    node: ast.Import | ast.ImportFrom,
+) -> list[str]:
+    """Enforce verify, project, and render direction inside inspection."""
+
+    if not relative_path.parts or relative_path.parts[0] != "inspection":
+        return []
+    modules = imported_modules(relative_path, node)
+    if len(relative_path.parts) >= 2 and relative_path.parts[1] == "render":
+        allowed = (
+            "motif_balance.errors",
+            "motif_balance.inspection.limits",
+            "motif_balance.inspection.model",
+            "motif_balance.inspection.render",
+        )
+        return [
+            f"{relative_path}:{node.lineno}: inspection renderer must not import {module!r}"
+            for module in sorted(modules)
+            if not any(module == prefix or module.startswith(prefix + ".") for prefix in allowed)
+        ]
+    if relative_path == Path("inspection/project.py"):
+        return [
+            f"{relative_path}:{node.lineno}: inspection projector must not import {module!r}"
+            for module in sorted(modules)
+            if module == "motif_balance.inspection.render"
+            or module.startswith("motif_balance.inspection.render.")
+        ]
+    return []
 
 
 def violations_for_source(relative_path: Path, source: str) -> list[str]:
@@ -119,6 +157,7 @@ def violations_for_source(relative_path: Path, source: str) -> list[str]:
             errors.append(
                 f"{relative_path}:{node.lineno}: layer {layer!r} must not import {target!r}"
             )
+        errors.extend(inspection_boundary_violations(relative_path, node))
     return errors
 
 

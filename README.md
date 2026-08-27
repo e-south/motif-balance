@@ -7,34 +7,42 @@ returns an exact number of distinct, fully re-evaluated candidates. An optional
 minimum-distance constraint can make that portfolio sequence-diverse.
 
 This repository is a public prerelease and is not approved for PyPI publication.
+The `0.3` alpha supports CPython 3.12–3.14 on POSIX systems; Linux is the hosted
+CI authority and macOS is exercised locally. Windows is not yet a supported
+runtime.
 Outputs are model-relative computational results; they do not establish
 binding, expression, synthesis readiness, biological function, or global
 optimality.
 
-## First verified design
+## First design
 
 ```bash
 uv sync --locked --group dev
 uv run motif-balance design examples/synthetic-pairwise/design.yaml --check
 uv run motif-balance design examples/synthetic-pairwise/design.yaml \
   --out /tmp/motif-balance-result
-uv run motif-balance verify /tmp/motif-balance-result
-uv run motif-balance inspect /tmp/motif-balance-result --kind bundle
-uv run motif-balance inspect /tmp/motif-balance-result --kind bundle \
+uv run motif-balance inspect /tmp/motif-balance-result
+uv run motif-balance inspect /tmp/motif-balance-result \
   --format html --out /tmp/motif-balance-review.html
+uv run motif-balance inspect /tmp/motif-balance-result \
+  --format svg --view candidate --candidate 1 \
+  --out /tmp/motif-balance-candidate.svg
 ```
 
-The result contains five canonical files—`design.json`, `motifs.json`,
-`candidates.tsv`, `matches.tsv`, and `manifest.json`—plus verified FASTA and
-HTML views. Publication is atomic and refuses an existing destination.
-The external review HTML is an on-demand, script-free visual walkthrough; it
-does not change the verified bundle or its identity.
+The sanitized [committed candidate review](examples/synthetic-pairwise/candidate-review.svg)
+previews the same review grammar without requiring a browser application.
+
+The immutable bundle contains five canonical files—`design.json`,
+`motifs.json`, `candidates.tsv`, `matches.tsv`, and `manifest.json`—plus a
+derived FASTA export. `inspect` verifies bytes and score replay before it
+creates text, JSON, SVG, or optional script-free HTML. Review files remain
+outside the bundle and do not change its identity.
 
 ## Choose a route
 
 | Goal | Route |
 | --- | --- |
-| Install, design, and verify | [Quickstart](docs/quickstart.md) |
+| Install, design, and inspect | [Quickstart](docs/quickstart.md) |
 | Understand the method | [Concepts](docs/concepts.md) and [methods](docs/methods.md) |
 | Author inputs | [Motif models](docs/motif-models.md) and [DesignSpec](docs/design-spec.md) |
 | Score an existing sequence | [Sequence scoring](docs/score-sequences.md) |
@@ -42,9 +50,10 @@ does not change the verified bundle or its identity.
 | Integrate the package | [Public contract](docs/reference/public-contract.md) |
 | Maintain or change it | [Architecture](ARCHITECTURE.md), [engineering contracts](DESIGN.md), and [documentation index](docs/index.md) |
 
-Use only the `motif_balance` facade and the `motif-balance` command. Scientific
-inputs belong in an immutable `DesignSpec`; operational flags select validation
-or output behavior. The package fetches no motif database, discovers no result
-workspace, and assigns no experiment or publication meaning to an output.
+The public Python surface is five nouns—`MotifModel`, `DesignSpec`,
+`MotifMatch`, `Candidate`, and `Portfolio`—and two verbs: `design` and `score`.
+The ordinary CLI has three journeys: `design`, `score`, and `inspect`. The
+package fetches no motif database, discovers no result workspace, and assigns
+no experiment or publication meaning to an output.
 
 Run `bash ./scripts/agent-verify` for the same package gate used by CI.

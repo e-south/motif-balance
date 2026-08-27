@@ -15,12 +15,12 @@ doc_type: explanation
 
 ## Public contracts
 
-The stable scientific vocabulary is `MotifModel`, `DesignSpec`, `MotifMatch`,
-`Evaluation`, `Candidate`, `Portfolio`, `design(spec) -> Portfolio`, and
-`score(...)`. `ResultInspection` and `ResultCatalog` are operational read-only
-projections, not additional scientific result nouns. Scientific inputs
-belong in an immutable `DesignSpec`; operational CLI options may select output
-location and validation behavior but cannot silently revise that specification.
+The public scientific vocabulary is `MotifModel`, `DesignSpec`, `MotifMatch`,
+`Candidate`, `Portfolio`, `design(spec) -> Portfolio`, and `score(...)`.
+`Evaluation`, `ResultInspection`, and `ResultCatalog` are internal or
+operational typed records, not additional top-level scientific nouns.
+Scientific inputs belong in an immutable `DesignSpec`; operational CLI options
+may select output or validation behavior but cannot revise that specification.
 
 ## Invariants
 
@@ -47,15 +47,16 @@ location and validation behavior but cannot silently revise that specification.
 - Equal scores have a stable total ordering independent of process scheduling,
   mapping order, locale, or host.
 - Canonical output contains `design.json`, `motifs.json`, `candidates.tsv`,
-  `matches.tsv`, and `manifest.json`. FASTA and HTML are derived views.
+  `matches.tsv`, and `manifest.json`. FASTA is a derived bundle member; review
+  text, JSON, SVG, and HTML are generated on demand outside the bundle.
 - Schema versions, scoring versions, seeds, budgets, and content digests are
   explicit in replayable artifacts.
 - Attested execution verifies that the running package tree equals the
   retained wheel before and after search, then atomically publishes the resolved
   input, wheel, bundle, receipt, and execution index.
-- Inspection requires an explicit artifact kind, preserves external trust as a
-  separate state, contains no source filesystem path, and accepts only current
-  bundle or execution contracts.
+- Inspection defaults to the bundle contract, requires an explicit execution
+  source mode, preserves delivery, search completion, and integrity as separate
+  states, contains no source path, and accepts only current contracts.
 
 ## Error channels
 
@@ -71,10 +72,10 @@ meaning change requires an architecture decision, compatibility statement,
 negative tests, and reference-document updates. Optimizer improvements must not
 change scoring or selection semantics accidentally.
 
-Version `0.2` reads `run-manifest/v2` only. Exact scientific replay pins the
-wheel, producer revision, runtime contract, build lock, search engine, and
-engine version. Earlier schemas require an explicit compatibility dispatcher;
-they are never accepted through loosened validation.
+Version `0.3` reads strict `run-manifest/v2` and `run-manifest/v3` inventories
+and writes only v3. Exact score replay pins the declared scoring, search, and
+selection semantics. Earlier schemas require an explicit compatibility
+dispatcher; they are never accepted through loosened validation.
 
 ## Search boundary
 

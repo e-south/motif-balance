@@ -6,8 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from motif_balance import DesignSpec, design, verify_bundle
+from motif_balance import DesignSpec, design
+from motif_balance.api import inspect_result, verify_bundle
 from motif_balance.artifacts import bundle_id
+from motif_balance.constants import MAX_INPUT_BYTES
 from motif_balance.errors import ArtifactError
 from motif_balance.model import ArtifactDigest, RunManifest
 
@@ -82,7 +84,7 @@ def test_verify_rejects_malformed_manifest_artifacts(
     output = _bundle(pairwise_spec, tmp_path, "record")
     manifest_path = output / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
-    manifest["artifacts"]["report.html"] = "invalid"
+    manifest["artifacts"]["candidates.fasta"] = "invalid"
     manifest_path.write_text(json.dumps(manifest))
     with pytest.raises(ArtifactError, match="malformed"):
         verify_bundle(output)
@@ -147,7 +149,7 @@ def test_verify_rejects_manifest_inventory_and_bundle_identity_drift(
     output = _bundle(pairwise_spec, tmp_path, "declared")
     manifest_path = output / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
-    manifest["artifacts"].pop("report.html")
+    manifest["artifacts"].pop("candidates.fasta")
     manifest_path.write_text(json.dumps(manifest))
     with pytest.raises(ArtifactError, match="inventory is incomplete"):
         verify_bundle(output)
@@ -171,6 +173,21 @@ def test_verify_rejects_noncanonical_and_oversized_manifest_bytes(
     manifest_path.write_bytes(manifest_path.read_bytes() + b" ")
     with pytest.raises(ArtifactError, match="canonical encoding"):
         verify_bundle(output, expected_bundle_id=trusted_id)
+
+
+@pytest.mark.parametrize("json_name", ["design.json", "motifs.json"])
+def test_public_inspection_rejects_oversized_canonical_json_before_parsing(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+    json_name: str,
+) -> None:
+    output = _bundle(pairwise_spec, tmp_path, json_name.removesuffix(".json"))
+    target = output / json_name
+    target.write_bytes(target.read_bytes() + b" " * MAX_INPUT_BYTES)
+    _reseal(output, json_name)
+
+    with pytest.raises(ArtifactError, match=rf"{json_name}.*{MAX_INPUT_BYTES}-byte limit"):
+        inspect_result(output, kind="bundle")
 
     output = _bundle(pairwise_spec, tmp_path, "oversized")
     manifest_path = output / "manifest.json"

@@ -1,100 +1,106 @@
 ---
 doc_id: motif-balance-result-inspection
-title: Result inspection and catalogs
-intent: Explain read-only current-result projection, trust states, and bounded review views.
+title: Result inspection
+intent: Explain the one-result review projection, outputs, and interpretation boundary.
 audience:
   - users
   - API consumers
-  - evidence producers
+  - downstream integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: reference
 journey:
   - inspect
 ---
 
-# Result inspection and catalogs
+# Result inspection
 
-Inspection is a derived, read-only view over an explicit artifact contract. It
-does not add files to a result, change bundle identity, accept evidence, or
-discover directories recursively.
+`inspect` verifies one explicit result, replays every published match and
+score, and creates one immutable `motif-balance.result-inspection/v2`
+projection. Text, JSON, SVG, and HTML all render that same projection. They do
+not enter the result bundle or change its identity. Bundle members are read
+once into a descriptor-bound byte snapshot; parsing, score replay, and rendering
+do not return to mutable paths.
 
-## Current results
-
-Inspect a canonical bundle only after naming its kind:
-
-```bash
-motif-balance inspect result/ --kind bundle
-motif-balance inspect result/ --kind bundle --format json
-motif-balance inspect result/ --kind bundle --format html --out review.html
-```
-
-The projection reports the request, semantic versions, motif provenance,
-result identities, candidate portfolio, bounded pairwise-distance state,
-optimizer diagnostics, and artifact digests. Bundle inspection performs the same byte,
-schema, identity, and scientific replay as `verify`. Supplying an independently
-trusted `--expected-bundle-id` changes the trust basis from self-consistency to
-an external identity check.
-
-The HTML projection adds three bounded, accessible explanations over the same
-verified state:
-
-- a shared coordinate map for the top candidate's one-best-match record per motif;
-- a directly labeled per-motif score profile for the returned portfolio; and
-- a step plot of best-so-far scores at recorded search checkpoints.
-
-Coordinates are zero-based and half-open. Overlapping spans show coordinate
-overlap, not biological occupancy. Scores are the declared normalized motif
-scores, not probabilities, and the portfolio view compares candidates only
-within one run. Search progress is not a full proposal history, convergence
-proof, or global-optimality claim. Exact tables remain in progressive sections
-below each explanation.
-
-When a motif view is bounded, limiting motifs are displayed before nonlimiting
-motifs, and the view reports displayed and total limiting counts. Every
-portfolio row also names its hard minimum and limiting motifs. Search progress
-removes unchanged checkpoints only when every recorded score-change evaluation
-can remain exact; otherwise it switches from a step line to explicitly labeled
-sampled markers.
-
-Execution inspection joins the verified bundle to its release and runtime
-receipt. All four external anchors are required for the result to be labeled
-externally verified. Without them, the complete object is checked for internal
-consistency but labeled `readable_untrusted`.
-
-Exact distance is computed only when the declared base-comparison limit permits
-it. Larger valid portfolios report `not_computed_limit`, the projected work, and
-the limit instead of entering an unbounded quadratic operation. The HTML review
-uses progressive disclosure and bounded candidate, match, and checkpoint
-tables. Every bounded visual discloses displayed and total counts; canonical
-TSV and JSON remain the complete machine-readable surfaces.
-
-## Derived catalogs
-
-Catalogs contain bounded summaries derived from explicit, caller-named
-inspections. They do not duplicate candidates, scan Storage, or scan a workspace root:
+## Choose one output
 
 ```bash
-motif-balance catalog \
-  --entry exact=bundle:/path/to/exact/bundle \
-  --entry annealed=execution:/path/to/execution \
-  --out result-catalog.json
+# Concise terminal review; bundle is the default source.
+motif-balance inspect result/
 
-motif-balance catalog \
-  --entry exact=bundle:/path/to/exact/bundle \
-  --format html --out result-catalog.html
+# Complete typed projection.
+motif-balance inspect result/ --format json
+
+# One vector computational review artifact.
+motif-balance inspect result/ \
+  --format svg --view candidate --candidate 3 \
+  --out candidate-003.svg
+motif-balance inspect result/ \
+  --format svg --view portfolio --out portfolio.svg
+motif-balance inspect result/ \
+  --format svg --view search --out search.svg
+
+# Optional, self-contained linear review.
+motif-balance inspect result/ --format html --out result-review.html
 ```
 
-`motif-balance.result-catalog/v1` is a portable review index. It is not a
-canonical result bundle, a Storage manifest, a benchmark cohort, or an evidence
-record. Catalog HTML is a compact compatibility index; it does not compare
-quality, choose a cohort, or compute a cross-run conclusion.
+HTML and SVG require a new output path outside the inspected result. They are
+script-free, self-contained, and use no remote resource. SVG text remains text,
+dimensions and `viewBox` are explicit, and semantic group IDs support later
+Inkscape composition.
 
-## Interpretation boundary
+## Reading order
 
-Product inspection owns single-run integrity, request and outcome explanation,
-within-portfolio distance, and optimizer diagnostics. Callers own cohorts,
-model-selection rationale, rescoring policy, baselines, repeated runs,
-comparisons, and claims. Artifact stores own placement, retention, discovery,
-and external trust anchors without changing this result ontology.
+Inspection answers five questions:
+
+| Endpoint | Question |
+| --- | --- |
+| Delivery | What did the request return? |
+| Balance | How does each candidate score across the declared motif models? |
+| Realization | Which sequence, coordinates, strand, and bases produced each score? |
+| Search record | What best observed hard score was recorded as evaluator calls accumulated? |
+| Trust | Which integrity checks and external identities were applied? |
+
+Delivery, search completion, and integrity are independent. A complete
+portfolio may have stopped because the evaluation budget was exhausted, while
+its artifact bytes may still be externally verified.
+
+The candidate view shows the supplied sequence 5′→3′ and its
+coordinate-aligned complement 3′→5′. Forward matches appear above the primary
+strand and reverse matches below the complement. Position-support cells are
+the observed-base log-likelihood contributions replayed by scoring; renderers
+do not rescan a motif or recompute a score. Shared coordinates are a union of
+positions covered by more than one representative window, not evidence of
+simultaneous occupancy.
+
+The portfolio view is a candidate-by-motif matrix in deterministic rank and
+canonical motif order. Values remain numeric. The color scale begins at zero,
+preserves values above one, and labels `1.0` as a consensus-relative reference,
+not a maximum or probability.
+
+The search view is the running maximum of recorded published hard-minimum
+scores against evaluator calls. It is not accepted-state history, literal hill
+climbing, chain dynamics, convergence evidence, or a global-optimality claim.
+It is omitted when a result has no checkpoints.
+
+## Trust and bounds
+
+A bundle checked against its own manifest is `self_consistent`. Supplying an
+independently trusted `--expected-bundle-id` makes it
+`externally_verified`. Execution inspection requires `--source execution`; it
+is `readable_untrusted` without all four external workspace anchors and
+`externally_verified` with them.
+
+Exact distance review stops at the declared base-comparison limit. Large
+tables and figures report exact displayed and total counts rather than silently
+truncating. Wide SVGs retain a readable minimum width and scroll in HTML on a
+narrow screen.
+
+## Boundary
+
+Product inspection explains one result. Research workflows own matched
+controls, repeated seeds, exhaustive comparisons, uncertainty, failures,
+cross-task summaries, scaling, and scientific claim acceptance. The hidden
+`integration catalog` command can join explicit result summaries, but it does
+not discover Storage, define a cohort, rank results, or accept evidence.

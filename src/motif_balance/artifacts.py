@@ -6,8 +6,10 @@ import io
 import json
 import os
 import shutil
+import stat
 import tempfile
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -34,8 +36,15 @@ _CANONICAL_FILES = {
     "matches.tsv",
     "manifest.json",
 }
-_DERIVED_FILES = {"candidates.fasta", "report.html"}
-_ALL_FILES = _CANONICAL_FILES | _DERIVED_FILES
+_DERIVED_FILES = {"candidates.fasta"}
+_V3_FILES = _CANONICAL_FILES | _DERIVED_FILES
+_V2_FILES = _V3_FILES | {"report.html"}
+
+
+def _schema_files(manifest: RunManifest) -> set[str]:
+    if manifest.schema_version == "run-manifest/v2":
+        return _V2_FILES
+    return _V3_FILES
 
 
 def _json_bytes(payload: object) -> bytes:
@@ -186,40 +195,32 @@ def manifest_bytes(manifest: RunManifest) -> bytes:
     return _json_bytes(_manifest_payload(manifest))
 
 
-def _safe_files(directory: Path) -> set[str]:
-    names: set[str] = set()
-    for entry in directory.iterdir():
-        if entry.is_symlink() or not entry.is_file():
-            raise ArtifactError(f"bundle contains unsafe non-file entry '{entry.name}'")
-        names.add(entry.name)
-    return names
+@dataclass(frozen=True, slots=True)
+class BundleSnapshot:
+    """One descriptor-bound set of bundle bytes and its parsed portfolio."""
+
+    portfolio: PortfolioRecord
+    members: tuple[tuple[str, bytes], ...]
+
+    def payload(self, path: str) -> bytes:
+        for member_path, payload in self.members:
+            if member_path == path:
+                return payload
+        raise ArtifactError(f"bundle snapshot does not contain '{path}'")
 
 
-def _read_bounded_bytes(path: Path, *, limit: int, label: str) -> bytes:
+def _json_object(raw: bytes, *, label: str) -> dict[str, Any]:
     try:
-        if path.stat().st_size > limit:
-            raise ArtifactError(f"{label} '{path.name}' exceeds the {limit}-byte limit")
-        raw = path.read_bytes()
-        if len(raw) > limit:
-            raise ArtifactError(f"{label} '{path.name}' exceeds the {limit}-byte limit")
-        return raw
-    except OSError as exc:
-        raise ArtifactError(f"unable to read {label} '{path.name}': {exc}") from exc
-
-
-def _read_json(path: Path) -> dict[str, Any]:
-    try:
-        raw = _read_bounded_bytes(path, limit=MAX_INPUT_BYTES, label="canonical JSON")
         payload = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise ArtifactError(f"unable to read canonical JSON '{path.name}': {exc}") from exc
+        raise ArtifactError(f"unable to read canonical JSON '{label}': {exc}") from exc
     if not isinstance(payload, dict):
-        raise ArtifactError(f"canonical JSON '{path.name}' must contain an object")
+        raise ArtifactError(f"canonical JSON '{label}' must contain an object")
     return payload
 
 
-def _read_spec(directory: Path) -> DesignSpec:
-    motif_collection = _read_json(directory / "motifs.json")
+def _read_spec(members: dict[str, bytes]) -> DesignSpec:
+    motif_collection = _json_object(members["motifs.json"], label="motifs.json")
     raw_motifs = motif_collection.get("motifs")
     if motif_collection.get("schema_version") != "motif-collection/v1" or not isinstance(
         raw_motifs, list
@@ -235,7 +236,7 @@ def _read_spec(directory: Path) -> DesignSpec:
         if motif.model_digest != expected_digest:
             raise ArtifactError(f"model digest mismatch for motif '{motif.motif_id}'")
         motifs.append(motif)
-    design_payload = _read_json(directory / "design.json")
+    design_payload = _json_object(members["design.json"], label="design.json")
     references = design_payload.pop("motifs", None)
     if not isinstance(references, list):
         raise ArtifactError("design.json motifs must be a list")
@@ -247,52 +248,52 @@ def _read_spec(directory: Path) -> DesignSpec:
     return DesignSpec.model_validate({**design_payload, "motifs": tuple(motifs)})
 
 
-def _read_candidates(directory: Path, spec: DesignSpec) -> tuple[Candidate, ...]:
+def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candidate, ...]:
     matches_by_candidate: dict[str, list[MotifMatch]] = defaultdict(list)
     expected_match_rows = spec.count * len(spec.motifs)
     if spec.count > MAX_BUNDLE_ROWS or expected_match_rows > MAX_BUNDLE_ROWS:
         raise ArtifactError("design exceeds the canonical table row limit")
     try:
-        with (directory / "matches.tsv").open(newline="") as handle:
-            for row_number, row in enumerate(csv.DictReader(handle, delimiter="\t"), start=1):
-                if row_number > expected_match_rows:
-                    raise ArtifactError("matches.tsv exceeds its semantic row limit")
-                candidate_id = row.pop("candidate_id")
-                matches_by_candidate[candidate_id].append(
-                    MotifMatch(
-                        motif_id=row["motif_id"],
-                        start=int(row["start"]),
-                        end=int(row["end"]),
-                        strand=cast(Literal["+", "-"], row["strand"]),
-                        matched_sequence=row["matched_sequence"],
-                        raw_score=float(row["raw_score"]),
-                        normalized_score=float(row["normalized_score"]),
-                    )
+        match_stream = io.StringIO(members["matches.tsv"].decode("utf-8"), newline="")
+        for row_number, row in enumerate(csv.DictReader(match_stream, delimiter="\t"), start=1):
+            if row_number > expected_match_rows:
+                raise ArtifactError("matches.tsv exceeds its semantic row limit")
+            candidate_id = row.pop("candidate_id")
+            matches_by_candidate[candidate_id].append(
+                MotifMatch(
+                    motif_id=row["motif_id"],
+                    start=int(row["start"]),
+                    end=int(row["end"]),
+                    strand=cast(Literal["+", "-"], row["strand"]),
+                    matched_sequence=row["matched_sequence"],
+                    raw_score=float(row["raw_score"]),
+                    normalized_score=float(row["normalized_score"]),
                 )
+            )
         candidates: list[Candidate] = []
-        with (directory / "candidates.tsv").open(newline="") as handle:
-            for row_number, row in enumerate(csv.DictReader(handle, delimiter="\t"), start=1):
-                if row_number > spec.count:
-                    raise ArtifactError("candidates.tsv exceeds its semantic row limit")
-                candidate_id = row["candidate_id"]
-                sequence = row["sequence"]
-                if int(row["length"]) != len(sequence):
-                    raise ArtifactError(f"candidate length mismatch for '{candidate_id}'")
-                candidates.append(
-                    Candidate(
-                        candidate_id=candidate_id,
-                        rank=int(row["rank"]),
-                        sequence=sequence,
-                        balance_score=float(row["balance_score"]),
-                        matches=tuple(
-                            sorted(
-                                matches_by_candidate.pop(candidate_id, []),
-                                key=lambda match: match.motif_id,
-                            )
-                        ),
-                    )
+        candidate_stream = io.StringIO(members["candidates.tsv"].decode("utf-8"), newline="")
+        for row_number, row in enumerate(csv.DictReader(candidate_stream, delimiter="\t"), start=1):
+            if row_number > spec.count:
+                raise ArtifactError("candidates.tsv exceeds its semantic row limit")
+            candidate_id = row["candidate_id"]
+            sequence = row["sequence"]
+            if int(row["length"]) != len(sequence):
+                raise ArtifactError(f"candidate length mismatch for '{candidate_id}'")
+            candidates.append(
+                Candidate(
+                    candidate_id=candidate_id,
+                    rank=int(row["rank"]),
+                    sequence=sequence,
+                    balance_score=float(row["balance_score"]),
+                    matches=tuple(
+                        sorted(
+                            matches_by_candidate.pop(candidate_id, []),
+                            key=lambda match: match.motif_id,
+                        )
+                    ),
                 )
-    except (OSError, KeyError, TypeError, ValueError) as exc:
+            )
+    except (UnicodeDecodeError, csv.Error, KeyError, TypeError, ValueError) as exc:
         if isinstance(exc, ArtifactError):
             raise
         raise ArtifactError(f"unable to read canonical tables: {exc}") from exc
@@ -303,61 +304,163 @@ def _read_candidates(directory: Path, spec: DesignSpec) -> tuple[Candidate, ...]
     return tuple(candidates)
 
 
-def verify_bundle_base(directory: str | Path) -> str:
+def _read_snapshot_member(
+    directory_descriptor: int,
+    path: str,
+    *,
+    limit: int,
+    expected_bytes: int | None = None,
+) -> bytes:
+    descriptor: int | None = None
+    try:
+        before = os.stat(path, dir_fd=directory_descriptor, follow_symlinks=False)
+        if not stat.S_ISREG(before.st_mode):
+            raise ArtifactError(f"bundle snapshot contains unsafe member '{path}'")
+        if before.st_size > limit:
+            raise ArtifactError(f"bundle member '{path}' exceeds the {limit}-byte limit")
+        if expected_bytes is not None and before.st_size != expected_bytes:
+            raise ArtifactError(f"artifact digest or size mismatch for '{path}'")
+        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(path, flags, dir_fd=directory_descriptor)
+        opened = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(opened.st_mode)
+            or (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino)
+            or opened.st_size != before.st_size
+        ):
+            raise ArtifactError(f"bundle member '{path}' changed during bundle snapshot")
+        read_limit = (expected_bytes if expected_bytes is not None else limit) + 1
+        chunks: list[bytes] = []
+        remaining = read_limit
+        while remaining:
+            chunk = os.read(descriptor, remaining)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        payload = b"".join(chunks)
+        after = os.fstat(descriptor)
+        if (
+            (after.st_dev, after.st_ino) != (opened.st_dev, opened.st_ino)
+            or after.st_size != opened.st_size
+            or len(payload) != opened.st_size
+        ):
+            raise ArtifactError(f"bundle member '{path}' changed during bundle snapshot")
+        return payload
+    except OSError as exc:
+        raise ArtifactError(
+            f"bundle member '{path}' changed during bundle snapshot or is unsafe"
+        ) from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def read_bundle_snapshot(directory: str | Path) -> BundleSnapshot:
+    """Read and validate every member once through a pinned directory descriptor."""
+
     root = Path(directory)
-    if root.is_symlink() or not root.is_dir():
-        raise ArtifactError(f"bundle directory does not exist or is unsafe: {root}")
-    files = _safe_files(root)
-    if files != _ALL_FILES:
-        missing = sorted(_ALL_FILES - files)
-        extra = sorted(files - _ALL_FILES)
-        raise ArtifactError(f"bundle inventory mismatch; missing={missing}, extra={extra}")
-    manifest = _parse_manifest(_read_json(root / "manifest.json"))
-    declared = {artifact.path: artifact for artifact in manifest.artifacts}
-    if set(declared) != _ALL_FILES - {"manifest.json"}:
-        raise ArtifactError("manifest artifact inventory is incomplete")
-    for path, artifact in declared.items():
-        if artifact.bytes > MAX_BUNDLE_ARTIFACT_BYTES:
-            raise ArtifactError(f"artifact '{path}' exceeds the bundle byte limit")
-        payload = _read_bounded_bytes(
-            root / path,
-            limit=MAX_BUNDLE_ARTIFACT_BYTES,
-            label="bundle artifact",
+    directory_descriptor: int | None = None
+    try:
+        flags = (
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_DIRECTORY", 0)
         )
-        if len(payload) != artifact.bytes or _digest(payload) != artifact.sha256:
-            raise ArtifactError(f"artifact digest mismatch for '{path}'")
-    spec = _read_spec(root)
-    candidates = _read_candidates(root, spec)
+        directory_descriptor = os.open(root, flags)
+        opened_root = os.fstat(directory_descriptor)
+        if not stat.S_ISDIR(opened_root.st_mode):
+            raise ArtifactError(f"bundle directory does not exist or is unsafe: {root}")
+        files = set(os.listdir(directory_descriptor))
+        for path in files:
+            if not path or "/" in path or "\\" in path:
+                raise ArtifactError("bundle inventory contains an unsafe member name")
+            member_stat = os.stat(
+                path,
+                dir_fd=directory_descriptor,
+                follow_symlinks=False,
+            )
+            if not stat.S_ISREG(member_stat.st_mode):
+                raise ArtifactError(f"bundle contains unsafe non-file entry '{path}'")
+    except OSError as exc:
+        if directory_descriptor is not None:
+            os.close(directory_descriptor)
+        raise ArtifactError(f"bundle directory does not exist or is unsafe: {root}") from exc
+    except ArtifactError:
+        if directory_descriptor is not None:
+            os.close(directory_descriptor)
+        raise
+    assert directory_descriptor is not None
+    try:
+        if "manifest.json" not in files:
+            raise ArtifactError("bundle inventory mismatch; missing=['manifest.json'], extra=[]")
+        canonical_manifest = _read_snapshot_member(
+            directory_descriptor,
+            "manifest.json",
+            limit=MAX_INPUT_BYTES,
+        )
+        manifest = _parse_manifest(_json_object(canonical_manifest, label="manifest.json"))
+        expected_files = _schema_files(manifest)
+        if files != expected_files:
+            missing = sorted(expected_files - files)
+            extra = sorted(files - expected_files)
+            raise ArtifactError(f"bundle inventory mismatch; missing={missing}, extra={extra}")
+        declared = {artifact.path: artifact for artifact in manifest.artifacts}
+        if set(declared) != expected_files - {"manifest.json"}:
+            raise ArtifactError("manifest artifact inventory is incomplete")
+        members = {"manifest.json": canonical_manifest}
+        for path, artifact in declared.items():
+            member_limit = (
+                MAX_INPUT_BYTES
+                if path in {"design.json", "motifs.json"}
+                else MAX_BUNDLE_ARTIFACT_BYTES
+            )
+            if artifact.bytes > member_limit:
+                raise ArtifactError(f"bundle member '{path}' exceeds the {member_limit}-byte limit")
+            payload = _read_snapshot_member(
+                directory_descriptor,
+                path,
+                limit=member_limit,
+                expected_bytes=artifact.bytes,
+            )
+            if _digest(payload) != artifact.sha256:
+                raise ArtifactError(f"artifact digest mismatch for '{path}'")
+            members[path] = payload
+        if set(os.listdir(directory_descriptor)) != files:
+            raise ArtifactError("bundle inventory changed during bundle snapshot")
+        closed_root = os.fstat(directory_descriptor)
+        if (closed_root.st_dev, closed_root.st_ino) != (opened_root.st_dev, opened_root.st_ino):
+            raise ArtifactError("bundle directory changed during bundle snapshot")
+    finally:
+        os.close(directory_descriptor)
+
+    spec = _read_spec(members)
+    candidates = _read_candidates(members, spec)
     expected_payloads = base_artifact_payloads(spec, candidates)
     for path, payload in expected_payloads.items():
-        if payload != (root / path).read_bytes():
+        if payload != members[path]:
             raise ArtifactError(f"artifact semantic replay mismatch for '{path}'")
-    expected_bundle = bundle_id(manifest)
-    if expected_bundle != manifest.bundle_id:
+    if bundle_id(manifest) != manifest.bundle_id:
         raise ArtifactError("bundle identity does not match its artifact digests")
-    actual_manifest = _read_bounded_bytes(
-        root / "manifest.json",
-        limit=MAX_INPUT_BYTES,
-        label="canonical JSON",
-    )
-    if actual_manifest != manifest_bytes(manifest):
+    if canonical_manifest != manifest_bytes(manifest):
         raise ArtifactError("manifest does not use the canonical encoding")
-    return manifest.bundle_id
-
-
-def read_portfolio_record(directory: str | Path) -> PortfolioRecord:
-    root = Path(directory)
-    verify_bundle_base(root)
-    spec = _read_spec(root)
-    candidates = _read_candidates(root, spec)
-    manifest = _parse_manifest(_read_json(root / "manifest.json"))
-    return PortfolioRecord(
+    portfolio = PortfolioRecord(
         problem_id=manifest.problem_id,
         run_id=manifest.run_id,
         spec=spec,
         candidates=candidates,
         manifest=manifest,
     )
+    return BundleSnapshot(portfolio=portfolio, members=tuple(sorted(members.items())))
+
+
+def verify_bundle_base(directory: str | Path) -> str:
+    return read_bundle_snapshot(directory).portfolio.manifest.bundle_id
+
+
+def read_portfolio_record(directory: str | Path) -> PortfolioRecord:
+    return read_bundle_snapshot(directory).portfolio
 
 
 def bundle_id(manifest: RunManifest) -> str:
@@ -378,7 +481,9 @@ def write_bundle(
         output.parent.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         raise ArtifactError("unable to create the bundle publication directory") from exc
-    if set(payloads) != _ALL_FILES - {"manifest.json"}:
+    if portfolio.manifest.schema_version != "run-manifest/v3":
+        raise ArtifactError("new bundle publication requires run-manifest/v3")
+    if set(payloads) != _V3_FILES - {"manifest.json"}:
         raise ArtifactError("bundle payload inventory is incomplete")
     records = artifact_records(payloads)
     if records != portfolio.manifest.artifacts:

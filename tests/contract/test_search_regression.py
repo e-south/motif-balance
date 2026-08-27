@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from motif_balance import design, load_spec
+from motif_balance import design
+from motif_balance.api import load_spec
 
 
 def test_annealed_search_snapshot_is_stable_under_current_semantics() -> None:

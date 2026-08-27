@@ -7,7 +7,7 @@ audience:
   - maintainers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: tutorial
 ---
 
@@ -20,5 +20,5 @@ The motifs are constructed fixtures and carry no biological interpretation.
 ```bash
 motif-balance design examples/synthetic-multimotif/design.yaml --check
 motif-balance design examples/synthetic-multimotif/design.yaml --out result
-motif-balance verify result
+motif-balance inspect result
 ```

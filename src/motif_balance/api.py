@@ -20,12 +20,13 @@ from typing import Literal
 import yaml
 
 from motif_balance.artifacts import (
+    BundleSnapshot,
     artifact_records,
     base_artifact_payloads,
     bundle_id,
     candidates_fasta,
     manifest_bytes,
-    read_portfolio_record,
+    read_bundle_snapshot,
     write_bundle,
 )
 from motif_balance.compile import compile_design, sequence_space_at_most
@@ -45,14 +46,22 @@ from motif_balance.formats.structured import load_yaml_unique
 from motif_balance.inspection import (
     ResultCatalog,
     ResultInspection,
-    build_execution_inspection,
-    build_result_index,
-    catalog,
-    catalog_html,
-    inspection_html,
-    inspection_text,
+    VerifiedResultSource,
+    build_catalog,
+    project_execution,
+    project_result,
+    render_candidate_svg,
+    render_catalog_html,
+    render_html,
+    render_portfolio_svg,
+    render_search_svg,
+    render_text,
+)
+from motif_balance.inspection import (
+    render_inspection_json as _render_inspection_json,
 )
 from motif_balance.model import (
+    ArtifactDigest,
     Candidate,
     DesignSpec,
     Evaluation,
@@ -74,7 +83,6 @@ from motif_balance.receipt import (
     workspace_bytes,
     workspace_id,
 )
-from motif_balance.report import render_report
 from motif_balance.scoring import evaluate
 from motif_balance.search import search
 from motif_balance.selection import candidate_id_for_sequence, select_candidates
@@ -114,6 +122,13 @@ class Portfolio(PortfolioRecord):
         return candidates_fasta(self.candidates).decode()
 
     def write(self, path: str | Path) -> Path:
+        if (
+            self.manifest.schema_version != "run-manifest/v3"
+            or self.manifest.package_version != PACKAGE_VERSION
+            or self.manifest.runtime_contract != RUNTIME_CONTRACT
+            or self.manifest.build_lock_sha256 != BUILD_LOCK_SHA256
+        ):
+            raise ArtifactError("bundle publication requires current package provenance")
         _verify_scientific_replay(self)
         return write_bundle(self, Path(path), _bundle_payloads(self.spec, self.candidates))
 
@@ -122,9 +137,7 @@ def _bundle_payloads(
     spec: DesignSpec,
     candidates: tuple[Candidate, ...],
 ) -> dict[str, bytes]:
-    payloads = base_artifact_payloads(spec, candidates)
-    payloads["report.html"] = render_report(spec, candidates)
-    return payloads
+    return base_artifact_payloads(spec, candidates)
 
 
 def load_spec(path: str | Path) -> DesignSpec:
@@ -290,12 +303,6 @@ def design(spec: DesignSpec) -> Portfolio:
 
 
 def _verify_scientific_replay(portfolio: Portfolio) -> None:
-    if (
-        portfolio.manifest.package_version != PACKAGE_VERSION
-        or portfolio.manifest.runtime_contract != RUNTIME_CONTRACT
-        or portfolio.manifest.build_lock_sha256 != BUILD_LOCK_SHA256
-    ):
-        raise ArtifactError("scientific replay found inconsistent package provenance")
     problem = compile_design(portfolio.spec)
     if problem.problem_id != portfolio.manifest.problem_id:
         raise ArtifactError("scientific replay found a problem identity mismatch")
@@ -361,20 +368,32 @@ def read_portfolio(
     *,
     expected_bundle_id: str | None = None,
 ) -> Portfolio:
-    root = Path(directory)
-    record = read_portfolio_record(root)
-    portfolio = Portfolio.model_validate(record.model_dump(mode="python"))
+    portfolio, _snapshot = _read_portfolio_snapshot(
+        directory,
+        expected_bundle_id=expected_bundle_id,
+    )
+    return portfolio
+
+
+def _read_portfolio_snapshot(
+    directory: str | Path,
+    *,
+    expected_bundle_id: str | None = None,
+) -> tuple[Portfolio, BundleSnapshot]:
+    snapshot = read_bundle_snapshot(directory)
+    portfolio = Portfolio.model_validate(snapshot.portfolio.model_dump(mode="python"))
     if expected_bundle_id is not None and portfolio.manifest.bundle_id != expected_bundle_id:
         raise ArtifactError("bundle identity does not match the externally expected identity")
-    for path, expected in _bundle_payloads(portfolio.spec, portfolio.candidates).items():
-        try:
-            actual = (root / path).read_bytes()
-        except OSError as exc:
-            raise ArtifactError(f"Unable to read bundle artifact '{path}': {exc}") from exc
-        if actual != expected:
-            raise ArtifactError(f"artifact semantic replay mismatch for '{path}'")
     _verify_scientific_replay(portfolio)
-    return portfolio
+    return portfolio, snapshot
+
+
+def _snapshot_artifacts(
+    snapshot: BundleSnapshot,
+) -> tuple[tuple[ArtifactDigest, bytes], ...]:
+    return tuple(
+        (record, snapshot.payload(record.path)) for record in snapshot.portfolio.manifest.artifacts
+    )
 
 
 def verify_bundle(
@@ -410,7 +429,7 @@ def _write_new_file(path: Path, payload: bytes, *, label: str) -> None:
         ) from exc
     except OSError as exc:
         raise ArtifactError(
-            f"Unable to write {label} '{path.name}': {exc}",
+            f"Unable to write {label} '{path.name}'.",
             field="out",
             hint="Choose a writable output path whose parent directory exists.",
         ) from exc
@@ -428,13 +447,13 @@ def render_bundle_report(directory: str | Path, out: str | Path) -> str:
             field="out",
             hint="Choose a separate review or handoff directory.",
         )
-    portfolio = read_portfolio(root)
+    inspection = inspect_result(root, kind="bundle")
     _write_new_file(
         destination,
-        render_report(portfolio.spec, portfolio.candidates),
+        render_html(inspection),
         label="report",
     )
-    return portfolio.manifest.bundle_id
+    return inspection.run.bundle_id
 
 
 def inspect_result(
@@ -459,17 +478,22 @@ def inspect_result(
     if kind == "bundle":
         if any(value is not None for value in execution_anchors):
             raise ArtifactError("execution trust anchors cannot be used for a bundle inspection")
-        portfolio = read_portfolio(root, expected_bundle_id=expected_bundle_id)
-        return ResultInspection(
-            subject_kind=kind,
-            integrity_status="verified",
-            trust_basis=("external_bundle_id" if expected_bundle_id else "self_consistent"),
-            trusted_identities_checked=(("bundle_id",) if expected_bundle_id else ()),
-            result=build_result_index(
-                root,
-                portfolio,
-                canonical_manifest=manifest_bytes(portfolio.manifest),
-            ),
+        portfolio, snapshot = _read_portfolio_snapshot(
+            root,
+            expected_bundle_id=expected_bundle_id,
+        )
+        return project_result(
+            VerifiedResultSource(
+                portfolio=portfolio,
+                canonical_manifest=snapshot.payload("manifest.json"),
+                artifacts=_snapshot_artifacts(snapshot),
+                subject_kind=kind,
+                integrity_state=(
+                    "externally_verified" if expected_bundle_id else "self_consistent"
+                ),
+                trust_basis=("external_bundle_id" if expected_bundle_id else "self_consistent"),
+                checked_identities=(("bundle_id",) if expected_bundle_id else ()),
+            )
         )
     if kind != "execution":
         raise ArtifactError(f"unsupported inspection kind '{kind}'")
@@ -520,7 +544,10 @@ def inspect_result(
     # could publish unattested receipt fields in a verified inspection.
     receipt_payload = _verify_resource(root, workspace.receipt)
     receipt = parse_execution_receipt(receipt_payload)
-    portfolio = read_portfolio(root / "bundle", expected_bundle_id=workspace.bundle.bundle_id)
+    portfolio, snapshot = _read_portfolio_snapshot(
+        root / "bundle",
+        expected_bundle_id=workspace.bundle.bundle_id,
+    )
     verify_execution_workspace(
         root,
         expected_workspace_id=anchors[0],
@@ -530,42 +557,70 @@ def inspect_result(
     )
     if _read_workspace_file(root, "execution-workspace.json") != index_before:
         raise ArtifactError("execution workspace changed during inspection")
-    return ResultInspection(
-        subject_kind=kind,
-        integrity_status=integrity_status,
-        trust_basis=trust_basis,
-        trusted_identities_checked=checked,
-        result=build_result_index(
-            root / "bundle",
-            portfolio,
-            canonical_manifest=manifest_bytes(portfolio.manifest),
-        ),
-        execution=build_execution_inspection(workspace, receipt),
+    return project_result(
+        VerifiedResultSource(
+            portfolio=portfolio,
+            canonical_manifest=snapshot.payload("manifest.json"),
+            artifacts=_snapshot_artifacts(snapshot),
+            subject_kind=kind,
+            integrity_state=(
+                "externally_verified" if integrity_status == "verified" else "readable_untrusted"
+            ),
+            trust_basis=trust_basis,
+            checked_identities=checked,
+            execution=project_execution(workspace, receipt),
+        )
     )
 
 
 def build_result_catalog(entries: dict[str, ResultInspection]) -> ResultCatalog:
     """Build a deterministic derived catalog from explicit inspected subjects."""
 
-    return catalog(entries)
+    return build_catalog(entries)
 
 
 def summarize_inspection(inspection: ResultInspection) -> str:
     """Render a path-independent terminal summary for one inspection."""
 
-    return inspection_text(inspection)
+    return render_text(inspection)
 
 
 def render_inspection_html(inspection: ResultInspection) -> bytes:
     """Render one inspection as a self-contained, script-free HTML view."""
 
-    return inspection_html(inspection)
+    return render_html(inspection)
+
+
+def render_inspection_json(inspection: ResultInspection) -> bytes:
+    """Render one complete typed inspection as deterministic JSON."""
+
+    return _render_inspection_json(inspection)
+
+
+def render_inspection_svg(
+    inspection: ResultInspection,
+    *,
+    view: Literal["candidate", "portfolio", "search"],
+    candidate_rank: int = 1,
+) -> bytes:
+    """Render one product-owned SVG view from the immutable inspection."""
+
+    if view == "candidate":
+        return render_candidate_svg(inspection, candidate_rank=candidate_rank)
+    if view == "portfolio":
+        return render_portfolio_svg(inspection)
+    if view == "search":
+        payload = render_search_svg(inspection)
+        if payload is None:
+            raise ArtifactError("this result does not contain a recorded search view")
+        return payload
+    raise ArtifactError(f"unsupported inspection view '{view}'")
 
 
 def render_result_catalog_html(value: ResultCatalog) -> bytes:
     """Render a bounded catalog of current result inspections."""
 
-    return catalog_html(value)
+    return render_catalog_html(value)
 
 
 def _resolved_spec_bytes(spec: DesignSpec) -> bytes:

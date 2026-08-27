@@ -11,8 +11,8 @@ from pydantic import ValidationError
 
 import motif_balance
 import motif_balance.api as api_module
-from motif_balance import (
-    DesignSpec,
+from motif_balance import DesignSpec
+from motif_balance.api import (
     build_result_catalog,
     execute_design_workspace,
     inspect_result,
@@ -36,9 +36,9 @@ def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
         if alter_api and relative == "api.py":
             payload += b"# substituted\n"
         entries[f"motif_balance/{relative}"] = payload
-    dist_info = "motif_balance-0.2.0a3.dist-info/"
+    dist_info = "motif_balance-0.3.0a1.dist-info/"
     entries[f"{dist_info}METADATA"] = (
-        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.2.0a3\n"
+        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a1\n"
     )
     entries[f"{dist_info}WHEEL"] = b"Wheel-Version: 1.0\n"
     entries[f"{dist_info}entry_points.txt"] = (
@@ -67,7 +67,7 @@ def design_path(tmp_path: Path, pairwise_spec: DesignSpec) -> Path:
 
 
 def _execute(tmp_path: Path, specification: Path) -> tuple[Path, Path, dict[str, object]]:
-    release = tmp_path / "motif_balance-0.2.0a3-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.3.0a1-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     workspace = execute_design_workspace(
@@ -114,7 +114,7 @@ def test_execute_refuses_a_substituted_release_tree(
     tmp_path: Path,
     design_path: Path,
 ) -> None:
-    release = tmp_path / "motif_balance-0.2.0a3-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.3.0a1-py3-none-any.whl"
     _write_runtime_wheel(release, alter_api=True)
 
     with pytest.raises(ArtifactError, match="does not match the running package"):
@@ -189,10 +189,10 @@ def test_execution_inspection_distinguishes_internal_and_external_trust(
         expected_producer_revision=str(arguments["expected_producer_revision"]),
     )
 
-    assert internal.integrity_status == "readable_untrusted"
-    assert internal.trust_basis == "self_consistent"
-    assert external.integrity_status == "verified"
-    assert external.trust_basis == "external_execution_identities"
+    assert internal.integrity.state == "readable_untrusted"
+    assert internal.integrity.trust_basis == "self_consistent"
+    assert external.integrity.state == "externally_verified"
+    assert external.integrity.trust_basis == "external_execution_identities"
     assert external.execution is not None
     assert external.execution.workspace_id == workspace["workspace_id"]
     html = render_inspection_html(external).decode()
@@ -202,18 +202,22 @@ def test_execution_inspection_distinguishes_internal_and_external_trust(
     assert catalog.entries[0].workspace_id == workspace["workspace_id"]
 
     external_payload = external.model_dump(mode="python")
-    with pytest.raises(ValidationError, match="bundle inspection cannot contain"):
+    with pytest.raises(ValidationError, match="kind and provenance must agree"):
         ResultInspection.model_validate(
             {
                 **external_payload,
                 "subject_kind": "bundle",
-                "trust_basis": "self_consistent",
-                "trusted_identities_checked": (),
             }
         )
-    with pytest.raises(ValidationError, match="execution inspection trust fields"):
+    with pytest.raises(ValidationError, match="integrity fields are inconsistent"):
         ResultInspection.model_validate(
-            {**external_payload, "integrity_status": "readable_untrusted"}
+            {
+                **external_payload,
+                "integrity": {
+                    **external_payload["integrity"],
+                    "state": "readable_untrusted",
+                },
+            }
         )
 
 
@@ -299,7 +303,7 @@ def test_execute_refuses_existing_destination(
     tmp_path: Path,
     design_path: Path,
 ) -> None:
-    release = tmp_path / "motif_balance-0.2.0a3-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.3.0a1-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     output.mkdir()

@@ -6,9 +6,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from motif_balance import read_motif
 from motif_balance.errors import InvalidMotif
-from motif_balance.formats import convert_jaspar
+from motif_balance.formats import convert_jaspar, read_motif
 
 
 def test_read_meme_preserves_source_and_canonical_model_identity(tmp_path: Path) -> None:

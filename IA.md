@@ -5,7 +5,7 @@ intent: Define the canonical ontology, semantic authorities, artifacts, and owne
 audience:
   - maintainers
   - API consumers
-  - evidence producers
+  - downstream integrators
 owner: Motif Balance maintainers
 status: active
 last_verified: 2026-08-27
@@ -32,10 +32,10 @@ verify, or inspect that operation.
 | What is the joint score? | scoring | `weakest_score_v1` |
 | How are sequences proposed? | `SearchEngine` | engine name and version |
 | Which evaluated sequences ship? | selection | exact count and declared distance |
-| What crosses a repository boundary? | canonical bundle | `run-manifest/v2` |
+| What crosses a repository boundary? | canonical bundle | `run-manifest/v3` |
 | Which released bytes performed a run? | execution workspace | `motif-balance.execution-workspace/v1` |
-| How is one result explained without mutation? | result inspection | `motif-balance.result-inspection/v1` |
-| How are explicit result references browsed together? | derived result catalog | `motif-balance.result-catalog/v1` |
+| How is one result explained without mutation? | `ResultInspection` | `motif-balance.result-inspection/v2` |
+| How are explicit result references browsed together? | integration catalog | `motif-balance.result-catalog/v2` |
 
 ## Ontology
 
@@ -80,7 +80,7 @@ total order, normalizes that match against the motif's null mean and consensus
 score, and reports the lowest normalized motif score as `balance_score`.
 
 The smooth minimum exists only inside search. It is never serialized as a
-candidate score or interpreted as scientific evidence.
+candidate score or treated as accepted study support.
 
 Source conversion is provenance, not a scoring alternative. A caller may
 supply an already-positive probability model, a JASPAR count conversion, or a
@@ -115,8 +115,8 @@ matches.tsv
 manifest.json
 ```
 
-`candidates.fasta` and `report.html` are derived, verified views. Every member
-except the manifest is bound by relative path, byte count, and SHA-256 digest.
+`candidates.fasta` is a derived, verified bundle member. Every member except
+the manifest is bound by relative path, byte count, and SHA-256 digest.
 The bundle identity binds scientific inputs, search provenance, bounded
 diagnostics, and artifact records. Publication is atomic and refuses an
 existing destination.
@@ -126,12 +126,18 @@ canonical bundle, runtime receipt, and content index in one independently
 verifiable execution workspace. It has no implicit active state, repository
 references, mutable cache, discovery behavior, or interpretation authority.
 
-Inspection is an on-demand projection over a verified bundle or execution. It
-does not become a bundle member and cannot create a circular artifact identity.
-A result catalog joins only explicit inspection records; it does not discover
-Storage, choose a benchmark cohort, or accept evidence. These operational views
-expose the product ontology without adding another scientific noun or workspace
-authority.
+Text, inspection JSON, SVG, and HTML are on-demand review projections and
+never enter the bundle.
+
+Inspection is one immutable typed projection over a verified bundle or
+execution. Verification and score replay produce `ResultInspection`; every
+renderer consumes only that projection. A renderer cannot read a workspace,
+rescan a sequence, recompute a score, contact a network, compare runs, or
+accept evidence. It therefore cannot create a circular artifact identity.
+A hidden integration catalog joins only explicit inspection records; it does
+not discover Storage, choose a benchmark cohort, or accept evidence. These
+operational views expose the product ontology without adding another scientific
+noun or workspace authority.
 
 ## Product boundary
 

@@ -8,7 +8,7 @@ audience:
   - maintainers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: index
 ---
 
@@ -21,9 +21,9 @@ linked only where the next layer is useful.
 
 | Need | Read |
 | --- | --- |
-| Install, validate, design, and verify | [Quickstart](quickstart.md) |
+| Install, validate, design, and inspect | [Quickstart](quickstart.md) |
 | Score an existing sequence | [Sequence scoring](score-sequences.md) |
-| See or inspect one result; build an explicit catalog | [Result inspection](reference/result-inspection.md) |
+| Review one verified result | [Result inspection](reference/result-inspection.md) |
 | Interpret scores and diagnostics | [Interpreting results](interpreting-results.md) |
 
 ## Author inputs
