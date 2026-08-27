@@ -437,7 +437,7 @@ class ExecutionWorkspace(FrozenModel):
 
 
 class RunManifest(FrozenModel):
-    schema_version: Literal["run-manifest/v2"] = "run-manifest/v2"
+    schema_version: Literal["run-manifest/v2", "run-manifest/v3"] = "run-manifest/v3"
     package_version: str
     runtime_contract: str
     build_lock_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")

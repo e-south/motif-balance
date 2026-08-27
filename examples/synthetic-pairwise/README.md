@@ -7,7 +7,7 @@ audience:
   - maintainers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: tutorial
 ---
 
@@ -22,10 +22,12 @@ The fixtures are not biological models, and their outputs support no biological 
 ```bash
 motif-balance design examples/synthetic-pairwise/design.yaml --check
 motif-balance design examples/synthetic-pairwise/design.yaml --out result
-motif-balance verify result
-motif-balance inspect result --kind bundle --format html --out review.html
+motif-balance inspect result
+motif-balance inspect result --format html --out review.html
+motif-balance inspect result --format svg --view candidate --out candidate.svg
 ```
 
-Open `review.html` to follow the method, see every best-match span on the shared candidate
-coordinate axis, compare motif scores within the returned portfolio, and inspect recorded
-best-so-far checkpoints. The review is derived after verification and does not alter the bundle.
+Open `review.html` for the linear review, or use `candidate.svg` as the smaller
+working artifact. Both are derived after verification and do not alter the
+bundle. [candidate-review.svg](candidate-review.svg) is the committed output for
+this exact fixture; the documentation gate regenerates it byte for byte.

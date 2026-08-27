@@ -1,7 +1,7 @@
 ---
 doc_id: motif-balance-public-contract
 title: Motif Balance public contract
-intent: Define the supported API, CLI, and artifact integration seams.
+intent: Define the supported scientific API, ordinary CLI, and artifact seam.
 audience:
   - API consumers
   - integrators
@@ -17,90 +17,84 @@ journey:
 
 ## Python
 
-Import supported contracts and operations only from `motif_balance`:
+The top-level facade has five nouns and two verbs:
 
-- Data contracts: `MotifModel`, `DesignSpec`, `MotifMatch`, `Evaluation`,
-  `Candidate`, and `Portfolio`.
-- Error contracts: `MotifBalanceError`, `InvalidMotif`, `InvalidDesign`,
-  `InvalidSequence`, `IncompatibleDesign`, `SearchExhausted`, and
-  `ArtifactError`.
-- Scientific operations: `compile_spec`, `design`, and `score`.
-- Input operations: `read_motif`, `convert_motif`, and `load_spec`.
-- Artifact operations: `read_portfolio`, `verify_bundle`,
-  `render_bundle_report`, `execute_design_workspace`, and
-  `verify_execution_workspace`.
-- Inspection operations: `inspect_result`, `build_result_catalog`,
-  `summarize_inspection`, `render_inspection_html`, and
-  `render_result_catalog_html`.
+```python
+from motif_balance import (
+    MotifModel,
+    DesignSpec,
+    MotifMatch,
+    Candidate,
+    Portfolio,
+    design,
+    score,
+)
+```
 
-`score(sequence, spec) -> Evaluation` returns the authoritative immutable match
-and scoring record for one sequence.
+`score(sequence, spec)` returns the authoritative immutable evaluation for one
+sequence. `design(spec)` returns exactly `spec.count` ranked candidates or
+raises a typed error. `Portfolio.write(path)` atomically publishes a new result
+bundle. Inputs and public models are strict and immutable.
 
-`design(spec) -> Portfolio` either returns exactly `spec.count` candidates or
-raises the top-level `SearchExhausted` contract. Its structured fields record
-the requested and valid counts, evaluations used, best observed score, and the
-limiting condition. Consumers must not parse exception prose or import
-`motif_balance.errors` as a compatibility seam.
-
-`MotifModel.conversion`, when present, is strict `motif-conversion/v1`
-provenance. Supported methods are JASPAR count conversion and an explicit
-probability-matrix prior mixture. Source discovery and source selection remain
-outside this package.
-
-`Portfolio.write(path)` is the supported convenience for publishing a canonical
-bundle. The public facade owns that orchestration even if its implementation is
-kept outside the lower model layer. Internal modules and functions are not
-compatibility seams.
+Operational readers, conversion helpers, execution attestation, inspection
+projection, and renderers are package implementation surfaces used by the CLI.
+They are intentionally absent from the scientific facade and may evolve with
+their versioned artifact schemas.
 
 ## Command line
 
-The supported executable is `motif-balance`. Scientific meaning comes from a
-strict serialized `DesignSpec`; file destinations and verification behavior are
-operational options. Command help is part of the clean-install smoke test.
+The ordinary command help exposes three journeys:
 
-- `design SPEC --check` compiles and explains the planned search mode.
-- `design SPEC --out DIR` executes and atomically publishes a bundle.
-- `verify DIR` verifies bytes, schemas, identities, and scientific replay.
-- `render-report DIR --out FILE` regenerates HTML from a verified bundle and
-  requires the new file to remain outside that bundle.
-- `convert-motif FILE ...` performs an explicit JASPAR conversion.
-- `execute SPEC --release-artifact WHEEL ...` attests the running package tree
-  against the wheel and atomically publishes an execution workspace.
-- `verify-execution DIR ...` verifies that workspace against externally trusted
-  workspace, receipt, release, and revision identities.
-- `inspect DIR --kind ...` verifies and explains one explicitly typed result.
-- `catalog --entry ID=KIND:PATH ...` joins explicit inspections into a derived
-  portable catalog without directory discovery.
+```text
+design   validate or execute a DesignSpec
+score    evaluate one supplied sequence
+inspect  verify and review one immutable result
+```
 
-Default errors have stable codes, optional field or motif context, and a
-corrective hint. Raw validation internals and stack traces require `--debug`.
+`inspect` automatically verifies bytes, schemas, identities, and score replay.
+It emits text by default and can export inspection JSON or one candidate,
+portfolio, or search-record SVG. HTML is the optional linear composition of
+those same renderers.
+
+Advanced integration commands are intentionally hidden from ordinary help:
+
+```text
+motif-balance motif prepare ...
+motif-balance orchestration execute ...
+motif-balance integration catalog ...
+```
+
+Motif preparation converts one explicitly supplied supported source. It does
+not discover or fetch databases. Orchestration binds an execution to an exact
+wheel and producer revision. The integration catalog joins only explicit
+result references. None of these operations adds a new scientific verb.
+
+`render-report` is a hidden deprecated alias for `inspect --format html`. It
+uses the same compositor and may be removed after the alpha transition.
 
 ## Artifacts
 
-The canonical integration seam is a verified bundle containing `design.json`,
-`motifs.json`, `candidates.tsv`, `matches.tsv`, and `manifest.json`. Consumers
-must verify the manifest before reading result tables and should pass a
-previously trusted `expected_bundle_id` when crossing an authority boundary.
-Verification binds all manifest provenance, recompiles the problem and run
-identities, and replays every candidate's authoritative matches and scores.
-It does not rerun the search trajectory: evaluation counts and search
-provenance remain producer-declared metadata. A workflow relying on execution
-identity must use the pinned release through `execute` and retain the complete
-execution workspace, not add a receipt to an independently produced bundle.
+The immutable result seam is:
 
-Version `0.2` accepts `run-manifest/v2` only. It does not reinterpret or
-silently upgrade `run-manifest/v1`. Scientific replay pins the package wheel,
-producer revision, runtime contract, build lock, search engine name and engine
-version. Supporting another manifest generation requires an explicit version
-dispatcher and compatibility tests.
+```text
+design.json
+motifs.json
+candidates.tsv
+matches.tsv
+manifest.json
+candidates.fasta  # derived, manifest-bound
+```
 
-See [execution receipts](execution-receipts.md) for the runtime and storage
-boundary.
+The manifest binds every other member by relative path, size, and SHA-256.
+Verification recompiles the problem and replays each published candidate's
+matches and hard-minimum score. It does not rerun search. Text, inspection
+JSON, SVG, and HTML are regenerable projections outside the bundle.
 
-See [result inspection](result-inspection.md) for trust-state and bounded-view
-semantics. Inspection and catalogs accept current product artifacts only;
-neither is a canonical bundle or evidence-acceptance record.
+Version `0.3` reads `run-manifest/v2`, `run-manifest/v3`, and
+`motif-balance.result-inspection/v2`. Unknown schemas fail closed. A workflow
+that needs exact runtime identity retains the complete
+`motif-balance.execution-workspace/v1` with its wheel and external trust
+anchors.
 
-Consumers should use immutable artifacts and digests, not import internals or
-follow a live output directory. Package verification establishes product
-integrity, not downstream acceptance.
+Package verification establishes product integrity. It does not accept a
+scientific claim, define a benchmark cohort, or confer manuscript status.

@@ -5,7 +5,8 @@ import itertools
 import pytest
 from pydantic import ValidationError
 
-from motif_balance import DesignSpec, Portfolio, SearchExhausted, design
+from motif_balance import DesignSpec, Portfolio, design
+from motif_balance.errors import SearchExhausted
 from motif_balance.model import Evaluation, MotifMatch
 from motif_balance.selection import normalized_hamming_distance, select_candidates
 

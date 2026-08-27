@@ -7,7 +7,7 @@ audience:
   - agent executors
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: explanation
 journey:
   - maintain
@@ -42,7 +42,8 @@ verified artifacts.
 errors, constants, and model
   <- formats, compile, and scoring
   <- search and selection
-  <- artifacts, report, receipt, visualization, and inspection
+  <- artifacts and receipt
+  <- inspection/{verify, project, render}
   <- api
   <- cli
 ```
@@ -61,15 +62,17 @@ errors, constants, and model
   rescore them.
 - `artifacts.py` serializes and verifies canonical bundles. It does not own
   downstream registration or presentation.
-- `report.py` renders typed results and cannot recompute scientific state.
 - `receipt.py` defines the runtime receipt and execution-workspace identity
   without changing canonical bundle identity.
-- `visualization.py` renders bounded, deterministic SVG fragments from typed
-  current results. It has no plugin discovery, plotting dependency, or claim
-  logic and is not a public package facade.
-- `inspection.py` defines path-independent current-result projections and
-  derived catalogs. It cannot compile motifs, discover artifact stores, compare
-  cohorts, or accept a result for another workflow.
+- `inspection/verify.py` carries the path-bound, already verified source into
+  review without exposing it to renderers.
+- `inspection/project.py` replays authoritative scores and produces the one
+  immutable, path-free `ResultInspection`.
+- `inspection/render/` turns only that projection into text, JSON, SVG, or one
+  self-contained HTML composition. It cannot read artifacts, search, rescore,
+  discover stores, compare cohorts, or accept evidence.
+- `inspection/catalog.py` is a hidden integration utility over explicit result
+  references; it is not the product navigation model.
 - `api.py` is the sole public operation facade.
 - `cli.py` adapts files and arguments to the public facade and contains no
   derivations.

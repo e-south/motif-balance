@@ -45,7 +45,7 @@ JASPAR count matrices are not silently interpreted during `design`. Convert one
 under an explicit background and probability-mixture prior weight first:
 
 ```bash
-motif-balance convert-motif examples/formats/synthetic.jaspar \
+motif-balance motif prepare examples/formats/synthetic.jaspar \
   --motif-id regulator_a \
   --background 0.25,0.25,0.25,0.25 \
   --prior-weight 0.1 \
