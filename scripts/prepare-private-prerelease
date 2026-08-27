@@ -111,13 +111,14 @@ bash ./scripts/agent-verify
 }
 source_date_epoch="$(git show -s --format=%ct "$release_revision")"
 snapshot_root="$(mktemp -d)"
-trap 'rm -rf -- "$snapshot_root"' EXIT
+build_root="$(mktemp -d)"
+trap 'rm -rf -- "$snapshot_root" "$build_root"' EXIT
 git archive --format=tar "$release_revision" | tar -xf - -C "$snapshot_root"
 (
   cd "$snapshot_root"
-  SOURCE_DATE_EPOCH="$source_date_epoch" uv build --no-sources --out-dir "$out_dir"
+  SOURCE_DATE_EPOCH="$source_date_epoch" uv build --no-sources --out-dir "$build_root"
   MOTIF_BALANCE_PRODUCER_REVISION="$release_revision" \
-    bash ./scripts/wheel-smoke "$out_dir"
+    bash ./scripts/wheel-smoke "$build_root"
 )
 [[ "$(git rev-parse HEAD)" == "$release_revision" ]] || {
   echo "release source revision changed during build" >&2
@@ -131,6 +132,26 @@ git archive --format=tar "$release_revision" | tar -xf - -C "$snapshot_root"
   echo "release output directory changed during build" >&2
   exit 1
 }
+shopt -s nullglob
+wheels=("$build_root"/*.whl)
+sdists=("$build_root"/*.tar.gz)
+[[ ${#wheels[@]} -eq 1 && ${#sdists[@]} -eq 1 ]] || {
+  echo "verified build did not contain exactly one wheel and one sdist" >&2
+  exit 1
+}
+for artifact in "${wheels[0]}" "${sdists[0]}"; do
+  target="$out_dir/$(basename "$artifact")"
+  [[ ! -e "$target" && ! -L "$target" ]] || {
+    echo "release artifact target already exists: $(basename "$target")" >&2
+    exit 1
+  }
+  cp -p -n -- "$artifact" "$target"
+  [[ -f "$target" && ! -L "$target" ]] || {
+    echo "release artifact target is not a regular file: $(basename "$target")" >&2
+    exit 1
+  }
+  cmp -- "$artifact" "$target"
+done
 
 attestation_args=(
   create
