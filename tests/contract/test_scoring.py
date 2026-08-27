@@ -8,7 +8,7 @@ import pytest
 
 from motif_balance import DesignSpec, MotifModel, score
 from motif_balance.compile import _null_mean, compile_design
-from motif_balance.errors import IncompatibleDesign
+from motif_balance.errors import IncompatibleDesign, InvalidSequence
 from motif_balance.scoring import evaluate
 
 
@@ -78,9 +78,9 @@ def test_public_score_uses_same_authoritative_evaluator(pairwise_spec: DesignSpe
 
 
 def test_scoring_rejects_wrong_length_and_alphabet(pairwise_spec: DesignSpec) -> None:
-    with pytest.raises(ValueError, match="exactly 4"):
+    with pytest.raises(InvalidSequence, match="exactly 4"):
         score("ACG", pairwise_spec)
-    with pytest.raises(ValueError, match="A, C, G, and T"):
+    with pytest.raises(InvalidSequence, match="A, C, G, and T"):
         score("ACNT", pairwise_spec)
 
 

@@ -13,8 +13,11 @@ from motif_balance.constants import (
     DNA_ALPHABET,
     MAX_BUNDLE_ROWS,
     MAX_CANDIDATE_COUNT,
+    MAX_DISTANCE_BASE_COMPARISONS,
+    MAX_EVALUATED_BASES,
     MAX_EVALUATIONS,
     MAX_PORTFOLIO_BASES,
+    MAX_SCORE_BASE_OPERATIONS,
     MAX_SEQUENCE_LENGTH,
     OBJECTIVE_SEMANTICS,
     SCORING_SEMANTICS,
@@ -30,8 +33,25 @@ def _sha256(value: object) -> str:
     return hashlib.sha256(_canonical_json(value)).hexdigest()
 
 
+def _contains_boolean(value: object) -> bool:
+    if isinstance(value, bool):
+        return True
+    if isinstance(value, Mapping):
+        return any(_contains_boolean(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_contains_boolean(item) for item in value)
+    return False
+
+
 class FrozenModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_boolean_numeric_values(cls, value: Any) -> Any:
+        if _contains_boolean(value):
+            raise ValueError("boolean values are not valid model values")
+        return value
 
 
 class MotifConversion(FrozenModel):
@@ -185,6 +205,20 @@ class DesignSpec(FrozenModel):
             raise ValueError("count times motif count exceeds the canonical match-row limit")
         if self.count * self.length > MAX_PORTFOLIO_BASES:
             raise ValueError("count times length exceeds the canonical portfolio-base limit")
+        strand_factor = 2 if self.strands == "both" else 1
+        score_operations = self.evaluations * sum(
+            (self.length - motif.width + 1) * motif.width * strand_factor
+            for motif in self.motifs
+            if motif.width <= self.length
+        )
+        if score_operations > MAX_SCORE_BASE_OPERATIONS:
+            raise ValueError("design exceeds the score-operation limit")
+        if self.evaluations * self.length > MAX_EVALUATED_BASES:
+            raise ValueError("evaluations times length exceeds the evaluated-base limit")
+        if self.min_distance is not None and self.min_distance > 0.0:
+            distance_comparisons = self.count * (self.count - 1) // 2 * self.length
+            if distance_comparisons > MAX_DISTANCE_BASE_COMPARISONS:
+                raise ValueError("design exceeds the distance-comparison limit")
         return self
 
 
@@ -457,7 +491,7 @@ class PortfolioRecord(FrozenModel):
             for match in candidate.matches:
                 if match.end > self.spec.length:
                     raise ValueError("match coordinates exceed candidate sequence")
-        if self.spec.min_distance is not None:
+        if self.spec.min_distance is not None and self.spec.min_distance > 0.0:
             for index, left in enumerate(self.candidates):
                 for right in self.candidates[index + 1 :]:
                     if (

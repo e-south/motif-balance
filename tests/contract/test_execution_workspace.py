@@ -7,10 +7,20 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 import motif_balance
-from motif_balance import DesignSpec, execute_design_workspace, verify_execution_workspace
+import motif_balance.api as api_module
+from motif_balance import (
+    DesignSpec,
+    build_result_catalog,
+    execute_design_workspace,
+    inspect_result,
+    render_inspection_html,
+    verify_execution_workspace,
+)
 from motif_balance.errors import ArtifactError
+from motif_balance.inspection import ResultInspection
 from motif_balance.model import ExecutionWorkspace
 from motif_balance.receipt import workspace_bytes, workspace_id
 
@@ -160,6 +170,107 @@ def test_execution_verification_requires_external_trusted_values(
         verify_execution_workspace(**{**arguments, "expected_release_sha256": "0" * 64})
     with pytest.raises(ArtifactError, match="expected producer revision"):
         verify_execution_workspace(**{**arguments, "expected_producer_revision": "0" * 40})
+
+
+def test_execution_inspection_distinguishes_internal_and_external_trust(
+    tmp_path: Path,
+    design_path: Path,
+) -> None:
+    output, release, workspace = _execute(tmp_path, design_path)
+    arguments = _verification_arguments(output, release, workspace)
+
+    internal = inspect_result(output, kind="execution")
+    external = inspect_result(
+        output,
+        kind="execution",
+        expected_workspace_id=str(arguments["expected_workspace_id"]),
+        expected_receipt_sha256=str(arguments["expected_receipt_sha256"]),
+        expected_release_sha256=str(arguments["expected_release_sha256"]),
+        expected_producer_revision=str(arguments["expected_producer_revision"]),
+    )
+
+    assert internal.integrity_status == "readable_untrusted"
+    assert internal.trust_basis == "self_consistent"
+    assert external.integrity_status == "verified"
+    assert external.trust_basis == "external_execution_identities"
+    assert external.execution is not None
+    assert external.execution.workspace_id == workspace["workspace_id"]
+    html = render_inspection_html(external).decode()
+    assert "Execution provenance" in html
+    assert "Runtime package tree SHA-256" in html
+    catalog = build_result_catalog({"execution": external})
+    assert catalog.entries[0].workspace_id == workspace["workspace_id"]
+
+    external_payload = external.model_dump(mode="python")
+    with pytest.raises(ValidationError, match="bundle inspection cannot contain"):
+        ResultInspection.model_validate(
+            {
+                **external_payload,
+                "subject_kind": "bundle",
+                "trust_basis": "self_consistent",
+                "trusted_identities_checked": (),
+            }
+        )
+    with pytest.raises(ValidationError, match="execution inspection trust fields"):
+        ResultInspection.model_validate(
+            {**external_payload, "integrity_status": "readable_untrusted"}
+        )
+
+
+def test_execution_inspection_binds_projected_receipt_bytes(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output, release, workspace = _execute(tmp_path, design_path)
+    arguments = _verification_arguments(output, release, workspace)
+    genuine = (output / "execution-receipt.json").read_bytes()
+    forged_record = json.loads(genuine)
+    forged_record["platform_machine"] = "FORGED-INTERMEDIATE"
+    forged = (json.dumps(forged_record, indent=2, sort_keys=True) + "\n").encode()
+    original_read = api_module._read_workspace_file
+    receipt_reads = 0
+
+    def substitute_intermediate_receipt(root: Path, relative: str) -> bytes:
+        nonlocal receipt_reads
+        payload = original_read(root, relative)
+        if relative == "execution-receipt.json":
+            receipt_reads += 1
+            if receipt_reads == 2:
+                return forged
+        return payload
+
+    monkeypatch.setattr(api_module, "_read_workspace_file", substitute_intermediate_receipt)
+
+    with pytest.raises(ArtifactError, match="resource digest mismatch"):
+        inspect_result(
+            output,
+            kind="execution",
+            expected_workspace_id=str(arguments["expected_workspace_id"]),
+            expected_receipt_sha256=str(arguments["expected_receipt_sha256"]),
+            expected_release_sha256=str(arguments["expected_release_sha256"]),
+            expected_producer_revision=str(arguments["expected_producer_revision"]),
+        )
+
+
+def test_execution_inspection_rejects_partial_or_wrong_kind_anchors(
+    tmp_path: Path,
+    design_path: Path,
+) -> None:
+    output, _, _ = _execute(tmp_path, design_path)
+
+    with pytest.raises(ArtifactError, match="all four external trust anchors"):
+        inspect_result(
+            output,
+            kind="execution",
+            expected_workspace_id="execution-" + "0" * 24,
+        )
+    with pytest.raises(ArtifactError, match="cannot replace execution-workspace anchors"):
+        inspect_result(
+            output,
+            kind="execution",
+            expected_bundle_id="bundle-" + "0" * 24,
+        )
 
 
 def test_execution_verification_detects_tampering(

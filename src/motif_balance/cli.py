@@ -1,20 +1,28 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Any, NoReturn
+from typing import Annotated, Any, Literal, NoReturn
 
 import typer
 import yaml
 from pydantic import ValidationError
 
 from motif_balance.api import (
+    ResultCatalog,
+    ResultInspection,
     _planned_search_kind,
+    _write_new_file,
+    build_result_catalog,
     compile_spec,
     convert_motif,
     design,
     execute_design_workspace,
+    inspect_result,
     load_spec,
     render_bundle_report,
+    render_inspection_html,
+    render_result_catalog_html,
+    summarize_inspection,
     verify_bundle,
     verify_execution_workspace,
 )
@@ -137,6 +145,128 @@ def render_report_command(
     try:
         bundle_id = render_bundle_report(bundle, out)
         typer.echo(f"complete {bundle_id} {out}")
+    except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
+        _emit_error(exc, debug=debug, domain="artifact")
+
+
+def _inspection_payload(
+    value: ResultInspection | ResultCatalog,
+    *,
+    format_name: str,
+) -> bytes:
+    if format_name == "json":
+        return (value.model_dump_json(indent=2) + "\n").encode()
+    if isinstance(value, ResultCatalog):
+        if format_name == "html":
+            return render_result_catalog_html(value)
+        raise ArtifactError("result catalogs support JSON or HTML output")
+    if format_name == "text":
+        return summarize_inspection(value).encode()
+    if format_name == "html":
+        return render_inspection_html(value)
+    raise ArtifactError(f"unsupported inspection format '{format_name}'")
+
+
+def _publish_or_emit(
+    payload: bytes,
+    out: Path | None,
+    *,
+    subject_roots: tuple[Path, ...] = (),
+) -> None:
+    if out is None:
+        typer.echo(payload.decode(), nl=False)
+        return
+    resolved_out = out.resolve(strict=False)
+    if any(resolved_out.is_relative_to(root.resolve()) for root in subject_roots):
+        raise ArtifactError(
+            "Inspection output must remain outside every inspected result root.",
+            field="out",
+            hint="Choose a separate review or handoff directory.",
+        )
+    _write_new_file(out, payload, label="inspection output")
+
+
+@app.command("inspect")
+def inspect_command(
+    subject: Annotated[Path, typer.Argument(exists=True, file_okay=False, readable=True)],
+    kind: Annotated[
+        Literal["bundle", "execution"],
+        typer.Option("--kind", help="Explicit artifact contract; never inferred."),
+    ],
+    format_name: Annotated[
+        Literal["text", "json", "html"],
+        typer.Option("--format", help="Read-only projection format."),
+    ] = "text",
+    out: Annotated[Path | None, typer.Option("--out", help="New derived output file.")] = None,
+    expected_bundle_id: Annotated[str | None, typer.Option("--expected-bundle-id")] = None,
+    expected_workspace_id: Annotated[str | None, typer.Option("--expected-workspace-id")] = None,
+    expected_receipt_sha256: Annotated[
+        str | None, typer.Option("--expected-receipt-sha256")
+    ] = None,
+    expected_release_sha256: Annotated[
+        str | None, typer.Option("--expected-release-sha256")
+    ] = None,
+    expected_producer_revision: Annotated[
+        str | None, typer.Option("--expected-producer-revision")
+    ] = None,
+    debug: Annotated[bool, typer.Option("--debug")] = False,
+) -> None:
+    """Inspect one explicit result contract without modifying its source."""
+    try:
+        result = inspect_result(
+            subject,
+            kind=kind,
+            expected_bundle_id=expected_bundle_id,
+            expected_workspace_id=expected_workspace_id,
+            expected_receipt_sha256=expected_receipt_sha256,
+            expected_release_sha256=expected_release_sha256,
+            expected_producer_revision=expected_producer_revision,
+        )
+        _publish_or_emit(
+            _inspection_payload(result, format_name=format_name),
+            out,
+            subject_roots=(subject,),
+        )
+    except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
+        _emit_error(exc, debug=debug, domain="artifact")
+
+
+def _catalog_entry(value: str) -> tuple[str, Literal["bundle", "execution"], Path]:
+    entry_id, separator, remainder = value.partition("=")
+    kind, kind_separator, raw_path = remainder.partition(":")
+    if not separator or not kind_separator or kind not in {"bundle", "execution"}:
+        raise ArtifactError("catalog entries must use ID=KIND:PATH with an explicit supported kind")
+    return entry_id, kind, Path(raw_path)  # type: ignore[return-value]
+
+
+@app.command("catalog")
+def catalog_command(
+    entries: Annotated[
+        list[str],
+        typer.Option("--entry", help="Explicit ID=KIND:PATH result reference; repeatable."),
+    ],
+    format_name: Annotated[
+        Literal["json", "html"],
+        typer.Option("--format", help="Derived catalog projection format."),
+    ] = "json",
+    out: Annotated[Path | None, typer.Option("--out", help="New derived catalog output.")] = None,
+    debug: Annotated[bool, typer.Option("--debug")] = False,
+) -> None:
+    """Build a deterministic catalog from explicit read-only inspections."""
+    try:
+        if not entries:
+            raise ArtifactError("catalog requires at least one --entry")
+        inspected = {}
+        subject_roots = []
+        for raw in entries:
+            entry_id, kind, path = _catalog_entry(raw)
+            if entry_id in inspected:
+                raise ArtifactError(f"duplicate catalog entry identifier '{entry_id}'")
+            inspected[entry_id] = inspect_result(path, kind=kind)
+            subject_roots.append(path)
+        result = build_result_catalog(inspected)
+        payload = _inspection_payload(result, format_name=format_name)
+        _publish_or_emit(payload, out, subject_roots=tuple(subject_roots))
     except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
         _emit_error(exc, debug=debug, domain="artifact")
 

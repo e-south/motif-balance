@@ -3,7 +3,9 @@ from __future__ import annotations
 import itertools
 
 import pytest
+from pydantic import ValidationError
 
+from motif_balance import DesignSpec, Portfolio, design
 from motif_balance.errors import SearchExhausted
 from motif_balance.model import Evaluation, MotifMatch
 from motif_balance.selection import normalized_hamming_distance, select_candidates
@@ -104,3 +106,22 @@ def test_positive_distance_selection_is_iterative_above_python_recursion_depth()
     )
 
     assert len(selected) == 1024
+
+
+def test_zero_distance_portfolio_validation_skips_pairwise_work(
+    pairwise_spec: DesignSpec,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    portfolio = design(pairwise_spec)
+    payload = portfolio.model_dump(mode="python")
+    payload["spec"] = pairwise_spec.model_copy(update={"min_distance": 0.0})
+
+    def fail_if_called(_left: str, _right: str) -> float:
+        raise AssertionError("zero distance must not trigger pairwise validation")
+
+    monkeypatch.setattr("motif_balance.model._normalized_hamming_distance", fail_if_called)
+
+    try:
+        Portfolio.model_validate(payload)
+    except ValidationError as exc:  # pragma: no cover - makes failure easier to diagnose
+        pytest.fail(str(exc))

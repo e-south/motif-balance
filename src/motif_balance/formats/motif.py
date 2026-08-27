@@ -11,12 +11,13 @@ import yaml
 
 from motif_balance.constants import MAX_INPUT_BYTES
 from motif_balance.errors import InvalidMotif
+from motif_balance.formats.structured import load_json_unique, load_yaml_unique
 from motif_balance.model import MotifConversion, MotifModel
 
 
 def _read_structured(path: Path, raw: bytes) -> dict[str, Any]:
     try:
-        payload = json.loads(raw) if path.suffix.lower() == ".json" else yaml.safe_load(raw)
+        payload = load_json_unique(raw) if path.suffix.lower() == ".json" else load_yaml_unique(raw)
     except (OSError, json.JSONDecodeError, yaml.YAMLError) as exc:
         raise InvalidMotif(f"Unable to read motif file '{path.name}': {exc}") from exc
     if not isinstance(payload, dict):

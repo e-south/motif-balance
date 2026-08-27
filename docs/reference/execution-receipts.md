@@ -38,8 +38,8 @@ It publishes through a temporary sibling directory, self-verifies the completed
 workspace, and refuses an existing destination. Attestation proves which
 package bytes ran. The producer revision remains an externally supplied release
 identity and must be checked against the private release record; it is not
-derived from the wheel. Neither attestation certifies study acceptance,
-benchmark quality, or manuscript inclusion.
+derived from the wheel. Attestation does not certify downstream acceptance or
+comparison quality.
 
 The workspace contains:
 
@@ -109,12 +109,12 @@ Run Storage validation against the envelope root and
 Storage envelope to the product root is invalid because both contracts close
 their own inventories.
 
-Do not copy in legacy workspace state, caches, optimizer traces, study
-decisions, or manuscript prose. Bulk benchmark traces, if explicitly enabled
-outside the product path, require a separate typed resource and must not be
-inserted into this execution workspace or the canonical bundle.
+Do not copy in caches, optimizer traces, comparison decisions, or presentation
+prose. Bulk traces, if explicitly enabled outside the product path, require a
+separate typed resource and must not be inserted into this execution workspace
+or the canonical bundle.
 
-## Compatibility
+## Supported schemas
 
 Motif Balance `0.2` verifies `run-manifest/v2`, execution receipt v1, and
 execution workspace v1. It rejects earlier or unknown schemas. Retain the exact

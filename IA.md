@@ -17,8 +17,8 @@ doc_type: reference
 Motif Balance has one product ontology. It accepts a balanced motif design,
 compiles explicit motif models, evaluates fixed-length sequences, searches a
 bounded sequence space, selects an exact portfolio, and publishes a verifiable
-bundle. Repository history and former workspace terminology are not part of
-this ontology.
+bundle. The ontology is deliberately limited to concepts required to perform,
+verify, or inspect that operation.
 
 ## Authorities
 
@@ -33,12 +33,8 @@ this ontology.
 | Which evaluated sequences ship? | selection | exact count and declared distance |
 | What crosses a repository boundary? | canonical bundle | `run-manifest/v2` |
 | Which released bytes performed a run? | execution workspace | `motif-balance.execution-workspace/v1` |
-| Is a result accepted as evidence? | Research Studies | study evidence record |
-| How is accepted evidence presented? | `manufold` | digest-pinned manuscript snapshot |
-| Where are bulk executions retained? | storage | storage object manifest |
-
-Storage owns location, retention class, and object closure. It does not define
-score meaning, candidate meaning, study acceptance, or manuscript claims.
+| How is one result explained without mutation? | result inspection | `motif-balance.result-inspection/v1` |
+| How are explicit result references browsed together? | derived result catalog | `motif-balance.result-catalog/v1` |
 
 ## Ontology
 
@@ -117,22 +113,29 @@ The bundle identity binds scientific inputs, search provenance, bounded
 diagnostics, and artifact records. Publication is atomic and refuses an
 existing destination.
 
-An evidence-producing execution wraps the resolved specification, exact wheel,
+An attested execution wraps the resolved specification, exact wheel,
 canonical bundle, runtime receipt, and content index in one independently
-verifiable execution workspace. This is a product artifact, not a federated
-workspace: it has no implicit active state, sibling-repository references,
-mutable cache, or study or manuscript authority.
+verifiable execution workspace. It has no implicit active state, repository
+references, mutable cache, discovery behavior, or interpretation authority.
 
-## Product and evidence boundaries
+Inspection is an on-demand projection over a verified bundle or execution. It
+does not become a bundle member and cannot create a circular artifact identity.
+A result catalog joins only explicit inspection records; it does not discover
+Storage, choose a benchmark cohort, or accept evidence. These operational views
+expose the product ontology without adding another scientific noun or workspace
+authority.
 
-- Motif Balance owns reusable semantics, execution, and bundle verification.
-- Storage owns durable placement and retention metadata for execution objects.
-- Research Studies owns task cohorts, baselines, repeats, claim gates, and
-  accepted evidence.
-- `manufold` owns figure composition, captions, prose, builds, and handoffs.
+## Product boundary
 
-No owner imports another repository's runtime source. Owners exchange released
-software, versioned schemas, content digests, and immutable snapshots.
+- Motif Balance owns reusable semantics, bounded execution, artifacts,
+  verification, and single-result inspection.
+- Callers own model-source choice, task cohorts, comparisons, repetitions,
+  acceptance criteria, and downstream claims.
+- Artifact stores own placement, retention, and discovery without changing
+  result meaning.
+
+Integration occurs through released software, versioned schemas, content
+digests, and immutable artifacts—not runtime source imports.
 
 ## Progressive documentation
 
@@ -142,11 +145,7 @@ the route their task requires:
 - concepts and first design for users;
 - model, specification, and result references for scientific interpretation;
 - public contract and bundle verification for integrators;
+- [result inspection](docs/reference/result-inspection.md) for read-only review
+  and explicit catalogs;
 - this IA, [architecture](ARCHITECTURE.md), and [engineering contracts](DESIGN.md)
-  for maintainers;
-- the isolated [migration note](docs/migration/cruncher-sample-cutover.md) only
-  for cutover reviewers.
-
-The migration note may name former systems to classify parity and deprecation.
-Those names must not expand the public API, normal configuration, or product
-documentation tree.
+  for maintainers.

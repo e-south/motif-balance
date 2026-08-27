@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from motif_balance import load_spec
-from motif_balance.errors import InvalidDesign
+from motif_balance import load_spec, read_motif
+from motif_balance.errors import InvalidDesign, InvalidMotif
 
 
 def test_load_spec_resolves_relative_motif_file(tmp_path: Path) -> None:
@@ -56,6 +56,44 @@ def test_load_spec_rejects_malformed_surfaces(
 def test_load_spec_reports_missing_file(tmp_path: Path) -> None:
     with pytest.raises(InvalidDesign, match="Unable to read"):
         load_spec(tmp_path / "missing.yaml")
+
+
+def test_structured_inputs_reject_duplicate_keys(tmp_path: Path) -> None:
+    design_path = tmp_path / "design.yaml"
+    design_path.write_text(
+        "motifs:\n"
+        "  fixture:\n"
+        "    probabilities:\n"
+        "      - [0.7, 0.1, 0.1, 0.1]\n"
+        "    background: [0.25, 0.25, 0.25, 0.25]\n"
+        "length: 1\n"
+        "length: 2\n"
+        "count: 1\n"
+        "evaluations: 1\n"
+        "seed: 0\n"
+    )
+    with pytest.raises(InvalidDesign, match="duplicate key 'length'"):
+        load_spec(design_path)
+
+    motif_path = tmp_path / "motif.yaml"
+    motif_path.write_text(
+        "motif_id: fixture\n"
+        "motif_id: substituted\n"
+        "probabilities:\n"
+        "  - [0.7, 0.1, 0.1, 0.1]\n"
+        "background: [0.25, 0.25, 0.25, 0.25]\n"
+    )
+    with pytest.raises(InvalidMotif, match="duplicate key 'motif_id'"):
+        read_motif(motif_path)
+
+    motif_json_path = tmp_path / "motif.json"
+    motif_json_path.write_text(
+        '{"motif_id":"fixture","motif_id":"substituted",'
+        '"probabilities":[[0.7,0.1,0.1,0.1]],'
+        '"background":[0.25,0.25,0.25,0.25]}'
+    )
+    with pytest.raises(InvalidMotif, match="duplicate key 'motif_id'"):
+        read_motif(motif_json_path)
 
 
 def test_load_spec_rejects_traversal_and_symlink_motif_references(tmp_path: Path) -> None:

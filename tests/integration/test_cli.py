@@ -143,6 +143,21 @@ def test_cli_rejects_unknown_scientific_fields(tmp_path: Path) -> None:
     assert "pydantic.dev" not in result.stderr
 
 
+def test_cli_rejects_duplicate_and_boolean_scientific_values(tmp_path: Path) -> None:
+    duplicate = tmp_path / "duplicate.yaml"
+    duplicate.write_text(_DESIGN + "length: 3\n")
+    boolean = tmp_path / "boolean.yaml"
+    boolean.write_text(_DESIGN.replace("count: 2", "count: true"))
+
+    duplicate_result = runner.invoke(app, ["design", str(duplicate), "--check"])
+    boolean_result = runner.invoke(app, ["design", str(boolean), "--check"])
+
+    assert duplicate_result.exit_code == 2
+    assert "duplicate key 'length'" in duplicate_result.stderr
+    assert boolean_result.exit_code == 2
+    assert "boolean values are not valid" in boolean_result.stderr
+
+
 def test_cli_verifies_and_regenerates_a_report(tmp_path: Path) -> None:
     spec = tmp_path / "design.yaml"
     bundle = tmp_path / "result"
@@ -160,6 +175,131 @@ def test_cli_verifies_and_regenerates_a_report(tmp_path: Path) -> None:
     assert verified.stdout.startswith("valid bundle-")
     assert rendered.exit_code == 0
     assert regenerated.read_bytes() == (bundle / "report.html").read_bytes()
+
+
+def test_cli_inspects_and_catalogs_explicit_bundle_references(tmp_path: Path) -> None:
+    spec = tmp_path / "design.yaml"
+    bundle = tmp_path / "result"
+    review = tmp_path / "review.html"
+    catalog = tmp_path / "catalog.json"
+    catalog_review = tmp_path / "catalog.html"
+    spec.write_text(_DESIGN)
+    assert runner.invoke(app, ["design", str(spec), "--out", str(bundle)]).exit_code == 0
+
+    inspected = runner.invoke(app, ["inspect", str(bundle), "--kind", "bundle"])
+    rendered = runner.invoke(
+        app,
+        [
+            "inspect",
+            str(bundle),
+            "--kind",
+            "bundle",
+            "--format",
+            "html",
+            "--out",
+            str(review),
+        ],
+    )
+    indexed = runner.invoke(
+        app,
+        [
+            "catalog",
+            "--entry",
+            f"pairwise=bundle:{bundle}",
+            "--out",
+            str(catalog),
+        ],
+    )
+    rendered_catalog = runner.invoke(
+        app,
+        [
+            "catalog",
+            "--entry",
+            f"pairwise=bundle:{bundle}",
+            "--format",
+            "html",
+            "--out",
+            str(catalog_review),
+        ],
+    )
+
+    assert inspected.exit_code == 0
+    assert "kind=bundle" in inspected.stdout
+    assert "integrity=verified" in inspected.stdout
+    assert "completion=exhaustive" in inspected.stdout
+    assert rendered.exit_code == 0
+    assert "Motif Balance result inspection" in review.read_text()
+    assert indexed.exit_code == 0
+    payload = json.loads(catalog.read_text())
+    assert payload["schema_version"] == "motif-balance.result-catalog/v1"
+    assert payload["entries"][0]["entry_id"] == "pairwise"
+    assert rendered_catalog.exit_code == 0
+    assert "does not rank" in catalog_review.read_text()
+
+
+def test_cli_inspection_refuses_existing_output(tmp_path: Path) -> None:
+    spec = tmp_path / "design.yaml"
+    bundle = tmp_path / "result"
+    out = tmp_path / "inspection.json"
+    spec.write_text(_DESIGN)
+    out.write_text("keep")
+    assert runner.invoke(app, ["design", str(spec), "--out", str(bundle)]).exit_code == 0
+
+    result = runner.invoke(
+        app,
+        [
+            "inspect",
+            str(bundle),
+            "--kind",
+            "bundle",
+            "--format",
+            "json",
+            "--out",
+            str(out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "Refusing to replace existing inspection output" in result.stderr
+    assert out.read_text() == "keep"
+
+
+def test_cli_inspection_refuses_output_inside_the_subject(tmp_path: Path) -> None:
+    spec = tmp_path / "design.yaml"
+    bundle = tmp_path / "result"
+    spec.write_text(_DESIGN)
+    assert runner.invoke(app, ["design", str(spec), "--out", str(bundle)]).exit_code == 0
+
+    inspected = runner.invoke(
+        app,
+        [
+            "inspect",
+            str(bundle),
+            "--kind",
+            "bundle",
+            "--format",
+            "html",
+            "--out",
+            str(bundle / "inspection.html"),
+        ],
+    )
+    cataloged = runner.invoke(
+        app,
+        [
+            "catalog",
+            "--entry",
+            f"pairwise=bundle:{bundle}",
+            "--out",
+            str(bundle / "catalog.json"),
+        ],
+    )
+
+    assert inspected.exit_code == 2
+    assert cataloged.exit_code == 2
+    assert "outside every inspected result root" in inspected.stderr
+    assert "outside every inspected result root" in cataloged.stderr
+    assert not (bundle / "inspection.html").exists()
+    assert not (bundle / "catalog.json").exists()
 
 
 def test_cli_reports_an_unsupported_manifest_as_an_artifact_error(tmp_path: Path) -> None:

@@ -39,6 +39,6 @@ table, long-form match table, and complete manifest. Publication is atomic and
 refuses an existing output path. Replay records package, schema, scoring,
 search-engine, RNG, seed, budget, diagnostic, and artifact versions.
 
-This document defines software behavior. A study must separately define its
-task cohort, baselines, repetitions, statistical analysis, evidence acceptance,
-and claim boundary.
+This document defines software behavior. Any comparison workflow must
+separately define its inputs, controls, repetitions, analysis, acceptance
+criteria, and claim boundary.

@@ -15,7 +15,14 @@ expected = {
     "MotifMatch",
     "MotifModel",
     "Portfolio",
+    "ResultCatalog",
+    "ResultIndex",
+    "ResultInspection",
+    "build_result_catalog",
+    "inspect_result",
     "design",
+    "render_inspection_html",
+    "render_result_catalog_html",
     "score",
 }
 missing = sorted(name for name in expected if not hasattr(mb, name))
@@ -33,5 +40,16 @@ uv run --locked motif-balance design examples/synthetic-pairwise/design.yaml \
 uv run --locked python -c \
   'import sys; from motif_balance import verify_bundle; print(verify_bundle(sys.argv[1]))' \
   "$smoke_root/result" >/dev/null
+uv run --locked motif-balance inspect "$smoke_root/result" --kind bundle >/dev/null
+uv run --locked motif-balance inspect "$smoke_root/result" --kind bundle \
+  --format html --out "$smoke_root/review.html" >/dev/null
+grep -Fq "Where motif scores land" "$smoke_root/review.html"
+grep -Fq "Best-so-far search progress" "$smoke_root/review.html"
+if grep -Eq '<script|<foreignObject|href=|url\(' "$smoke_root/review.html"; then
+  echo "inspection review contains an active or external resource" >&2
+  exit 1
+fi
+uv run --locked motif-balance catalog --entry smoke=bundle:"$smoke_root/result" \
+  --format html --out "$smoke_root/catalog.html" >/dev/null
 
 echo "Documentation smoke: ok"

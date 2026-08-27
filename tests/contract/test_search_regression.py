@@ -6,9 +6,9 @@ from pathlib import Path
 from motif_balance import design, load_spec
 
 
-def test_production_search_snapshot_is_stable_under_the_new_semantics() -> None:
+def test_annealed_search_snapshot_is_stable_under_current_semantics() -> None:
     root = Path(__file__).resolve().parents[2]
-    fixture = json.loads((root / "benchmarks/technical-note/search-validation-v1.json").read_text())
+    fixture = json.loads((root / "tests/fixtures/search/annealed-multistart-v1.json").read_text())
     portfolio = design(load_spec(root / fixture["fixture"]))
     expected = fixture["expected"]
 
@@ -35,4 +35,3 @@ def test_production_search_snapshot_is_stable_under_the_new_semantics() -> None:
         "proposal_summaries"
     ]
     assert candidates == expected["candidates"]
-    assert fixture["claim_boundary"].startswith("Deterministic production-engine")

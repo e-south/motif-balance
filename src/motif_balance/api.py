@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
+from typing import Literal
 
 import yaml
 
@@ -40,6 +41,17 @@ from motif_balance.constants import (
 )
 from motif_balance.errors import ArtifactError, InvalidDesign, InvalidMotif
 from motif_balance.formats import convert_jaspar, read_motif
+from motif_balance.formats.structured import load_yaml_unique
+from motif_balance.inspection import (
+    ResultCatalog,
+    ResultInspection,
+    build_execution_inspection,
+    build_result_index,
+    catalog,
+    catalog_html,
+    inspection_html,
+    inspection_text,
+)
 from motif_balance.model import (
     Candidate,
     DesignSpec,
@@ -74,15 +86,22 @@ __all__ = [
     "MotifMatch",
     "MotifModel",
     "Portfolio",
+    "ResultCatalog",
+    "ResultInspection",
+    "build_result_catalog",
     "compile_spec",
     "convert_motif",
     "design",
     "execute_design_workspace",
+    "inspect_result",
     "load_spec",
     "read_motif",
     "read_portfolio",
     "render_bundle_report",
+    "render_inspection_html",
+    "render_result_catalog_html",
     "score",
+    "summarize_inspection",
     "verify_bundle",
     "verify_execution_workspace",
 ]
@@ -118,7 +137,7 @@ def load_spec(path: str | Path) -> DesignSpec:
         raw = source.read_bytes()
         if len(raw) > MAX_INPUT_BYTES:
             raise InvalidDesign(f"Design specification exceeds the {MAX_INPUT_BYTES}-byte limit.")
-        payload = yaml.safe_load(raw)
+        payload = load_yaml_unique(raw)
     except (OSError, yaml.YAMLError) as exc:
         raise InvalidDesign(f"Unable to read design specification: {exc}") from exc
     if not isinstance(payload, dict):
@@ -370,9 +389,19 @@ def verify_bundle(
 
 
 def _write_new_file(path: Path, payload: bytes, *, label: str) -> None:
+    temporary: Path | None = None
     try:
-        with path.open("xb") as handle:
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            dir=path.parent,
+        )
+        temporary = Path(temporary_name)
+        with os.fdopen(descriptor, "wb") as handle:
             handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(temporary, path, follow_symlinks=False)
     except FileExistsError as exc:
         raise ArtifactError(
             f"Refusing to replace existing {label} '{path.name}'.",
@@ -385,16 +414,158 @@ def _write_new_file(path: Path, payload: bytes, *, label: str) -> None:
             field="out",
             hint="Choose a writable output path whose parent directory exists.",
         ) from exc
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def render_bundle_report(directory: str | Path, out: str | Path) -> str:
-    portfolio = read_portfolio(directory)
+    root = Path(directory)
+    destination = Path(out)
+    if destination.resolve(strict=False).is_relative_to(root.resolve()):
+        raise ArtifactError(
+            "Derived report output must remain outside the verified bundle.",
+            field="out",
+            hint="Choose a separate review or handoff directory.",
+        )
+    portfolio = read_portfolio(root)
     _write_new_file(
-        Path(out),
+        destination,
         render_report(portfolio.spec, portfolio.candidates),
         label="report",
     )
     return portfolio.manifest.bundle_id
+
+
+def inspect_result(
+    path: str | Path,
+    *,
+    kind: Literal["bundle", "execution"],
+    expected_bundle_id: str | None = None,
+    expected_workspace_id: str | None = None,
+    expected_receipt_sha256: str | None = None,
+    expected_release_sha256: str | None = None,
+    expected_producer_revision: str | None = None,
+) -> ResultInspection:
+    """Return a typed, read-only projection after kind-appropriate verification."""
+
+    root = Path(path)
+    execution_anchors = (
+        expected_workspace_id,
+        expected_receipt_sha256,
+        expected_release_sha256,
+        expected_producer_revision,
+    )
+    if kind == "bundle":
+        if any(value is not None for value in execution_anchors):
+            raise ArtifactError("execution trust anchors cannot be used for a bundle inspection")
+        portfolio = read_portfolio(root, expected_bundle_id=expected_bundle_id)
+        return ResultInspection(
+            subject_kind=kind,
+            integrity_status="verified",
+            trust_basis=("external_bundle_id" if expected_bundle_id else "self_consistent"),
+            trusted_identities_checked=(("bundle_id",) if expected_bundle_id else ()),
+            result=build_result_index(
+                root,
+                portfolio,
+                canonical_manifest=manifest_bytes(portfolio.manifest),
+            ),
+        )
+    if kind != "execution":
+        raise ArtifactError(f"unsupported inspection kind '{kind}'")
+    if expected_bundle_id is not None:
+        raise ArtifactError("bundle trust anchor cannot replace execution-workspace anchors")
+    supplied = tuple(value is not None for value in execution_anchors)
+    if any(supplied) and not all(supplied):
+        raise ArtifactError("execution inspection requires all four external trust anchors or none")
+    index_before = _read_workspace_file(root, "execution-workspace.json")
+    workspace = parse_execution_workspace(index_before)
+    anchors: tuple[str, str, str, str]
+    trust_basis: Literal["self_consistent", "external_execution_identities"]
+    checked: tuple[str, ...]
+    integrity_status: Literal["verified", "readable_untrusted"]
+    if all(supplied):
+        assert expected_workspace_id is not None
+        assert expected_receipt_sha256 is not None
+        assert expected_release_sha256 is not None
+        assert expected_producer_revision is not None
+        anchors = (
+            expected_workspace_id,
+            expected_receipt_sha256,
+            expected_release_sha256,
+            expected_producer_revision,
+        )
+        trust_basis = "external_execution_identities"
+        checked = ("workspace_id", "receipt_sha256", "release_sha256", "producer_revision")
+        integrity_status = "verified"
+    else:
+        anchors = (
+            workspace.workspace_id,
+            workspace.receipt.sha256,
+            workspace.release.sha256,
+            workspace.release.producer_revision,
+        )
+        trust_basis = "self_consistent"
+        checked = ()
+        integrity_status = "readable_untrusted"
+    verify_execution_workspace(
+        root,
+        expected_workspace_id=anchors[0],
+        expected_receipt_sha256=anchors[1],
+        expected_release_sha256=anchors[2],
+        expected_producer_revision=anchors[3],
+    )
+    # Bind the exact bytes projected below, not only a preceding/following
+    # verification read. Otherwise a concurrent substitution between reads
+    # could publish unattested receipt fields in a verified inspection.
+    receipt_payload = _verify_resource(root, workspace.receipt)
+    receipt = parse_execution_receipt(receipt_payload)
+    portfolio = read_portfolio(root / "bundle", expected_bundle_id=workspace.bundle.bundle_id)
+    verify_execution_workspace(
+        root,
+        expected_workspace_id=anchors[0],
+        expected_receipt_sha256=anchors[1],
+        expected_release_sha256=anchors[2],
+        expected_producer_revision=anchors[3],
+    )
+    if _read_workspace_file(root, "execution-workspace.json") != index_before:
+        raise ArtifactError("execution workspace changed during inspection")
+    return ResultInspection(
+        subject_kind=kind,
+        integrity_status=integrity_status,
+        trust_basis=trust_basis,
+        trusted_identities_checked=checked,
+        result=build_result_index(
+            root / "bundle",
+            portfolio,
+            canonical_manifest=manifest_bytes(portfolio.manifest),
+        ),
+        execution=build_execution_inspection(workspace, receipt),
+    )
+
+
+def build_result_catalog(entries: dict[str, ResultInspection]) -> ResultCatalog:
+    """Build a deterministic derived catalog from explicit inspected subjects."""
+
+    return catalog(entries)
+
+
+def summarize_inspection(inspection: ResultInspection) -> str:
+    """Render a path-independent terminal summary for one inspection."""
+
+    return inspection_text(inspection)
+
+
+def render_inspection_html(inspection: ResultInspection) -> bytes:
+    """Render one inspection as a self-contained, script-free HTML view."""
+
+    return inspection_html(inspection)
+
+
+def render_result_catalog_html(value: ResultCatalog) -> bytes:
+    """Render a bounded catalog of current result inspections."""
+
+    return catalog_html(value)
 
 
 def _resolved_spec_bytes(spec: DesignSpec) -> bytes:

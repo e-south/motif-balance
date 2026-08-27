@@ -15,8 +15,10 @@ doc_type: explanation
 
 ## Public contracts
 
-The stable vocabulary is `MotifModel`, `DesignSpec`, `MotifMatch`, `Evaluation`, `Candidate`,
-`Portfolio`, `design(spec) -> Portfolio`, and `score(...)`. Scientific inputs
+The stable scientific vocabulary is `MotifModel`, `DesignSpec`, `MotifMatch`,
+`Evaluation`, `Candidate`, `Portfolio`, `design(spec) -> Portfolio`, and
+`score(...)`. `ResultInspection` and `ResultCatalog` are operational read-only
+projections, not additional scientific result nouns. Scientific inputs
 belong in an immutable `DesignSpec`; operational CLI options may select output
 location and validation behavior but cannot silently revise that specification.
 
@@ -26,9 +28,10 @@ location and validation behavior but cannot silently revise that specification.
 - DNA is uppercase `A/C/G/T`; coordinate spans are zero-based and half-open.
 - A design has one exact fixed sequence length and an explicit positive target
   candidate count.
-- Sequence length, candidate count, evaluator calls, portfolio bases, and
-  canonical match rows have explicit public upper bounds. Feasibility checks
-  do not materialize or exponentiate beyond those bounds.
+- Sequence length, candidate count, evaluator calls, evaluated bases, scoring
+  operations, distance comparisons, portfolio bases, and canonical match rows
+  have explicit public upper bounds. Feasibility checks do not materialize or
+  exponentiate beyond those bounds.
 - Each motif contributes exactly one best match per candidate under declared
   strand and deterministic tie-breaking rules.
 - One scoring implementation is authoritative. The public balance score is the
@@ -44,9 +47,12 @@ location and validation behavior but cannot silently revise that specification.
   `matches.tsv`, and `manifest.json`. FASTA and HTML are derived views.
 - Schema versions, scoring versions, seeds, budgets, and content digests are
   explicit in replayable artifacts.
-- Evidence-producing execution attests that the running package tree equals the
+- Attested execution verifies that the running package tree equals the
   retained wheel before and after search, then atomically publishes the resolved
   input, wheel, bundle, receipt, and execution index.
+- Inspection requires an explicit artifact kind, preserves external trust as a
+  separate state, contains no source filesystem path, and accepts only current
+  bundle or execution contracts.
 
 ## Error channels
 
@@ -77,6 +83,5 @@ budget. It records bounded checkpoints, restart-final scores, and proposal
 counts rather than raw optimizer-state traces.
 
 That engine is production software, not evidence that it outperforms a
-baseline. Comparative performance, repeated-seed robustness, and migration
-parity remain Research Studies claims over frozen cohorts and released package
-artifacts.
+baseline. Comparative performance and repeated-seed robustness require a
+separately frozen workflow over released package artifacts.

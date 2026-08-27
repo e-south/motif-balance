@@ -1,5 +1,4 @@
 {
-  "claim_boundary": "Deterministic production-engine regression fixture; not comparative or biological evidence.",
   "expected": {
     "best_score": 1.0,
     "candidates": [
@@ -26,7 +25,7 @@
     "unique_evaluations": 2793
   },
   "fixture": "examples/production-pairwise/design.yaml",
-  "schema_version": "search-validation/v1",
+  "schema_version": "annealed-search-regression/v1",
   "semantics": {
     "objective": "weakest_score_v1",
     "scoring": "normalized_llr_v1",

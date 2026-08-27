@@ -150,6 +150,11 @@ def base_artifact_payloads(
 
 
 def artifact_records(payloads: dict[str, bytes]) -> tuple[ArtifactDigest, ...]:
+    for path, payload in payloads.items():
+        if len(payload) > MAX_BUNDLE_ARTIFACT_BYTES:
+            raise ArtifactError(
+                f"Artifact '{path}' exceeds the {MAX_BUNDLE_ARTIFACT_BYTES}-byte bundle byte limit."
+            )
     return tuple(
         ArtifactDigest(path=path, sha256=_digest(payload), bytes=len(payload))
         for path, payload in sorted(payloads.items())

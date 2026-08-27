@@ -8,6 +8,13 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_ROOT = REPO_ROOT / "src" / "motif_balance"
+FORBIDDEN_PRODUCT_SURFACES = (
+    Path("benchmarks/technical-note"),
+    Path("docs/migration"),
+    Path("docs/reproduce-paper.md"),
+    Path("migration"),
+    Path("tests/migration"),
+)
 
 KNOWN_LAYERS = {
     "api",
@@ -17,12 +24,14 @@ KNOWN_LAYERS = {
     "constants",
     "errors",
     "formats",
+    "inspection",
     "model",
     "report",
     "receipt",
     "scoring",
     "search",
     "selection",
+    "visualization",
 }
 ALLOWED_IMPORTS = {
     "constants": set(),
@@ -36,6 +45,8 @@ ALLOWED_IMPORTS = {
     "artifacts": {"constants", "errors", "model"},
     "report": {"constants", "errors", "model"},
     "receipt": {"constants", "errors", "model"},
+    "visualization": {"errors", "model"},
+    "inspection": {"constants", "errors", "model", "visualization"},
     "api": KNOWN_LAYERS - {"api", "cli"},
     "cli": {"api", "errors"},
 }
@@ -117,7 +128,11 @@ def main() -> int:
         print(f"Architecture invariant failures:\n- missing package root: {PACKAGE_ROOT}")
         return 1
 
-    errors: list[str] = []
+    errors = [
+        f"non-product surface must live with its owning workflow: {path.as_posix()}"
+        for path in FORBIDDEN_PRODUCT_SURFACES
+        if (REPO_ROOT / path).exists()
+    ]
     for path in sorted(PACKAGE_ROOT.rglob("*.py")):
         relative = path.relative_to(PACKAGE_ROOT)
         errors.extend(violations_for_source(relative, path.read_text(encoding="utf-8")))

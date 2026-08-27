@@ -28,6 +28,10 @@ class InvalidDesign(MotifBalanceError):
     code = "invalid_design"
 
 
+class InvalidSequence(MotifBalanceError):
+    code = "invalid_sequence"
+
+
 class IncompatibleDesign(MotifBalanceError):
     code = "incompatible_design"
 

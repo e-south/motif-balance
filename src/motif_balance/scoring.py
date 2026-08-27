@@ -5,6 +5,7 @@ from typing import Literal
 
 from motif_balance.compile import CompiledMotif, CompiledProblem
 from motif_balance.constants import DNA_ALPHABET, DNA_COMPLEMENT
+from motif_balance.errors import InvalidSequence
 from motif_balance.model import Evaluation, MotifMatch
 
 _BASE_INDEX: dict[str, int] = {base: index for index, base in enumerate(DNA_ALPHABET)}
@@ -66,9 +67,15 @@ def _best_match(sequence: str, motif: CompiledMotif, *, both_strands: bool) -> M
 def evaluate(sequence: str, problem: CompiledProblem) -> Evaluation:
     normalized = sequence.upper()
     if len(normalized) != problem.spec.length:
-        raise ValueError(f"sequence must contain exactly {problem.spec.length} nucleotides")
+        raise InvalidSequence(
+            f"sequence must contain exactly {problem.spec.length} nucleotides",
+            field="sequence",
+        )
     if set(normalized) - set(DNA_ALPHABET):
-        raise ValueError("sequence must contain only A, C, G, and T")
+        raise InvalidSequence(
+            "sequence must contain only A, C, G, and T",
+            field="sequence",
+        )
     matches = tuple(
         _best_match(
             normalized,

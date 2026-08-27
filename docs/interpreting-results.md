@@ -1,42 +1,38 @@
 ---
 doc_id: motif-balance-interpreting-results
 title: Interpreting Motif Balance results
-intent: Explain result fields, comparison limits, and appropriate claims.
+intent: Explain result fields, diagnostics, and the boundary of product claims.
 audience:
   - users
   - bundle consumers
 owner: Motif Balance maintainers
 status: active
 last_verified: 2026-08-26
-doc_type: how-to
-journey:
-  - verify
+doc_type: explanation
 ---
 
 # Interpreting Motif Balance results
 
-Start with `manifest.json` and verify the bundle before using any table. Then
-read results at three levels:
+Verify a bundle before reading it. Then use each file for one question:
 
-1. `candidates.tsv` contains one immutable row per selected sequence, including
-   its public balance score and deterministic rank.
-2. `matches.tsv` contains one row per candidate and motif, including the chosen
-   span, strand, oriented matched sequence, raw score, and normalized score.
-3. `design.json` and `motifs.json` state the request and model content against
-   which those values are meaningful.
+- `design.json`: what was requested?
+- `motifs.json`: what model content defined the score?
+- `candidates.tsv`: which immutable sequences were selected and ranked?
+- `matches.tsv`: which span and strand won for each candidate–motif pair?
+- `manifest.json`: which semantics, search provenance, diagnostics, and bytes
+  form this result?
 
-The lowest per-motif normalized value determines a candidate's balance score.
-Inspect that limiting motif rather than treating the aggregate as a generic
-quality probability. A difference is meaningful only under the same motif
-content, score version, strand rule, and normalization authority.
+The lowest per-motif normalized score is the candidate's `balance_score`.
+Inspect that limiting motif instead of reading the aggregate as a probability.
+Two scores are directly comparable only when motif content, score version,
+strand rule, and normalization authority are identical.
 
-Do not claim measured binding, expression, fitness, biological portability, or
-superiority to a baseline from these artifacts alone. Those conclusions require
-a study-owned comparison design and evidence record. Search completion and
-portfolio diversity are also distinct from motif score quality.
+Best-score checkpoints describe computational progress. Restart-final scores
+describe variation among starts. Proposal summaries describe search execution.
+They are not posterior samples, biological replicates, or a global-optimality
+certificate.
 
-`manifest.json` also contains bounded search diagnostics. Best-score
-checkpoints show computational progress, restart-final scores show between-start
-variation, and proposal summaries describe execution. They are optimizer
-diagnostics, not posterior samples, convergence statistics, or biological
-replicates.
+The package establishes a self-consistent computational result under declared
+inputs. Binding, expression, fitness, cross-context portability, or superiority
+to another method requires a separately specified comparison and validation
+workflow.

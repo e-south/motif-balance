@@ -1,63 +1,50 @@
-# Motif Balance
+# ![Motif Balance — balanced motif design](assets/motif-balance-banner.svg)
 
-Motif Balance is a standalone, deterministic inverse-design package for fixed-length DNA
-sequences evaluated against explicit motif models. Version 1 reports the weakest normalized
-motif score and returns an exact number of unique, fully re-evaluated candidates. When a
-minimum distance is declared, selection enforces it without relaxation.
+Motif Balance is a deterministic inverse-design package for fixed-length DNA
+sequences evaluated against explicit motif models. Under
+`normalized_llr_v1`, it maximizes the weakest normalized motif score and
+returns an exact number of distinct, fully re-evaluated candidates. An optional
+minimum-distance constraint can make that portfolio sequence-diverse.
 
-This prerelease repository is private and not approved for PyPI publication. It makes
-computational design and scoring claims only; it does not establish binding, expression,
-promoter function, regulatory grammar, synthesis readiness, or global optimality.
+This repository is a private alpha and is not approved for PyPI publication.
+Outputs are model-relative computational results; they do not establish
+binding, expression, synthesis readiness, biological function, or global
+optimality.
 
-Install the locked development environment and inspect the command surface:
+## First verified design
 
 ```bash
 uv sync --locked --group dev
-uv run motif-balance --help
-```
-
-The ordinary interface is one strict specification and one operation:
-
-```bash
+uv run motif-balance design examples/synthetic-pairwise/design.yaml --check
 uv run motif-balance design examples/synthetic-pairwise/design.yaml \
-  --out /tmp/motif-balance-example
+  --out /tmp/motif-balance-result
+uv run motif-balance verify /tmp/motif-balance-result
+uv run motif-balance inspect /tmp/motif-balance-result --kind bundle
+uv run motif-balance inspect /tmp/motif-balance-result --kind bundle \
+  --format html --out /tmp/motif-balance-review.html
 ```
 
-```python
-from motif_balance import DesignSpec, MotifModel, design
+The result contains five canonical files—`design.json`, `motifs.json`,
+`candidates.tsv`, `matches.tsv`, and `manifest.json`—plus verified FASTA and
+HTML views. Publication is atomic and refuses an existing destination.
+The external review HTML is an on-demand, script-free visual walkthrough; it
+does not change the verified bundle or its identity.
 
-spec = DesignSpec(
-    motifs=(
-        MotifModel(
-            motif_id="left",
-            probabilities=((0.7, 0.1, 0.1, 0.1),),
-            background=(0.25, 0.25, 0.25, 0.25),
-        ),
-    ),
-    length=4,
-    count=2,
-    strands="both",
-    evaluations=256,
-    seed=7,
-    min_distance=0.25,
-)
-portfolio = design(spec)
-portfolio.write("result")
-```
+## Choose a route
 
-A successful result contains five canonical files—`design.json`, `motifs.json`,
-`candidates.tsv`, `matches.tsv`, and `manifest.json`—plus derived FASTA and HTML views. Verify
-the bundle before consuming any table:
+| Goal | Route |
+| --- | --- |
+| Install, design, and verify | [Quickstart](docs/quickstart.md) |
+| Understand the method | [Concepts](docs/concepts.md) and [methods](docs/methods.md) |
+| Author inputs | [Motif models](docs/motif-models.md) and [DesignSpec](docs/design-spec.md) |
+| Score an existing sequence | [Sequence scoring](docs/score-sequences.md) |
+| See and read a result | [Inspection and visual review](docs/reference/result-inspection.md) |
+| Integrate the package | [Public contract](docs/reference/public-contract.md) |
+| Maintain or change it | [Architecture](ARCHITECTURE.md), [engineering contracts](DESIGN.md), and [documentation index](docs/index.md) |
 
-```bash
-uv run motif-balance verify result
-```
+Use only the `motif_balance` facade and the `motif-balance` command. Scientific
+inputs belong in an immutable `DesignSpec`; operational flags select validation
+or output behavior. The package fetches no motif database, discovers no result
+workspace, and assigns no experiment or publication meaning to an output.
 
-Evidence-producing runs should use `motif-balance execute` with the exact wheel and
-producer revision. That command creates an atomic, independently verifiable execution
-workspace; see the execution-workspace reference linked from the documentation index.
-
-See [the documentation route](docs/index.md) for motif conversion, score interpretation,
-artifact verification, [information architecture](IA.md), limitations, and the
-manuscript-evidence boundary. Run
-`bash ./scripts/agent-verify` for the same package gate used by CI.
+Run `bash ./scripts/agent-verify` for the same package gate used by CI.
