@@ -8,7 +8,7 @@ audience:
   - evidence producers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: reference
 ---
 
@@ -26,6 +26,7 @@ verify, or inspect that operation.
 | --- | --- | --- |
 | What is being requested? | `DesignSpec` | `design-spec/v1` |
 | What does a motif mean? | `MotifModel` | `motif-model/v1` |
+| How did source values become positive probabilities? | `MotifConversion` | `motif-conversion/v1` |
 | How is a sequence scored? | compile and scoring | `normalized_llr_v1` |
 | Which match wins? | scoring | `leftmost_plus_first_v1` |
 | What is the joint score? | scoring | `weakest_score_v1` |
@@ -80,6 +81,13 @@ score, and reports the lowest normalized motif score as `balance_score`.
 
 The smooth minimum exists only inside search. It is never serialized as a
 candidate score or interpreted as scientific evidence.
+
+Source conversion is provenance, not a scoring alternative. A caller may
+supply an already-positive probability model, a JASPAR count conversion, or a
+probability matrix mixed with an explicit positive background prior. The latter
+uses `(p_source + prior_weight * background) / (1 + prior_weight)` and records
+`probability_matrix_prior_mixture_v1`. Design applies no further smoothing.
+Source acquisition, motif choice, and conversion rationale remain caller-owned.
 
 ### Search
 

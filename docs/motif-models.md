@@ -7,7 +7,7 @@ audience:
   - CLI users
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: reference
 ---
 
@@ -34,6 +34,13 @@ rationale.
 
 ## Explicit conversion
 
+Motif Balance recognizes two versioned conversion semantics:
+
+| Method | Use |
+| --- | --- |
+| `jaspar_counts_to_probabilities_v1` | Convert a JASPAR count matrix through the product CLI. |
+| `probability_matrix_prior_mixture_v1` | Record an upstream, data-owner conversion of a probability matrix containing zero values. |
+
 JASPAR count matrices are not silently interpreted during `design`. Convert one
 under an explicit background and probability-mixture prior weight first:
 
@@ -49,8 +56,13 @@ For observed base frequency `p`, background frequency `b`, and declared prior
 weight `a`, conversion uses `(p + a*b) / (1 + a)`. This is a probability-mixture
 weight, not a count-space pseudocount.
 
-The converted file embeds the original JASPAR digest/name, conversion method,
-and prior weight. A file cannot embed its own whole-file digest. When Motif
-Balance reads the converted file, the returned model and eventual bundle add
-that file's computed digest/name as `canonical_file_digest` and
+The probability-matrix conversion uses the same declared mixture equation but
+requires a positive prior weight and an explicit source motif identity. Motif
+Balance validates that provenance when reading a canonical `motif-model/v1`;
+it does not fetch the source or choose the prior.
+
+A converted file embeds the original source digest/name, conversion method, and
+prior weight. A file cannot embed its own whole-file digest. When Motif Balance
+reads the converted file, the returned model and eventual bundle add that
+file's computed digest/name as `canonical_file_digest` and
 `canonical_file_name`. Design applies no second hidden correction.

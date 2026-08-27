@@ -56,9 +56,22 @@ class FrozenModel(BaseModel):
 
 class MotifConversion(FrozenModel):
     schema_version: Literal["motif-conversion/v1"] = "motif-conversion/v1"
-    method: Literal["jaspar_counts_to_probabilities_v1"]
+    method: Literal[
+        "jaspar_counts_to_probabilities_v1",
+        "probability_matrix_prior_mixture_v1",
+    ]
     prior_weight: Annotated[float, Field(ge=0.0)]
     source_motif_id: str | None = None
+
+    @model_validator(mode="after")
+    def validate_probability_matrix_conversion(self) -> Self:
+        if self.method != "probability_matrix_prior_mixture_v1":
+            return self
+        if self.prior_weight <= 0.0 or not self.source_motif_id:
+            raise ValueError(
+                "probability-matrix conversion requires a positive prior_weight and source_motif_id"
+            )
+        return self
 
 
 class MotifModel(FrozenModel):
