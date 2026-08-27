@@ -309,6 +309,8 @@ def test_release_workflow_and_manual_path_share_one_preparation_command() -> Non
     assert output_creation < verification
     assert 'mkdir -p "$out_dir"' not in preparation_text
     assert '--expected-revision "$release_revision"' in preparation_text
+    assert "uv run --locked python -c" in preparation_text
+    assert "import subprocess,sys,tomllib" not in preparation_text
     assert "release-build-attestation.json" in preparation_text
     assert "SHA256SUMS" in preparation_text
 
