@@ -7,7 +7,7 @@ audience:
   - integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: reference
 journey:
   - integrate
@@ -41,6 +41,11 @@ raises the top-level `SearchExhausted` contract. Its structured fields record
 the requested and valid counts, evaluations used, best observed score, and the
 limiting condition. Consumers must not parse exception prose or import
 `motif_balance.errors` as a compatibility seam.
+
+`MotifModel.conversion`, when present, is strict `motif-conversion/v1`
+provenance. Supported methods are JASPAR count conversion and an explicit
+probability-matrix prior mixture. Source discovery and source selection remain
+outside this package.
 
 `Portfolio.write(path)` is the supported convenience for publishing a canonical
 bundle. The public facade owns that orchestration even if its implementation is

@@ -6,7 +6,7 @@ sequences evaluated against explicit motif models. Under
 returns an exact number of distinct, fully re-evaluated candidates. An optional
 minimum-distance constraint can make that portfolio sequence-diverse.
 
-This repository is a private alpha and is not approved for PyPI publication.
+This repository is a public prerelease and is not approved for PyPI publication.
 Outputs are model-relative computational results; they do not establish
 binding, expression, synthesis readiness, biological function, or global
 optimality.

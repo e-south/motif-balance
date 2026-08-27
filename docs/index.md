@@ -47,4 +47,4 @@ linked only where the next layer is useful.
 | Invariants and change rules | [Engineering contracts](../DESIGN.md) |
 | Determinism and failure behavior | [Reliability](../RELIABILITY.md) |
 | Input, path, and release safety | [Security](../SECURITY.md) |
-| Build and verify a private prerelease | [Private prerelease procedure](reference/private-prerelease.md) |
+| Build and verify a prerelease | [Prerelease procedure](reference/prerelease.md) |

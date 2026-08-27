@@ -1,7 +1,7 @@
 ---
-doc_id: motif-balance-private-prerelease
-title: Private prerelease procedure
-intent: Build and verify one immutable checksummed private prerelease from an exact main commit.
+doc_id: motif-balance-prerelease
+title: Prerelease procedure
+intent: Build and verify one immutable checksummed prerelease from an exact main commit.
 audience:
   - maintainers
   - security reviewers
@@ -11,9 +11,9 @@ last_verified: 2026-08-26
 doc_type: how-to
 ---
 
-# Private prerelease procedure
+# Prerelease procedure
 
-The release authority is `scripts/prepare-private-prerelease`. It runs the
+The release authority is `scripts/prepare-prerelease`. It runs the
 complete package gate, builds once from the current clean commit, verifies the
 exact distributions, and emits a canonical build attestation plus checksums.
 The distributions are built from a `git archive` snapshot of `HEAD`, not from
@@ -31,7 +31,7 @@ Start from a clean checkout whose `HEAD` is contained in `origin/main`. Record
 why any normal automation was unavailable as an explicit limitation:
 
 ```bash
-bash ./scripts/prepare-private-prerelease \
+bash ./scripts/prepare-prerelease \
   --out /absolute/path/outside/repository/dist-release \
   --builder-kind maintainer_local \
   --limitation hosted_ci_unavailable_account_billing \
@@ -55,8 +55,8 @@ limitations. It contains no machine path or credential.
 ## Publish and verify
 
 Create an annotated version tag object at the verified commit; a lightweight
-tag does not satisfy the verification contract. Create the private
-GitHub prerelease as a draft, upload the unchanged four files, and download
+tag does not satisfy the verification contract. Create the GitHub prerelease
+as a draft, upload the unchanged four files, and download
 them into a fresh directory. From the exact tagged source, verify the download:
 
 ```bash

@@ -67,6 +67,54 @@ def test_nested_scientific_models_reject_boolean_numeric_values() -> None:
         MotifConversion(method="jaspar_counts_to_probabilities_v1", prior_weight=True)
 
 
+def test_probability_matrix_prior_mixture_is_explicit_and_validated() -> None:
+    conversion = MotifConversion(
+        method="probability_matrix_prior_mixture_v1",
+        prior_weight=0.1,
+        source_motif_id="source_cpxR",
+    )
+    motif = MotifModel(
+        motif_id="cpxR",
+        probabilities=((0.93, 0.02, 0.02, 0.03),),
+        background=(0.3, 0.2, 0.2, 0.3),
+        conversion=conversion,
+    )
+
+    assert motif.conversion == conversion
+    assert motif.model_dump(mode="json")["conversion"] == {
+        "schema_version": "motif-conversion/v1",
+        "method": "probability_matrix_prior_mixture_v1",
+        "prior_weight": 0.1,
+        "source_motif_id": "source_cpxR",
+    }
+
+
+@pytest.mark.parametrize(
+    ("prior_weight", "source_motif_id"),
+    [(0.0, "source_cpxR"), (0.1, None), (0.1, "")],
+)
+def test_probability_matrix_prior_mixture_rejects_incomplete_provenance(
+    prior_weight: float,
+    source_motif_id: str | None,
+) -> None:
+    with pytest.raises(ValidationError, match="probability-matrix conversion"):
+        MotifConversion(
+            method="probability_matrix_prior_mixture_v1",
+            prior_weight=prior_weight,
+            source_motif_id=source_motif_id,
+        )
+
+
+@pytest.mark.parametrize("prior_weight", [float("nan"), float("inf")])
+def test_motif_conversion_rejects_nonfinite_prior_weight(prior_weight: float) -> None:
+    with pytest.raises(ValidationError, match="finite number"):
+        MotifConversion(
+            method="probability_matrix_prior_mixture_v1",
+            prior_weight=prior_weight,
+            source_motif_id="source_cpxR",
+        )
+
+
 @pytest.mark.parametrize(
     "probabilities",
     [

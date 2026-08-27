@@ -25,7 +25,7 @@ Create the workspace in the same operation that performs the design:
 
 ```bash
 motif-balance execute design.yaml \
-  --release-artifact dist/motif_balance-0.2.0a2-py3-none-any.whl \
+  --release-artifact dist/motif_balance-0.2.0a3-py3-none-any.whl \
   --producer-revision <40-character-commit> \
   --out execution-workspace
 ```
@@ -37,7 +37,7 @@ and its declared distribution metadata, and validates every `RECORD` digest.
 It publishes through a temporary sibling directory, self-verifies the completed
 workspace, and refuses an existing destination. Attestation proves which
 package bytes ran. The producer revision remains an externally supplied release
-identity and must be checked against the private release record; it is not
+identity and must be checked against the release record; it is not
 derived from the wheel. Attestation does not certify downstream acceptance or
 comparison quality.
 

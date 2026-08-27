@@ -1,7 +1,7 @@
 ---
 doc_id: motif-balance-quickstart
 title: Quickstart
-intent: Install the private alpha and produce, verify, and inspect one synthetic result.
+intent: Install the prerelease and produce, verify, and inspect one synthetic result.
 audience:
   - new users
   - CLI users
@@ -26,9 +26,9 @@ uv sync --locked --group dev
 uv run motif-balance --help
 ```
 
-A private release wheel can instead be installed into a clean environment with
-`uv pip install /path/to/motif_balance-0.2.0a2-py3-none-any.whl`. Installation
-by package name is not supported during the private alpha.
+A released wheel can instead be installed into a clean environment with
+`uv pip install /path/to/motif_balance-0.2.0a3-py3-none-any.whl`. Installation
+by package name is not supported during the prerelease.
 
 ## Validate, design, and verify
 

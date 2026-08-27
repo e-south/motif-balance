@@ -7,7 +7,7 @@ audience:
   - API consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-27
 doc_type: explanation
 ---
 
@@ -25,6 +25,9 @@ location and validation behavior but cannot silently revise that specification.
 ## Invariants
 
 - Public models are strict, frozen, and reject unknown fields.
+- Source conversions are explicit `motif-conversion/v1` provenance. A
+  probability-matrix prior mixture requires a positive weight and source motif
+  identity; compilation never applies a hidden second correction.
 - DNA is uppercase `A/C/G/T`; coordinate spans are zero-based and half-open.
 - A design has one exact fixed sequence length and an explicit positive target
   candidate count.

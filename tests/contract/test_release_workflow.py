@@ -1,4 +1,4 @@
-"""Static contracts for the private prerelease workflow."""
+"""Static contracts for the public-repository prerelease workflow."""
 
 from pathlib import Path
 
@@ -21,3 +21,12 @@ def test_release_version_check_accepts_only_numbered_prereleases() -> None:
 
     assert 're.fullmatch(r"[0-9]+(?:\\.[0-9]+){2}(?:a|b|rc)[0-9]+", version)' in workflow
     assert 'case "$project_version" in' not in workflow
+
+
+def test_release_requires_public_repository_without_package_publication() -> None:
+    workflow = (REPO_ROOT / ".github/workflows/release.yaml").read_text(encoding="utf-8")
+
+    assert 'test "${{ github.event.repository.visibility }}" = "public"' in workflow
+    assert 'test "${{ github.event.repository.visibility }}" = "private"' not in workflow
+    assert "gh release create" not in workflow
+    assert "pypa/gh-action-pypi-publish" not in workflow

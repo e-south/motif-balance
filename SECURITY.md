@@ -47,7 +47,7 @@ content. Network access stays outside the deterministic core.
 
 Report vulnerabilities through a private GitHub Security Advisory. Before any
 GitHub release, use the
-[private prerelease procedure](docs/reference/private-prerelease.md). It runs
+[prerelease procedure](docs/reference/prerelease.md). It runs
 the owner gate, inspects and smoke-tests the exact distributions, records
 available dependency and code-review evidence, and binds unavailable checks as
 explicit attestation limitations. Independently download and verify the
