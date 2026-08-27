@@ -25,15 +25,27 @@ identity.
 
 `build_lock_sha256` identifies the repository lock used to build this alpha;
 it is not a claim that a wheel consumer installed that exact environment.
-Runtime versions are deliberately excluded from canonical identity and belong
-in an external execution receipt when a downstream study needs them.
+Runtime versions are deliberately excluded from canonical bundle identity and
+belong in an attested execution workspace when a caller needs them.
 
 ## Bounded execution
 
-Every search has explicit evaluation and candidate budgets. A result records
-whether the search completed, exhausted a budget, or proved infeasible. A
-budget-limited result is never represented as exhaustive. The requested output
-count and diversity constraints are hard postconditions.
+Every search has explicit evaluation and candidate budgets. Specification
+validation also bounds evaluated bases, score operations, and positive-distance
+comparisons before compilation. A successful
+result records whether it exhausted the full sequence space or the declared
+budget. A budget-limited result is never represented as exhaustive. An
+infeasible request raises a typed failure and publishes no partial bundle or
+completed execution workspace. Workflows measuring failure rates must record
+their trial outcome separately. The requested output count and diversity
+constraints are hard postconditions.
+
+The public specification also caps sequence length, candidate count, evaluator
+calls, total portfolio bases, and canonical match rows. Sequence-space
+classification stops once the declared bound is exceeded; it never computes
+an arbitrarily large exponent or allocates a sequence-space-sized collection.
+The compiled null expectation uses linearity of expectation over motif
+positions; it does not materialize the combinatorial null-score distribution.
 
 ## Artifact integrity
 
@@ -46,8 +58,16 @@ the complete result, and renames it atomically. Existing output paths are never
 merged, replaced, or partially repaired.
 
 Bulk traces and optimizer state are not canonical bundle members. External
-evidence systems may register their locations and digests without changing the
-software artifact identity.
+systems may register their locations and digests without changing the software
+artifact identity.
+
+Result inspections are derived after verification and are never inserted into
+`run-manifest/v2`. A catalog is built from explicit references and fails the
+requested operation rather than silently omitting an unreadable entry. Exact
+pairwise distance inspection has an explicit base-comparison limit and reports
+`not_computed_limit` instead of entering unbounded quadratic work. HTML views
+bound rendered candidate and match rows while preserving the complete JSON and
+verified TSV surfaces.
 
 ## Degraded behavior
 

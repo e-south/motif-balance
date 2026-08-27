@@ -29,36 +29,34 @@ def _exact_distance_subset(
     min_distance: float,
 ) -> tuple[list[Evaluation] | None, int, bool]:
     best: list[Evaluation] = []
-    nodes = 0
+    nodes = 1
     node_limit = 1_000_000
-
-    def visit(position: int, selected: list[Evaluation]) -> list[Evaluation] | None:
-        nonlocal best, nodes
+    # This is the same deterministic depth-first traversal as the recursive
+    # formulation without coupling valid portfolio size to Python's call stack.
+    stack: list[tuple[int, list[Evaluation]]] = [(0, [])]
+    while stack and nodes <= node_limit:
+        next_index, selected = stack[-1]
+        if next_index >= len(ranked):
+            stack.pop()
+            continue
+        stack[-1] = (next_index + 1, selected)
+        candidate = ranked[next_index]
+        if not all(
+            normalized_hamming_distance(candidate.sequence, accepted.sequence) + 1.0e-12
+            >= min_distance
+            for accepted in selected
+        ):
+            continue
+        child = [*selected, candidate]
         nodes += 1
-        if nodes > node_limit:
-            return None
-        if len(selected) > len(best):
-            best = list(selected)
-        if len(selected) == count:
-            return list(selected)
-        if len(selected) + len(ranked) - position < count:
-            return None
-        for index in range(position, len(ranked)):
-            candidate = ranked[index]
-            if all(
-                normalized_hamming_distance(candidate.sequence, accepted.sequence) + 1.0e-12
-                >= min_distance
-                for accepted in selected
-            ):
-                found = visit(index + 1, [*selected, candidate])
-                if found is not None and len(found) == count:
-                    return found
-            if nodes > node_limit:
-                break
-        return None
-
-    found = visit(0, [])
-    return found, len(best), nodes > node_limit
+        if len(child) > len(best):
+            best = child
+        if len(child) == count:
+            return child, len(child), False
+        child_position = next_index + 1
+        if len(child) + len(ranked) - child_position >= count:
+            stack.append((child_position, child))
+    return None, len(best), nodes > node_limit
 
 
 def select_candidates(
@@ -74,7 +72,7 @@ def select_candidates(
         if current is None or evaluation.balance_score > current.balance_score:
             unique[evaluation.sequence] = evaluation
     ranked = sorted(unique.values(), key=lambda item: (-item.balance_score, item.sequence))
-    if min_distance is None:
+    if min_distance is None or min_distance <= 0.0:
         selected = ranked[:count]
         selection_limited = False
     else:

@@ -1,43 +1,50 @@
 ---
 doc_id: motif-balance-docs-index
 title: Motif Balance documentation
-intent: Route readers through concepts, contracts, results, and reproducibility.
+intent: Route each reader to the smallest operative document for their task.
 audience:
-  - new users
+  - users
   - API consumers
+  - maintainers
 owner: Motif Balance maintainers
 status: active
 last_verified: 2026-08-26
 doc_type: index
-journey:
-  - install
-  - compile
-  - verify
 ---
 
 # Motif Balance documentation
 
-Motif Balance designs fixed-length DNA sequences that balance explicit motif
-models. It reports what the declared models score; it does not establish a
-biological claim or replace study-owned validation.
+Start with one route. Each document owns one kind of question; details are
+linked only where the next layer is useful.
 
-## Start here
+## Use the product
 
-1. Read the [conceptual model](concepts.md).
-2. Define [motif models](motif-models.md).
-3. Declare an immutable [design specification](design-spec.md).
-4. Read [methods and reproducibility](methods.md).
-5. Learn how to [interpret results](interpreting-results.md) without turning an
-   optimization score into an unsupported biological claim.
-6. Integrators should bind to the [public contract](reference/public-contract.md),
-   not internal modules.
+| Need | Read |
+| --- | --- |
+| Install, validate, design, and verify | [Quickstart](quickstart.md) |
+| Score an existing sequence | [Sequence scoring](score-sequences.md) |
+| See or inspect one result; build an explicit catalog | [Result inspection](reference/result-inspection.md) |
+| Interpret scores and diagnostics | [Interpreting results](interpreting-results.md) |
 
-## Boundaries and reproducibility
+## Author inputs
 
-- [Limitations](limitations.md)
-- [Reproduce the paper](reproduce-paper.md)
-- [Public contract](reference/public-contract.md)
-- [Architecture](../ARCHITECTURE.md)
-- [Engineering contracts](../DESIGN.md)
-- [Reliability](../RELIABILITY.md)
-- [Security](../SECURITY.md)
+| Need | Read |
+| --- | --- |
+| Understand the max-min operation | [Concepts](concepts.md) |
+| Supply or convert motif models | [Motif model reference](motif-models.md) |
+| Declare exact inputs and resource bounds | [Design specification reference](design-spec.md) |
+| Replay the software method | [Methods](methods.md) |
+
+## Integrate or maintain
+
+| Need | Read |
+| --- | --- |
+| Supported Python, CLI, and artifact seams | [Public contract](reference/public-contract.md) |
+| Attested execution workspace | [Execution workspaces](reference/execution-receipts.md) |
+| Unsupported interpretations and uses | [Limitations](limitations.md) |
+| Product nouns and semantic authorities | [Information architecture](../IA.md) |
+| Module ownership and dependencies | [Architecture](../ARCHITECTURE.md) |
+| Invariants and change rules | [Engineering contracts](../DESIGN.md) |
+| Determinism and failure behavior | [Reliability](../RELIABILITY.md) |
+| Input, path, and release safety | [Security](../SECURITY.md) |
+| Build and verify a private prerelease | [Private prerelease procedure](reference/private-prerelease.md) |

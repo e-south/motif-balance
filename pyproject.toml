@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "motif-balance"
-version = "0.1.0a1"
+version = "0.2.0a1"
 description = "Deterministic inverse design for balancing explicit DNA motif models"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
@@ -55,13 +55,14 @@ packages = ["src/motif_balance"]
 include = [
   "/LICENSE",
   "/README.md",
+  "/IA.md",
   "/ARCHITECTURE.md",
   "/CODE_OF_CONDUCT.md",
   "/CONTRIBUTING.md",
   "/DESIGN.md",
   "/RELIABILITY.md",
   "/SECURITY.md",
-  "/benchmarks",
+  "/assets",
   "/docs",
   "/examples",
   "/pyproject.toml",

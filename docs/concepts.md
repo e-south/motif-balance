@@ -33,6 +33,6 @@ The method has three separate decisions:
    candidates.
 
 Those separations prevent an optimizer surrogate or a diversity rule from
-silently changing the public score. They also keep software output separate
-from study evidence: a high model score is a model-relative result, not proof
-of expression, binding, transferability, or experimental success.
+silently changing the public score. A high model score remains a model-relative
+result, not proof of expression, binding, transferability, or experimental
+success.

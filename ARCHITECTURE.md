@@ -9,13 +9,16 @@ owner: Motif Balance maintainers
 status: active
 last_verified: 2026-08-26
 doc_type: explanation
+journey:
+  - maintain
 ---
 
 # Motif Balance architecture
 
 Motif Balance is a standalone modular monolith: one repository, one Python
 distribution, one public facade, and no runtime dependency on caller
-repositories.
+repositories. The canonical ontology, semantic versions, and cross-owner
+artifact boundaries are defined in [the information architecture](IA.md).
 
 ## Product boundary
 
@@ -28,13 +31,10 @@ DesignSpec -> compile -> evaluate -> search -> select -> Portfolio -> artifact b
 Motif Balance owns strict motif and design contracts, deterministic motif
 matching and normalization, bounded candidate search, immutable evaluated
 candidates, deterministic portfolio selection, and verifiable artifacts. It
-does not own source-dataset curation, a biological study, claim acceptance,
-figure numbering, manuscript prose, raw optimizer traces, or private storage.
-
-Research Studies owns study configuration, benchmark cohorts, evidence,
-interpretation, and claim gates. `manufold` owns accepted digest-pinned figure
-snapshots, captions, composition, manuscript builds, and handoffs. Curated
-source descriptors remain owned by their data producer.
+does not own source-data curation, comparison design, claim acceptance,
+presentation, raw optimizer traces, or artifact retention. Callers own those
+concerns and cross this boundary only through explicit inputs or immutable
+verified artifacts.
 
 ## Layer direction
 
@@ -42,7 +42,7 @@ source descriptors remain owned by their data producer.
 errors, constants, and model
   <- formats, compile, and scoring
   <- search and selection
-  <- artifacts and report
+  <- artifacts, report, receipt, visualization, and inspection
   <- api
   <- cli
 ```
@@ -60,8 +60,16 @@ errors, constants, and model
 - `selection.py` chooses from already evaluated candidates and cannot mutate or
   rescore them.
 - `artifacts.py` serializes and verifies canonical bundles. It does not own
-  study registration or manuscript import.
+  downstream registration or presentation.
 - `report.py` renders typed results and cannot recompute scientific state.
+- `receipt.py` defines the runtime receipt and execution-workspace identity
+  without changing canonical bundle identity.
+- `visualization.py` renders bounded, deterministic SVG fragments from typed
+  current results. It has no plugin discovery, plotting dependency, or claim
+  logic and is not a public package facade.
+- `inspection.py` defines path-independent current-result projections and
+  derived catalogs. It cannot compile motifs, discover artifact stores, compare
+  cohorts, or accept a result for another workflow.
 - `api.py` is the sole public operation facade.
 - `cli.py` adapts files and arguments to the public facade and contains no
   derivations.
@@ -74,5 +82,5 @@ with an explicit architecture update and tests.
 
 The package produces versioned artifacts. Callers exchange those artifacts,
 digests, and explicit external references; they do not import each other's
-source trees. Legacy Cruncher Sample is a migration comparison authority until
-parity and adoption are proven, not a runtime dependency of this package.
+source trees. Placement and retention are caller concerns and do not change
+product identities or semantics.

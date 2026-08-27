@@ -33,25 +33,41 @@ class CompiledProblem:
     problem_id: str
 
 
+def sequence_space_at_most(length: int, limit: int) -> int | None:
+    """Return 4**length only when it is no greater than a trusted bound."""
+
+    if limit < 1:
+        return None
+    sequence_space = 1
+    for _ in range(length):
+        if sequence_space > limit // 4:
+            return None
+        sequence_space *= 4
+    return sequence_space
+
+
 def _null_mean(log_odds: np.ndarray, background: np.ndarray) -> float:
     discretized = np.round(log_odds * _LOGODDS_SCALE).astype(np.int64)
-    distribution: dict[int, float] = {0: 1.0}
-    for row in discretized:
-        updated: dict[int, float] = {}
-        for accumulated, probability in distribution.items():
-            for value, base_probability in zip(row, background, strict=True):
-                score = accumulated + int(value)
-                updated[score] = updated.get(score, 0.0) + probability * float(base_probability)
-        distribution = updated
-    return sum(
-        (score / _LOGODDS_SCALE) * probability for score, probability in distribution.items()
+    return float(
+        np.sum(
+            discretized * background[np.newaxis, :],
+            dtype=np.float64,
+        )
+        / _LOGODDS_SCALE
     )
 
 
 def _compile_motif(model: MotifModel) -> CompiledMotif:
     probabilities = np.asarray(model.probabilities, dtype=np.float64)
     background = np.asarray(model.background, dtype=np.float64)
-    log_odds = np.log2(probabilities / background)
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        log_odds = np.log2(probabilities / background)
+    if not np.all(np.isfinite(log_odds)):
+        raise IncompatibleDesign(
+            f"Motif '{model.motif_id}' produces non-finite log-odds values.",
+            motif_id=model.motif_id,
+            hint="Use finite probabilities and background values with a numerically stable ratio.",
+        )
     log_odds.setflags(write=False)
     consensus_score = float(np.max(log_odds, axis=1).sum())
     null_mean = _null_mean(log_odds, background)
@@ -74,7 +90,10 @@ def _compile_motif(model: MotifModel) -> CompiledMotif:
 
 def _problem_id(spec: DesignSpec) -> str:
     payload = {
-        "motifs": [motif.model_digest for motif in spec.motifs],
+        "motifs": [
+            {"motif_id": motif.motif_id, "model_digest": motif.model_digest}
+            for motif in spec.motifs
+        ],
         "length": spec.length,
         "strands": spec.strands,
         "scoring_semantics": SCORING_SEMANTICS,
@@ -96,15 +115,7 @@ def compile_design(spec: DesignSpec) -> CompiledProblem:
             motif_id=widest.motif_id,
             hint="Increase length or supply a narrower canonical motif model.",
         )
-    digests = [motif.model_digest for motif in spec.motifs]
-    if len(digests) != len(set(digests)):
-        raise IncompatibleDesign(
-            "The design contains duplicate canonical motif models.",
-            field="motifs",
-            hint="Remove the duplicate model or provide scientifically distinct models.",
-        )
-    sequence_space = 4**spec.length
-    if spec.count > sequence_space:
+    if sequence_space_at_most(spec.length, spec.count - 1) is not None:
         raise IncompatibleDesign(
             "The requested candidate count exceeds the complete sequence space.",
             field="count",

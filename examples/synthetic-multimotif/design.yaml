@@ -1,0 +1,12 @@
+schema_version: design-spec/v1
+motifs:
+  motif_a: motifs/motif-a.yaml
+  motif_c: motifs/motif-c.yaml
+  motif_g: motifs/motif-g.yaml
+  motif_t: motifs/motif-t.yaml
+length: 8
+count: 4
+strands: both
+evaluations: 2048
+seed: 11
+min_distance: 0.25

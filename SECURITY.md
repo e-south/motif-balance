@@ -28,9 +28,15 @@ GitHub prerelease from a prerelease version; it has no PyPI permission or job.
 ## Untrusted inputs and paths
 
 Strict schema boundaries reject unknown fields, unsafe alphabets, non-finite
-numbers, and inconsistent matrix dimensions before allocation or search.
+numbers, inconsistent matrix dimensions, and out-of-contract resource budgets
+before compilation or search.
 Readers enforce byte and record-count limits and reject symlinks. YAML uses
-safe loading followed by strict schema validation.
+safe duplicate-key rejection followed by strict schema validation.
+
+Product inspection never recursively discovers result roots. Callers declare
+the current artifact kind, and derived output is rejected if it would land at
+or below an inspected result root. Inspection records contain no source path
+and do not execute, import, or fetch anything named by the inspected object.
 
 Artifact paths are normalized relative POSIX paths. Parent traversal, absolute
 paths, symlinks, special files, and pre-existing output directories are
@@ -40,7 +46,10 @@ content. Network access stays outside the deterministic core.
 ## Reporting and release
 
 Report vulnerabilities through a private GitHub Security Advisory. Before any
-GitHub release, run `bash ./scripts/agent-verify`, inspect wheel and source-
-distribution contents, review dependency and code scans, and verify the exact
-artifacts in a clean environment. Never put sensitive sequences or credentials
-in an issue or diagnostic attachment.
+GitHub release, use the
+[private prerelease procedure](docs/reference/private-prerelease.md). It runs
+the owner gate, inspects and smoke-tests the exact distributions, records
+available dependency and code-review evidence, and binds unavailable checks as
+explicit attestation limitations. Independently download and verify the
+unchanged release assets before publishing the draft. Never put sensitive
+sequences or credentials in an issue or diagnostic attachment.

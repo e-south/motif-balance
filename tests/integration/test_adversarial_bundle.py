@@ -104,3 +104,12 @@ def test_publication_rejects_caller_forged_scientific_state(
     with pytest.raises(ArtifactError, match="scientific replay"):
         forged.write(output)
     assert not output.exists()
+
+
+def test_artifact_records_reject_payloads_the_reader_would_refuse(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("motif_balance.artifacts.MAX_BUNDLE_ARTIFACT_BYTES", 4)
+
+    with pytest.raises(ArtifactError, match="bundle byte limit"):
+        artifact_records({"oversized.tsv": b"12345"})

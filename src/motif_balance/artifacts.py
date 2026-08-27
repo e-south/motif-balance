@@ -150,6 +150,11 @@ def base_artifact_payloads(
 
 
 def artifact_records(payloads: dict[str, bytes]) -> tuple[ArtifactDigest, ...]:
+    for path, payload in payloads.items():
+        if len(payload) > MAX_BUNDLE_ARTIFACT_BYTES:
+            raise ArtifactError(
+                f"Artifact '{path}' exceeds the {MAX_BUNDLE_ARTIFACT_BYTES}-byte bundle byte limit."
+            )
     return tuple(
         ArtifactDigest(path=path, sha256=_digest(payload), bytes=len(payload))
         for path, payload in sorted(payloads.items())
@@ -300,8 +305,8 @@ def _read_candidates(directory: Path, spec: DesignSpec) -> tuple[Candidate, ...]
 
 def verify_bundle_base(directory: str | Path) -> str:
     root = Path(directory)
-    if not root.is_dir():
-        raise ArtifactError(f"bundle directory does not exist: {root}")
+    if root.is_symlink() or not root.is_dir():
+        raise ArtifactError(f"bundle directory does not exist or is unsafe: {root}")
     files = _safe_files(root)
     if files != _ALL_FILES:
         missing = sorted(_ALL_FILES - files)
@@ -367,9 +372,12 @@ def write_bundle(
     output: Path,
     payloads: dict[str, bytes],
 ) -> Path:
-    if output.exists():
-        raise ArtifactError(f"output directory already exists: {output}")
-    output.parent.mkdir(parents=True, exist_ok=True)
+    if output.exists() or output.is_symlink():
+        raise ArtifactError(f"output directory already exists or is unsafe: '{output.name}'")
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise ArtifactError("unable to create the bundle publication directory") from exc
     if set(payloads) != _ALL_FILES - {"manifest.json"}:
         raise ArtifactError("bundle payload inventory is incomplete")
     records = artifact_records(payloads)
@@ -383,9 +391,13 @@ def write_bundle(
         replay = read_portfolio_record(temporary)
         if replay.model_dump(mode="python") != portfolio.model_dump(mode="python"):
             raise ArtifactError("bundle round-trip validation changed portfolio semantics")
-        if output.exists():
-            raise ArtifactError(f"output directory already exists: {output}")
+        if output.exists() or output.is_symlink():
+            raise ArtifactError(f"output directory already exists or is unsafe: '{output.name}'")
         os.rename(temporary, output)
+    except OSError as exc:
+        if temporary.exists():
+            shutil.rmtree(temporary)
+        raise ArtifactError("unable to publish the canonical bundle") from exc
     except Exception:
         if temporary.exists():
             shutil.rmtree(temporary)

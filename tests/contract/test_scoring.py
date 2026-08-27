@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import itertools
+import math
+
+import numpy as np
 import pytest
 
 from motif_balance import DesignSpec, MotifModel, score
-from motif_balance.compile import compile_design
+from motif_balance.compile import _null_mean, compile_design
+from motif_balance.errors import IncompatibleDesign, InvalidSequence
 from motif_balance.scoring import evaluate
 
 
@@ -73,7 +78,49 @@ def test_public_score_uses_same_authoritative_evaluator(pairwise_spec: DesignSpe
 
 
 def test_scoring_rejects_wrong_length_and_alphabet(pairwise_spec: DesignSpec) -> None:
-    with pytest.raises(ValueError, match="exactly 4"):
+    with pytest.raises(InvalidSequence, match="exactly 4"):
         score("ACG", pairwise_spec)
-    with pytest.raises(ValueError, match="A, C, G, and T"):
+    with pytest.raises(InvalidSequence, match="A, C, G, and T"):
         score("ACNT", pairwise_spec)
+
+
+def test_null_mean_matches_explicit_small_distribution_without_materializing_it() -> None:
+    probabilities = np.asarray(
+        (
+            (0.61, 0.17, 0.13, 0.09),
+            (0.11, 0.53, 0.19, 0.17),
+            (0.07, 0.23, 0.59, 0.11),
+        ),
+        dtype=np.float64,
+    )
+    background = np.asarray((0.1, 0.2, 0.3, 0.4), dtype=np.float64)
+    log_odds = np.log2(probabilities / background)
+    scale = 1000.0 / math.log(2.0)
+    discretized = np.round(log_odds * scale).astype(np.int64)
+    explicit = 0.0
+    for bases in itertools.product(range(4), repeat=len(probabilities)):
+        probability = math.prod(float(background[base]) for base in bases)
+        score = sum(int(discretized[position, base]) for position, base in enumerate(bases))
+        explicit += probability * score / scale
+
+    assert _null_mean(log_odds, background) == pytest.approx(explicit, abs=1.0e-14)
+
+
+def test_compile_rejects_numerically_unstable_probability_ratios() -> None:
+    smallest = float.fromhex("0x0.0000000000001p-1022")
+    motif = MotifModel(
+        motif_id="unstable",
+        probabilities=((1.0 - 3 * smallest, smallest, smallest, smallest),),
+        background=(smallest, 0.25, 0.25, 0.5),
+    )
+    spec = DesignSpec(
+        motifs=(motif,),
+        length=1,
+        count=1,
+        strands="forward",
+        evaluations=1,
+        seed=1,
+    )
+
+    with pytest.raises(IncompatibleDesign, match="non-finite log-odds"):
+        compile_design(spec)

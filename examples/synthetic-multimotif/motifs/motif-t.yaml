@@ -1,0 +1,6 @@
+schema_version: motif-model/v1
+motif_id: motif_t
+probabilities:
+  - [0.1, 0.1, 0.1, 0.7]
+  - [0.7, 0.1, 0.1, 0.1]
+background: [0.25, 0.25, 0.25, 0.25]
