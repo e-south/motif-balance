@@ -32,6 +32,17 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$out_dir" ]] || { echo "--out is required" >&2; exit 2; }
+[[ "$out_dir" == /* ]] || {
+  echo "--out must be an absolute path outside the repository" >&2
+  exit 2
+}
+out_dir="$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve())' "$out_dir")"
+case "$out_dir" in
+  "$repo_root"|"$repo_root"/*)
+    echo "--out must be outside the repository" >&2
+    exit 2
+    ;;
+esac
 [[ "$builder_kind" == "maintainer_local" || "$builder_kind" == "github_actions" ]] || {
   echo "--builder-kind must be maintainer_local or github_actions" >&2
   exit 2

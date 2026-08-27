@@ -35,13 +35,13 @@ jobs:
       - name: Prepare attested private prerelease
         run: >-
           bash ./scripts/prepare-private-prerelease
-          --out dist
+          --out "${RUNNER_TEMP}/motif-balance-dist"
           --builder-kind github_actions
           --limitation independent_rebuild_not_performed
       - name: Stage verified distributions
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: motif-balance-prerelease-distributions
-          path: dist/
+          path: ${{ runner.temp }}/motif-balance-dist/
           if-no-files-found: error
           retention-days: 1

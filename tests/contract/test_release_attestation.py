@@ -297,8 +297,32 @@ def test_release_workflow_and_manual_path_share_one_preparation_command() -> Non
 
     assert preparation.is_file()
     assert "bash ./scripts/prepare-private-prerelease" in workflow
+    assert '--out "${RUNNER_TEMP}/motif-balance-dist"' in workflow
+    assert "path: ${{ runner.temp }}/motif-balance-dist/" in workflow
     assert "gh release create" not in workflow
     preparation_text = preparation.read_text(encoding="utf-8")
     assert "git archive --format=tar HEAD" in preparation_text
     assert "release-build-attestation.json" in preparation_text
     assert "SHA256SUMS" in preparation_text
+
+
+def test_release_preparation_rejects_relative_output_before_build() -> None:
+    completed = subprocess.run(
+        [
+            "bash",
+            "./scripts/prepare-private-prerelease",
+            "--out",
+            "dist-release",
+            "--builder-kind",
+            "maintainer_local",
+            "--limitation",
+            "independent_rebuild_not_performed",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 2
+    assert "absolute path outside the repository" in completed.stderr

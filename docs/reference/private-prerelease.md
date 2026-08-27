@@ -32,7 +32,7 @@ why any normal automation was unavailable as an explicit limitation:
 
 ```bash
 bash ./scripts/prepare-private-prerelease \
-  --out dist-release \
+  --out /absolute/path/outside/repository/dist-release \
   --builder-kind maintainer_local \
   --limitation hosted_ci_unavailable_account_billing \
   --limitation codeql_not_executed \
@@ -40,8 +40,8 @@ bash ./scripts/prepare-private-prerelease \
   --limitation independent_rebuild_not_performed
 ```
 
-The command refuses a dirty checkout or existing output path. It produces
-exactly four release assets:
+The output path must be absolute, outside the repository, and nonexistent. The
+command also refuses a dirty checkout. It produces exactly four release assets:
 
 - the versioned wheel;
 - the versioned source distribution;
