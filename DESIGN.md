@@ -7,7 +7,7 @@ audience:
   - API consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
+last_verified: 2026-08-28
 doc_type: explanation
 ---
 
@@ -45,6 +45,8 @@ may select output or validation behavior but cannot revise that specification.
   not mutate sequence or scores after that boundary.
 - Selection returns exactly the requested count or fails explicitly. Diversity
   constraints cannot be silently relaxed.
+- The complete best observed evaluation remains distinct from the constrained
+  selected portfolio and is bound into every newly written manifest.
 - Candidate sequences and compact candidate identifiers are independently
   unique before construction, publication, and read-back.
 - Equal scores have a stable total ordering independent of process scheduling,
@@ -77,10 +79,12 @@ meaning change requires an architecture decision, compatibility statement,
 negative tests, and reference-document updates. Optimizer improvements must not
 change scoring or selection semantics accidentally.
 
-Version `0.3` reads strict `run-manifest/v2` and `run-manifest/v3` inventories
-and writes only v3. Exact score replay pins the declared scoring, search, and
-selection semantics. Earlier schemas require an explicit compatibility
-dispatcher; they are never accepted through loosened validation.
+Version `0.3` reads strict `run-manifest/v2`, `run-manifest/v3`, and
+`run-manifest/v4` inventories and writes only v4. V4 adds the complete best
+observed evaluation without changing the selected-candidate tables. Exact
+score replay pins the declared scoring, search, and selection semantics.
+Earlier schemas require an explicit compatibility dispatcher; they are never
+accepted through loosened validation.
 
 ## Search boundary
 

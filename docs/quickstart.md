@@ -7,7 +7,7 @@ audience:
   - CLI users
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
+last_verified: 2026-08-28
 doc_type: tutorial
 journey:
   - install
@@ -27,7 +27,7 @@ uv run motif-balance --help
 ```
 
 A released wheel can instead be installed into a clean environment with
-`uv pip install /path/to/motif_balance-0.3.0a2-py3-none-any.whl`. Installation
+`uv pip install /path/to/motif_balance-0.3.0a3-py3-none-any.whl`. Installation
 by package name is not supported during the prerelease.
 
 ## Validate, design, and inspect
@@ -48,6 +48,11 @@ uv run motif-balance inspect /tmp/motif-balance-result \
 `--check` resolves motif references, validates resource bounds, compiles the
 scoring problem, and reports whether search will be exhaustive or annealed. It
 does not search or write a result.
+
+The terminal result distinguishes the highest-scoring evaluated sequence from
+the exact selected portfolio. Under a distance constraint the best observed
+sequence can be excluded from the selected set; the current manifest retains
+both facts without relaxing the constraint.
 
 The design command writes a new directory atomically. Choose another path if
 the destination already exists. A successful directory contains the five

@@ -31,9 +31,9 @@ from motif_balance.model import (
     MotifModel,
     PortfolioRecord,
     RunManifest,
+    candidate_id_for_sequence,
 )
 from motif_balance.scoring import evaluate
-from motif_balance.selection import candidate_id_for_sequence
 
 _CANONICAL_FILES = {
     "design.json",
@@ -44,13 +44,16 @@ _CANONICAL_FILES = {
 }
 _DERIVED_FILES = {"candidates.fasta"}
 _V3_FILES = _CANONICAL_FILES | _DERIVED_FILES
+_V4_FILES = _V3_FILES
 _V2_FILES = _V3_FILES | {"report.html"}
 
 
 def _schema_files(manifest: RunManifest) -> set[str]:
     if manifest.schema_version == "run-manifest/v2":
         return _V2_FILES
-    return _V3_FILES
+    if manifest.schema_version == "run-manifest/v3":
+        return _V3_FILES
+    return _V4_FILES
 
 
 def _json_bytes(payload: object) -> bytes:
@@ -451,13 +454,18 @@ def read_bundle_snapshot(directory: str | Path) -> BundleSnapshot:
         raise ArtifactError("bundle identity does not match its artifact digests")
     if canonical_manifest != manifest_bytes(manifest):
         raise ArtifactError("manifest does not use the canonical encoding")
-    portfolio = PortfolioRecord(
-        problem_id=manifest.problem_id,
-        run_id=manifest.run_id,
-        spec=spec,
-        candidates=candidates,
-        manifest=manifest,
-    )
+    try:
+        portfolio = PortfolioRecord(
+            problem_id=manifest.problem_id,
+            run_id=manifest.run_id,
+            spec=spec,
+            candidates=candidates,
+            manifest=manifest,
+        )
+    except ValueError as exc:
+        raise ArtifactError(
+            "bundle scientific replay found internally inconsistent records"
+        ) from exc
     return BundleSnapshot(portfolio=portfolio, members=tuple(sorted(members.items())))
 
 
@@ -512,6 +520,14 @@ def verify_portfolio_record(portfolio: PortfolioRecord) -> None:
         raise ArtifactError("scientific replay found inconsistent search provenance")
     if portfolio.manifest.unique_evaluations > portfolio.manifest.evaluation_count:
         raise ArtifactError("scientific replay found impossible evaluation counts")
+
+    best_observed = portfolio.manifest.best_observed
+    if best_observed is not None:
+        authoritative_best = evaluate(best_observed.sequence, problem)
+        if authoritative_best != best_observed:
+            raise ArtifactError(
+                "scientific replay found scoring drift for the best observed candidate"
+            )
 
     seen_ids: set[str] = set()
     for candidate in portfolio.candidates:
@@ -588,9 +604,9 @@ def write_bundle(
         output.parent.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         raise ArtifactError("unable to create the bundle publication directory") from exc
-    if portfolio.manifest.schema_version != "run-manifest/v3":
-        raise ArtifactError("new bundle publication requires run-manifest/v3")
-    if set(payloads) != _V3_FILES - {"manifest.json"}:
+    if portfolio.manifest.schema_version != "run-manifest/v4":
+        raise ArtifactError("new bundle publication requires run-manifest/v4")
+    if set(payloads) != _V4_FILES - {"manifest.json"}:
         raise ArtifactError("bundle payload inventory is incomplete")
     records = artifact_records(payloads)
     if records != portfolio.manifest.artifacts:

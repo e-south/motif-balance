@@ -169,11 +169,19 @@ def design_command(
         portfolio = design(spec)
         portfolio.write(out)
         best = portfolio.best
+        best_observed = portfolio.best_observed
+        if best_observed is None:  # pragma: no cover - required by current writer
+            raise ArtifactError("current result is missing the best observed evaluation")
         typer.echo(
             f"Returned {len(portfolio.candidates)} of {spec.count} candidates for "
             f"{', '.join(motif.motif_id for motif in spec.motifs)}, each {spec.length} nt."
         )
-        typer.echo(f"Best balance score: {best.balance_score:.6g}.")
+        typer.echo(f"Best observed balance score: {best_observed.balance_score:.6g}.")
+        if best_observed.sequence not in {candidate.sequence for candidate in portfolio.candidates}:
+            typer.echo(
+                "The best observed candidate was not selected under the portfolio constraint."
+            )
+            typer.echo(f"Best selected balance score: {best.balance_score:.6g}.")
         if spec.min_distance is not None and spec.min_distance > 0.0:
             typer.echo(f"Requested minimum distance: {spec.min_distance:.6g}.")
         if portfolio.manifest.completion_status == "exhaustive":

@@ -8,7 +8,7 @@ audience:
   - downstream integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
+last_verified: 2026-08-28
 doc_type: reference
 journey:
   - inspect
@@ -17,7 +17,7 @@ journey:
 # Result inspection
 
 `inspect` verifies one explicit result, replays every published match and
-score, and creates one immutable `motif-balance.result-inspection/v2`
+score, and creates one immutable `motif-balance.result-inspection/v3`
 projection. Text, JSON, SVG, and HTML all render that same projection. They do
 not enter the result bundle or change its identity. Bundle members are read
 once into a descriptor-bound byte snapshot; parsing, score replay, and rendering
@@ -65,6 +65,12 @@ portfolio may have stopped because the evaluation budget was exhausted, while
 its artifact bytes may still be externally verified.
 
 The review leads with the portfolio because that is the product output. The
+best observed evaluation remains separate from the constrained selected set.
+For current bundles the portfolio view reports whether that sequence is a
+selected member and at which rank. Older readable bundles may provide only its
+recorded hard score when the sequence was never serialized.
+
+The
 candidate view then shows each supplied motif as a compact
 information-weighted logo, maps it to its selected match, and shows the
 supplied sequence 5′→3′ and its coordinate-aligned complement 3′→5′. Forward

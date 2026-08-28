@@ -41,6 +41,12 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
         selected_ids.add(motif.motif_id)
     motifs = tuple(motif for motif in canonical_motifs if motif.motif_id in selected_ids)
     displayed_limiting = sum(motif.motif_id in limiting_ids for motif in motifs)
+    best_observed_rank = (
+        "none"
+        if inspection.portfolio.best_observed is None
+        or inspection.portfolio.best_observed.selected_rank is None
+        else str(inspection.portfolio.best_observed.selected_rank)
+    )
     motif_ids = tuple(motif_id(motif.motif_id) for motif in motifs)
     observed_max = max(
         match.normalized_score
@@ -53,7 +59,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
     cell_width = 104
     left = 210
     extra_width = 310
-    top = 118
+    top = 140
     width = max(960, left + cell_width * len(motifs) + extra_width)
     height = top + row_height * len(candidates) + 92
     parts = svg_start(
@@ -80,7 +86,25 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                 size=13,
                 fill=MUTED,
             ),
+            text(
+                20,
+                76,
+                (
+                    f"best observed {inspection.portfolio.best_observed_score:.6g} · "
+                    + (
+                        "sequence unavailable in source schema"
+                        if inspection.portfolio.best_observed is None
+                        else "not selected under the portfolio constraint"
+                        if inspection.portfolio.best_observed.selected_rank is None
+                        else f"selected at rank {inspection.portfolio.best_observed.selected_rank}"
+                    )
+                ),
+                size=12,
+                fill=MUTED,
+            ),
             f'<g id="score-matrix" data-score-lower="0" data-score-upper="{display_max:.17g}" '
+            f'data-best-observed-score="{inspection.portfolio.best_observed_score:.17g}" '
+            f'data-best-observed-selected-rank="{best_observed_rank}" '
             f'data-displayed-candidates="{len(candidates)}" '
             f'data-total-candidates="{len(inspection.portfolio.candidates)}" '
             f'data-displayed-motifs="{len(motifs)}" '
@@ -93,7 +117,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
         parts.append(
             text(
                 left + column * cell_width + cell_width / 2,
-                94,
+                116,
                 name,
                 size=11,
                 anchor="middle",
@@ -102,9 +126,9 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
         )
     parts.extend(
         [
-            text(left + len(motifs) * cell_width + 16, 94, "balance_score", size=11, weight=650),
-            text(left + len(motifs) * cell_width + 120, 94, "limiting motif", size=11, weight=650),
-            text(left + len(motifs) * cell_width + 245, 94, "nearest", size=11, weight=650),
+            text(left + len(motifs) * cell_width + 16, 116, "balance_score", size=11, weight=650),
+            text(left + len(motifs) * cell_width + 120, 116, "limiting motif", size=11, weight=650),
+            text(left + len(motifs) * cell_width + 245, 116, "nearest", size=11, weight=650),
         ]
     )
     for row, candidate in enumerate(candidates):

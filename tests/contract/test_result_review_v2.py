@@ -62,6 +62,7 @@ def _rewrite_as_v2_bundle(bundle: Path) -> str:
     (bundle / "report.html").write_bytes(report)
     payload = json.loads((bundle / "manifest.json").read_bytes())
     payload["schema_version"] = "run-manifest/v2"
+    payload.pop("best_observed")
     payload["package_version"] = "0.2.0a3"
     design_payload = json.loads((bundle / "design.json").read_bytes())
     run_payload = {
@@ -91,6 +92,21 @@ def _rewrite_as_v2_bundle(bundle: Path) -> str:
     return sealed.bundle_id
 
 
+def _rewrite_as_v3_bundle(bundle: Path) -> str:
+    """Remove the best-observed record that did not exist in run-manifest/v3."""
+
+    payload = json.loads((bundle / "manifest.json").read_bytes())
+    payload["schema_version"] = "run-manifest/v3"
+    payload.pop("best_observed")
+    artifacts = tuple(
+        ArtifactDigest(path=path, **record) for path, record in sorted(payload["artifacts"].items())
+    )
+    provisional = RunManifest.model_validate({**payload, "artifacts": artifacts})
+    sealed = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
+    (bundle / "manifest.json").write_bytes(manifest_bytes(sealed))
+    return sealed.bundle_id
+
+
 def test_projection_separates_delivery_search_and_integrity(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
@@ -100,7 +116,7 @@ def test_projection_separates_delivery_search_and_integrity(
 
     inspection = inspect_result(bundle, kind="bundle")
 
-    assert inspection.schema_version == "motif-balance.result-inspection/v2"
+    assert inspection.schema_version == "motif-balance.result-inspection/v3"
     assert inspection.delivery.requested_count == pairwise_spec.count
     assert inspection.delivery.delivered_count == pairwise_spec.count
     assert inspection.delivery.status == "complete"
@@ -111,13 +127,13 @@ def test_projection_separates_delivery_search_and_integrity(
     assert inspection.integrity.checked_identities == ()
 
 
-def test_new_writer_uses_v3_and_inspection_reads_strict_released_v2_bundle(
+def test_new_writer_uses_v4_and_inspection_reads_strict_released_v2_bundle(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
     portfolio = design(pairwise_spec)
-    assert portfolio.manifest.schema_version == "run-manifest/v3"
+    assert portfolio.manifest.schema_version == "run-manifest/v4"
     portfolio.write(bundle)
     expected_bundle_id = _rewrite_as_v2_bundle(bundle)
 
@@ -143,6 +159,23 @@ def test_released_v2_inventory_remains_schema_strict(
 
     with pytest.raises(ArtifactError, match="inventory mismatch"):
         inspect_result(bundle, kind="bundle", expected_bundle_id=expected_bundle_id)
+
+
+def test_released_v3_remains_readable_without_inventing_best_observed_sequence(
+    tmp_path: Path,
+    pairwise_spec: DesignSpec,
+) -> None:
+    bundle = tmp_path / "bundle"
+    portfolio = design(pairwise_spec)
+    portfolio.write(bundle)
+    expected_score = portfolio.manifest.search_diagnostics.best_score
+    expected_bundle_id = _rewrite_as_v3_bundle(bundle)
+
+    inspection = inspect_result(bundle, kind="bundle", expected_bundle_id=expected_bundle_id)
+
+    assert inspection.portfolio.best_observed is None
+    assert inspection.portfolio.best_observed_score == expected_score
+    assert b"sequence unavailable in source schema" in render_portfolio_svg(inspection)
 
 
 def test_projection_replays_position_support_and_reverse_coordinates() -> None:

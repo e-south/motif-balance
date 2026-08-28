@@ -38,7 +38,7 @@ class Portfolio(PortfolioRecord):
 
     def write(self, path: str | Path) -> Path:
         if (
-            self.manifest.schema_version != "run-manifest/v3"
+            self.manifest.schema_version != "run-manifest/v4"
             or self.manifest.package_version != PACKAGE_VERSION
             or self.manifest.runtime_contract != RUNTIME_CONTRACT
             or self.manifest.build_lock_sha256 != BUILD_LOCK_SHA256
@@ -63,6 +63,10 @@ def design(spec: DesignSpec) -> Portfolio:
 
     problem = compile_design(spec)
     result = search(problem)
+    best_observed = min(
+        result.evaluations,
+        key=lambda evaluation: (-evaluation.balance_score, evaluation.sequence),
+    )
     candidates = select_candidates(
         result.evaluations,
         count=spec.count,
@@ -92,6 +96,7 @@ def design(spec: DesignSpec) -> Portfolio:
         completion_status=result.completion_status,
         search_validation_status=result.search_validation_status,
         search_diagnostics=result.diagnostics,
+        best_observed=best_observed,
         artifacts=artifacts,
     )
     manifest = provisional_manifest.model_copy(

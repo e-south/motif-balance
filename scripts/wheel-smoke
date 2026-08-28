@@ -128,6 +128,7 @@ report = b"<!doctype html><title>Released Motif Balance v2 report</title>\n"
 manifest = json.loads((target / "manifest.json").read_bytes())
 design = json.loads((target / "design.json").read_bytes())
 manifest["schema_version"] = "run-manifest/v2"
+manifest.pop("best_observed", None)
 manifest["package_version"] = "0.2.0a3"
 run_payload = {
     "problem_id": manifest["problem_id"],

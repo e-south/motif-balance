@@ -68,7 +68,7 @@ systems may register their locations and digests without changing the software
 artifact identity.
 
 Result inspections are derived after verification and are never inserted into
-`run-manifest/v2` or `run-manifest/v3`. Inspection accepts one explicit result;
+`run-manifest/v2`, `run-manifest/v3`, or `run-manifest/v4`. Inspection accepts one explicit result;
 cross-result joining remains a caller responsibility. Exact
 pairwise distance inspection has an explicit base-comparison limit and reports
 `not_computed_limit` instead of entering unbounded quadratic work. HTML and SVG
