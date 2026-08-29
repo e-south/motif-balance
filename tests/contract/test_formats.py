@@ -65,17 +65,19 @@ def test_explicit_jaspar_conversion_records_the_conversion_semantics(tmp_path: P
         source,
         motif_id="synthetic",
         background=(0.25, 0.25, 0.25, 0.25),
-        prior_weight=0.1,
     )
 
     assert motif.conversion is not None
-    assert motif.conversion.method == "jaspar_counts_to_probabilities_v1"
+    assert motif.conversion.schema_version == "motif-conversion/v2"
+    assert motif.conversion.method == "count_matrix_sqrt_n_background_prior_v1"
     assert motif.conversion.source_motif_id == "MA0001.1"
-    assert motif.conversion.prior_weight == 0.1
+    assert motif.conversion.position_observed_counts == (8.0, 8.0)
+    assert motif.conversion.position_prior_masses == pytest.approx((8.0**0.5, 8.0**0.5))
+    assert motif.conversion.position_denominators == pytest.approx((8.0 + 8.0**0.5, 8.0 + 8.0**0.5))
     assert motif.canonical_file_digest is None
     assert motif.canonical_file_name is None
-    assert motif.probabilities[0][0] == pytest.approx((1.0 + 0.1 * 0.25) / 1.1)
-    assert motif.probabilities[0][1] == pytest.approx((0.0 + 0.1 * 0.25) / 1.1)
+    assert motif.probabilities[0][0] == pytest.approx((8.0 + 8.0**0.5 * 0.25) / (8.0 + 8.0**0.5))
+    assert motif.probabilities[0][1] == pytest.approx((8.0**0.5 * 0.25) / (8.0 + 8.0**0.5))
 
     canonical = tmp_path / "canonical.yaml"
     canonical.write_text(
@@ -87,6 +89,24 @@ def test_explicit_jaspar_conversion_records_the_conversion_semantics(tmp_path: P
     assert reloaded.source_name == "counts.jaspar"
     assert reloaded.canonical_file_digest == hashlib.sha256(canonical.read_bytes()).hexdigest()
     assert reloaded.canonical_file_name == "canonical.yaml"
+
+
+def test_jaspar_count_prior_is_position_specific(tmp_path: Path) -> None:
+    source = tmp_path / "variable-depth.jaspar"
+    source.write_text(">MA0002.1 variable\nA [ 4 100 ]\nC [ 0 0 ]\nG [ 0 0 ]\nT [ 0 0 ]\n")
+
+    motif = convert_jaspar(
+        source,
+        motif_id="variable_depth",
+        background=(0.25, 0.25, 0.25, 0.25),
+    )
+
+    assert motif.conversion is not None
+    assert motif.conversion.position_observed_counts == (4.0, 100.0)
+    assert motif.conversion.position_prior_masses == (2.0, 10.0)
+    assert motif.conversion.position_denominators == (6.0, 110.0)
+    assert motif.probabilities[0][0] == pytest.approx(4.5 / 6.0)
+    assert motif.probabilities[1][0] == pytest.approx(102.5 / 110.0)
 
 
 @pytest.mark.parametrize(
@@ -174,7 +194,7 @@ def test_read_motif_rejects_a_conflicting_requested_identity(tmp_path: Path) -> 
     [
         ("A [ 1 ]\nC [ 1 ]\nG [ 1 ]\nT [ 1 ]\n", "explicit.*header"),
         (">x\nA [ 1 ]\nA [ 1 ]\nC [ 1 ]\nG [ 1 ]\nT [ 1 ]\n", "repeats"),
-        (">x\nA [ bad ]\nC [ 1 ]\nG [ 1 ]\nT [ 1 ]\n", "nonnumeric"),
+        (">x\nA [ bad ]\nC [ 1 ]\nG [ 1 ]\nT [ 1 ]\n", "invalid count"),
         (">x\nA [ -1 ]\nC [ 1 ]\nG [ 1 ]\nT [ 1 ]\n", "finite nonnegative"),
         (">x\nA [ 1 ]\nC [ 1 ]\nG [ 1 ]\n", "missing count rows"),
         (">x\nA [ 1 2 ]\nC [ 1 ]\nG [ 1 ]\nT [ 1 ]\n", "equal widths"),
@@ -194,7 +214,6 @@ def test_jaspar_conversion_rejects_malformed_count_matrices(
             source,
             motif_id="canonical",
             background=(0.25, 0.25, 0.25, 0.25),
-            prior_weight=0.1,
         )
 
 
@@ -205,8 +224,7 @@ def test_jaspar_conversion_rejects_invalid_parameters_and_encoding(tmp_path: Pat
         convert_jaspar(
             source,
             motif_id="canonical",
-            background=(0.25, 0.25, 0.25, 0.25),
-            prior_weight=-1.0,
+            background=(-0.25, 0.25, 0.25, 0.75),
         )
 
     binary = tmp_path / "binary.jaspar"
@@ -216,7 +234,6 @@ def test_jaspar_conversion_rejects_invalid_parameters_and_encoding(tmp_path: Pat
             binary,
             motif_id="canonical",
             background=(0.25, 0.25, 0.25, 0.25),
-            prior_weight=0.1,
         )
 
 
@@ -237,5 +254,4 @@ def test_motif_readers_refuse_symbolic_links(tmp_path: Path) -> None:
             link,
             motif_id="canonical",
             background=(0.25, 0.25, 0.25, 0.25),
-            prior_weight=0.1,
         )

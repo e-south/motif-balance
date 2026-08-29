@@ -62,22 +62,75 @@ class FrozenModel(BaseModel):
 
 
 class MotifConversion(FrozenModel):
-    schema_version: Literal["motif-conversion/v1"] = "motif-conversion/v1"
+    schema_version: Literal["motif-conversion/v1", "motif-conversion/v2"] = "motif-conversion/v1"
     method: Literal[
         "jaspar_counts_to_probabilities_v1",
+        "count_matrix_sqrt_n_background_prior_v1",
         "probability_matrix_prior_mixture_v1",
     ]
-    prior_weight: Annotated[
-        float,
-        Field(strict=True, ge=0.0, allow_inf_nan=False),
-    ]
+    prior_weight: Annotated[float, Field(strict=True, ge=0.0, allow_inf_nan=False)] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     source_motif_id: str | None = None
+    position_observed_counts: (
+        tuple[Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)], ...] | None
+    ) = Field(default=None, exclude_if=lambda value: value is None)
+    position_prior_masses: (
+        tuple[Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)], ...] | None
+    ) = Field(default=None, exclude_if=lambda value: value is None)
+    position_denominators: (
+        tuple[Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)], ...] | None
+    ) = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
-    def validate_probability_matrix_conversion(self) -> Self:
-        if self.method != "probability_matrix_prior_mixture_v1":
+    def validate_conversion_contract(self) -> Self:
+        count_fields = (
+            self.position_observed_counts,
+            self.position_prior_masses,
+            self.position_denominators,
+        )
+        if self.method == "count_matrix_sqrt_n_background_prior_v1":
+            if self.schema_version != "motif-conversion/v2":
+                raise ValueError("count-matrix conversion requires motif-conversion/v2")
+            if self.prior_weight is not None or not self.source_motif_id:
+                raise ValueError(
+                    "count-matrix conversion requires a source_motif_id and no prior_weight"
+                )
+            if any(value is None for value in count_fields):
+                raise ValueError("count-matrix conversion requires complete count metadata")
+            assert self.position_observed_counts is not None
+            assert self.position_prior_masses is not None
+            assert self.position_denominators is not None
+            if not self.position_observed_counts or not (
+                len(self.position_observed_counts)
+                == len(self.position_prior_masses)
+                == len(self.position_denominators)
+            ):
+                raise ValueError("count-matrix conversion requires aligned position metadata")
+            for observed, prior, denominator in zip(
+                self.position_observed_counts,
+                self.position_prior_masses,
+                self.position_denominators,
+                strict=True,
+            ):
+                expected_prior = math.sqrt(observed)
+                if abs(prior - expected_prior) > math.ulp(expected_prior):
+                    raise ValueError("count-matrix position prior must equal sqrt(observed count)")
+                expected_denominator = observed + prior
+                if abs(denominator - expected_denominator) > math.ulp(expected_denominator):
+                    raise ValueError(
+                        "count-matrix position denominator must equal observed count plus prior"
+                    )
             return self
-        if self.prior_weight <= 0.0 or not self.source_motif_id:
+        if self.schema_version != "motif-conversion/v1":
+            raise ValueError("motif-conversion/v2 is reserved for count-matrix conversion")
+        if any(value is not None for value in count_fields):
+            raise ValueError("count metadata is only valid for the count-matrix conversion")
+        if self.prior_weight is None:
+            raise ValueError("prior_weight is required for the declared conversion")
+        if self.method == "probability_matrix_prior_mixture_v1" and (
+            self.prior_weight <= 0.0 or not self.source_motif_id
+        ):
             raise ValueError(
                 "probability-matrix conversion requires a positive prior_weight and source_motif_id"
             )
@@ -162,6 +215,23 @@ class MotifModel(FrozenModel):
         ):
             raise ValueError("source names must be basenames, not paths")
         return value
+
+    @model_validator(mode="after")
+    def validate_conversion_width(self) -> Self:
+        if (
+            self.conversion is not None
+            and self.conversion.method == "count_matrix_sqrt_n_background_prior_v1"
+            and self.schema_version != "motif-model/v2"
+        ):
+            raise ValueError("count-matrix sqrt-N conversion requires motif-model/v2")
+        if (
+            self.conversion is not None
+            and self.conversion.method == "count_matrix_sqrt_n_background_prior_v1"
+            and self.conversion.position_observed_counts is not None
+            and len(self.conversion.position_observed_counts) != self.width
+        ):
+            raise ValueError("count-matrix conversion position metadata must equal motif width")
+        return self
 
     @property
     def width(self) -> int:

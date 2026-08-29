@@ -26,9 +26,10 @@ may select output or validation behavior but cannot revise that specification.
 
 - Public models are strict, frozen, reject unknown fields, and reject quoted
   strings where a native numeric scalar is required.
-- Source conversions are explicit `motif-conversion/v1` provenance. A
-  probability-matrix prior mixture requires a positive weight and source motif
-  identity; compilation never applies a hidden second correction.
+- Source conversions are explicit, versioned provenance. Historical and
+  probability-matrix conversions use `motif-conversion/v1`; position-specific
+  count priors use `motif-conversion/v2`. Compilation never applies a hidden
+  second correction.
 - DNA is uppercase `A/C/G/T`; coordinate spans are zero-based and half-open.
 - A design has one exact fixed sequence length and an explicit positive target
   candidate count.

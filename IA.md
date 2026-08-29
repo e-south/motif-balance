@@ -26,7 +26,7 @@ verify, or inspect that operation.
 | --- | --- | --- |
 | What is being requested? | `DesignSpec` | `design-spec/v2` (v1 read-only) |
 | What does a motif mean? | `MotifModel` | `motif-model/v2` (v1 read-only) |
-| How did source values become positive probabilities? | `MotifConversion` | `motif-conversion/v1` |
+| How did source values become positive probabilities? | `MotifConversion` | `motif-conversion/v1` or `motif-conversion/v2` |
 | How is a sequence scored? | compile and scoring | `relative_pwm_attainment_v2` |
 | Which match wins? | scoring | `leftmost_plus_first_v1` |
 | What is the joint score? | scoring | `weakest_score_v1` |
@@ -81,20 +81,23 @@ probability consensus is recorded separately from the score-maximizing reference
 because they can differ under a nonuniform background. The lowest relative
 attainment is `balance_score`. Avoider motifs use the same scanner but have
 explicit upper ceilings; their scores and violations are separate records and
-never enter the target hard minimum. The conventional probability consensus is
-recorded separately from the score-maximizing reference because they can differ
-under a nonuniform background. V2 snaps only endpoint-scale numerical excursions
-within tolerance and fails closed beyond it.
+never enter the target hard minimum. V2 snaps only endpoint-scale numerical
+excursions within tolerance and fails closed beyond it.
 
 The smooth minimum exists only inside search. It is never serialized as a
 candidate score or treated as accepted study support.
 
 Source conversion is provenance, not a scoring alternative. A caller may
 supply an already-positive probability model, a JASPAR count conversion, or a
-probability matrix mixed with an explicit positive background prior. The latter
-uses `(p_source + prior_weight * background) / (1 + prior_weight)` and records
-`probability_matrix_prior_mixture_v1`. Design applies no further smoothing.
-Source acquisition, motif choice, and conversion rationale remain caller-owned.
+probability matrix mixed with an explicit positive background prior. New count
+conversion uses a position-specific background-weighted prior with
+`alpha_i = sqrt(N_i)` and records
+`motif-conversion/v2` with `count_matrix_sqrt_n_background_prior_v1`.
+Probability-matrix conversion uses
+`(p_source + prior_weight * background) / (1 + prior_weight)` and records
+`probability_matrix_prior_mixture_v1`; it never fabricates an effective count.
+Design applies no further smoothing. Source acquisition, motif choice, and
+conversion rationale remain caller-owned.
 
 ### Search
 
