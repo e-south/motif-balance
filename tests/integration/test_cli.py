@@ -44,9 +44,9 @@ def _write_runtime_equivalent_wheel(path: Path) -> None:
         entries[f"motif_balance/{source.relative_to(package_root).as_posix()}"] = (
             source.read_bytes()
         )
-    dist_info = "motif_balance-0.4.0a1.dist-info/"
+    dist_info = "motif_balance-0.4.0a2.dist-info/"
     entries[f"{dist_info}METADATA"] = (
-        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a1\n"
+        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a2\n"
     )
     entries[f"{dist_info}WHEEL"] = b"Wheel-Version: 1.0\n"
     entries[f"{dist_info}entry_points.txt"] = (
@@ -320,7 +320,7 @@ def test_cli_reports_an_unsupported_manifest_as_an_artifact_error(tmp_path: Path
     assert "invalid_design" not in verified.stderr
 
 
-def test_cli_convert_motif_requires_explicit_scientific_parameters(tmp_path: Path) -> None:
+def test_cli_convert_motif_uses_the_declared_count_prior(tmp_path: Path) -> None:
     source = tmp_path / "source.jaspar"
     output = tmp_path / "motif.yaml"
     source.write_text(">MA0001.1 synthetic\nA [ 8 0 ]\nC [ 0 8 ]\nG [ 0 0 ]\nT [ 0 0 ]\n")
@@ -335,8 +335,6 @@ def test_cli_convert_motif_requires_explicit_scientific_parameters(tmp_path: Pat
             "synthetic",
             "--background",
             "0.25,0.25,0.25,0.25",
-            "--prior-weight",
-            "0.1",
             "--out",
             str(output),
         ],
@@ -344,8 +342,10 @@ def test_cli_convert_motif_requires_explicit_scientific_parameters(tmp_path: Pat
 
     assert result.exit_code == 0
     payload = output.read_text()
-    assert "method: jaspar_counts_to_probabilities_v1" in payload
-    assert "prior_weight: 0.1" in payload
+    assert "schema_version: motif-conversion/v2" in payload
+    assert "method: count_matrix_sqrt_n_background_prior_v1" in payload
+    assert "position_observed_counts:" in payload
+    assert "position_prior_masses:" in payload
     assert "source_digest:" in payload
     assert "canonical_file_digest:" not in payload
     assert "canonical_file_name:" not in payload
@@ -365,8 +365,6 @@ def test_cli_convert_motif_reports_invalid_background_as_a_motif_error(tmp_path:
             "synthetic",
             "--background",
             "not,numbers",
-            "--prior-weight",
-            "0.1",
             "--out",
             str(tmp_path / "motif.yaml"),
         ],
@@ -391,8 +389,6 @@ def test_cli_convert_motif_sanitizes_an_unwritable_destination(tmp_path: Path) -
             "synthetic",
             "--background",
             "0.25,0.25,0.25,0.25",
-            "--prior-weight",
-            "0.1",
             "--out",
             str(tmp_path / "missing" / "motif.yaml"),
         ],
@@ -408,7 +404,7 @@ def test_cli_convert_motif_sanitizes_an_unwritable_destination(tmp_path: Path) -
 def test_cli_executes_and_verifies_an_atomic_execution_workspace(tmp_path: Path) -> None:
     spec = tmp_path / "design.yaml"
     workspace = tmp_path / "execution"
-    release = tmp_path / "motif_balance-0.4.0a1-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a2-py3-none-any.whl"
     spec.write_text(_DESIGN)
     _write_runtime_equivalent_wheel(release)
 
@@ -467,7 +463,7 @@ def test_cli_rejects_a_wheel_with_a_corrupt_member_without_a_traceback(
 ) -> None:
     spec = tmp_path / "design.yaml"
     workspace = tmp_path / "execution"
-    release = tmp_path / "motif_balance-0.4.0a1-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a2-py3-none-any.whl"
     spec.write_text(_DESIGN)
     _write_runtime_equivalent_wheel(release)
     _corrupt_stored_wheel_member(release, "motif_balance/__init__.py")

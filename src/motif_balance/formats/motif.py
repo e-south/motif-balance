@@ -9,10 +9,14 @@ from typing import Any
 
 import yaml
 
-from motif_balance.constants import MAX_INPUT_BYTES
+from motif_balance.constants import MAX_INPUT_BYTES, MAX_SEQUENCE_LENGTH
 from motif_balance.errors import InvalidMotif
 from motif_balance.formats.structured import load_json_unique, load_yaml_unique
 from motif_balance.model import MotifConversion, MotifModel
+
+_MAX_COUNT_TOKEN_CHARS = 64
+_MAX_COUNT_VALUE = 1.0e15
+_COUNT_TOKEN = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
 
 
 def _read_structured(path: Path, raw: bytes) -> dict[str, Any]:
@@ -126,9 +130,8 @@ def convert_jaspar(
     *,
     motif_id: str,
     background: tuple[float, float, float, float],
-    prior_weight: float,
 ) -> MotifModel:
-    """Explicitly convert one JASPAR count matrix into a canonical model."""
+    """Convert one JASPAR count matrix with the declared sqrt(N) background prior."""
 
     source = Path(path)
     if source.is_symlink():
@@ -155,12 +158,26 @@ def convert_jaspar(
     for base, values in re.findall(r"^\s*([ACGT])\s*\[([^\]]+)\]\s*$", text, re.MULTILINE):
         if base in base_rows:
             raise InvalidMotif(f"JASPAR motif repeats the '{base}' count row.")
+        tokens = values.split()
+        if (
+            not tokens
+            or len(tokens) > MAX_SEQUENCE_LENGTH
+            or any(
+                len(token) > _MAX_COUNT_TOKEN_CHARS or _COUNT_TOKEN.fullmatch(token) is None
+                for token in tokens
+            )
+        ):
+            raise InvalidMotif(f"JASPAR '{base}' row contains an invalid count.")
         try:
-            row = tuple(float(value) for value in values.split())
-        except ValueError as exc:
+            row = tuple(float(value) for value in tokens)
+        except ValueError as exc:  # defensive: lexical validation precedes conversion
             raise InvalidMotif(f"JASPAR '{base}' row contains a nonnumeric count.") from exc
-        if not row or any(not math.isfinite(value) or value < 0.0 for value in row):
-            raise InvalidMotif(f"JASPAR '{base}' row must contain finite nonnegative counts.")
+        if any(
+            not math.isfinite(value) or value < 0.0 or value > _MAX_COUNT_VALUE for value in row
+        ):
+            raise InvalidMotif(
+                f"JASPAR '{base}' row must contain bounded finite nonnegative counts."
+            )
         base_rows[base] = row
     if set(base_rows) != set("ACGT"):
         missing = sorted(set("ACGT") - set(base_rows))
@@ -169,11 +186,6 @@ def convert_jaspar(
     if len(widths) != 1:
         raise InvalidMotif("JASPAR count rows must have equal widths.")
     try:
-        conversion = MotifConversion(
-            method="jaspar_counts_to_probabilities_v1",
-            prior_weight=prior_weight,
-            source_motif_id=source_motif_id,
-        )
         validated_background = MotifModel(
             motif_id=motif_id,
             probabilities=((0.25, 0.25, 0.25, 0.25),),
@@ -181,19 +193,44 @@ def convert_jaspar(
         ).background
     except ValueError as exc:
         raise InvalidMotif(f"Invalid explicit conversion parameters: {exc}") from exc
-    rows: list[tuple[float, float, float, float]] = []
-    for position in range(widths.pop()):
-        counts = tuple(base_rows[base][position] for base in "ACGT")
-        total = sum(counts)
+    width = widths.pop()
+    counts_by_position = tuple(
+        tuple(base_rows[base][position] for base in "ACGT") for position in range(width)
+    )
+    position_observed_counts = tuple(math.fsum(counts) for counts in counts_by_position)
+    for position, total in enumerate(position_observed_counts):
         if total <= 0.0:
             raise InvalidMotif(f"JASPAR position {position} has zero total count.")
-        observed = tuple(value / total for value in counts)
-        denominator = 1.0 + prior_weight
-        converted = tuple(
-            (value + prior_weight * validated_background[index]) / denominator
-            for index, value in enumerate(observed)
+    position_prior_masses = tuple(math.sqrt(observed) for observed in position_observed_counts)
+    position_denominators = tuple(
+        observed + prior
+        for observed, prior in zip(
+            position_observed_counts,
+            position_prior_masses,
+            strict=True,
         )
-        rows.append((converted[0], converted[1], converted[2], converted[3]))
+    )
+    try:
+        conversion = MotifConversion(
+            schema_version="motif-conversion/v2",
+            method="count_matrix_sqrt_n_background_prior_v1",
+            source_motif_id=source_motif_id,
+            position_observed_counts=position_observed_counts,
+            position_prior_masses=position_prior_masses,
+            position_denominators=position_denominators,
+        )
+    except ValueError as exc:
+        raise InvalidMotif(f"Invalid explicit conversion parameters: {exc}") from exc
+    rows: list[tuple[float, float, float, float]] = []
+    for position, counts in enumerate(counts_by_position):
+        converted = tuple(
+            (value + position_prior_masses[position] * validated_background[index])
+            / position_denominators[position]
+            for index, value in enumerate(counts)
+        )
+        total = math.fsum(converted)
+        canonical = tuple(value / total for value in converted)
+        rows.append((canonical[0], canonical[1], canonical[2], canonical[3]))
     try:
         return MotifModel(
             motif_id=motif_id,

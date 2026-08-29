@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import pytest
 from pydantic import ValidationError
 
@@ -130,6 +132,166 @@ def test_probability_matrix_prior_mixture_is_explicit_and_validated() -> None:
 
     assert motif.conversion == conversion
     assert motif.model_dump(mode="json")["conversion"] == {
+        "schema_version": "motif-conversion/v1",
+        "method": "probability_matrix_prior_mixture_v1",
+        "prior_weight": 0.1,
+        "source_motif_id": "source_cpxR",
+    }
+
+
+def test_count_matrix_sqrt_n_conversion_is_explicit_and_width_bound() -> None:
+    conversion = MotifConversion(
+        schema_version="motif-conversion/v2",
+        method="count_matrix_sqrt_n_background_prior_v1",
+        source_motif_id="MA0001.1",
+        position_observed_counts=(4.0, 4.0),
+        position_prior_masses=(2.0, 2.0),
+        position_denominators=(6.0, 6.0),
+    )
+    motif = MotifModel(
+        motif_id="count_derived",
+        probabilities=((0.8, 0.05, 0.1, 0.05), (0.3, 0.2, 0.2, 0.3)),
+        background=(0.4, 0.1, 0.2, 0.3),
+        conversion=conversion,
+    )
+
+    assert motif.model_dump(mode="json", exclude_none=True)["conversion"] == {
+        "schema_version": "motif-conversion/v2",
+        "method": "count_matrix_sqrt_n_background_prior_v1",
+        "source_motif_id": "MA0001.1",
+        "position_observed_counts": [4.0, 4.0],
+        "position_prior_masses": [2.0, 2.0],
+        "position_denominators": [6.0, 6.0],
+    }
+
+    with pytest.raises(ValidationError, match="motif width"):
+        MotifModel(
+            motif_id="wrong_width",
+            probabilities=((0.8, 0.05, 0.1, 0.05),),
+            background=(0.4, 0.1, 0.2, 0.3),
+            conversion=conversion,
+        )
+
+    with pytest.raises(ValidationError, match="requires motif-model/v2"):
+        MotifModel(
+            schema_version="motif-model/v1",
+            motif_id="historical_semantics",
+            probabilities=((0.8, 0.05, 0.1, 0.05), (0.3, 0.2, 0.2, 0.3)),
+            background=(0.4, 0.1, 0.2, 0.3),
+            conversion=conversion,
+        )
+
+
+@pytest.mark.parametrize(
+    "conversion",
+    [
+        {
+            "schema_version": "motif-conversion/v2",
+            "method": "count_matrix_sqrt_n_background_prior_v1",
+            "prior_weight": 0.1,
+            "source_motif_id": "MA0001.1",
+            "position_observed_counts": (4.0,),
+            "position_prior_masses": (2.0,),
+            "position_denominators": (6.0,),
+        },
+        {
+            "schema_version": "motif-conversion/v2",
+            "method": "count_matrix_sqrt_n_background_prior_v1",
+            "source_motif_id": "MA0001.1",
+            "position_observed_counts": (4.0,),
+        },
+        {
+            "schema_version": "motif-conversion/v2",
+            "method": "count_matrix_sqrt_n_background_prior_v1",
+            "source_motif_id": "MA0001.1",
+            "position_observed_counts": (4.0,),
+            "position_prior_masses": (1.0,),
+            "position_denominators": (5.0,),
+        },
+        {
+            "schema_version": "motif-conversion/v2",
+            "method": "count_matrix_sqrt_n_background_prior_v1",
+            "source_motif_id": "MA0001.1",
+            "position_observed_counts": (4.0,),
+            "position_prior_masses": (2.0,),
+            "position_denominators": (7.0,),
+        },
+        {
+            "schema_version": "motif-conversion/v2",
+            "method": "count_matrix_sqrt_n_background_prior_v1",
+            "source_motif_id": "MA0001.1",
+            "position_observed_counts": (),
+            "position_prior_masses": (),
+            "position_denominators": (),
+        },
+    ],
+)
+def test_count_matrix_conversion_rejects_incoherent_metadata(
+    conversion: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        MotifConversion.model_validate(conversion)
+
+
+@pytest.mark.parametrize(
+    "conversion",
+    [
+        {
+            "method": "jaspar_counts_to_probabilities_v1",
+            "prior_weight": 0.1,
+            "position_observed_counts": (4.0,),
+        },
+        {"method": "jaspar_counts_to_probabilities_v1"},
+    ],
+)
+def test_historical_conversion_rejects_count_metadata_or_missing_weight(
+    conversion: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        MotifConversion.model_validate(conversion)
+
+
+def test_conversion_schema_versions_do_not_advertise_each_others_methods() -> None:
+    with pytest.raises(ValidationError, match="requires motif-conversion/v2"):
+        MotifConversion(
+            method="count_matrix_sqrt_n_background_prior_v1",
+            source_motif_id="MA0001.1",
+            position_observed_counts=(4.0,),
+            position_prior_masses=(2.0,),
+            position_denominators=(6.0,),
+        )
+
+    with pytest.raises(ValidationError, match="reserved for count-matrix"):
+        MotifConversion(
+            schema_version="motif-conversion/v2",
+            method="probability_matrix_prior_mixture_v1",
+            prior_weight=0.1,
+            source_motif_id="MA0001.1",
+        )
+
+
+def test_count_conversion_metadata_uses_an_ulp_bound_not_relative_scale() -> None:
+    observed = 1.0e15
+    prior = math.sqrt(observed)
+    with pytest.raises(ValidationError, match="denominator"):
+        MotifConversion(
+            schema_version="motif-conversion/v2",
+            method="count_matrix_sqrt_n_background_prior_v1",
+            source_motif_id="MA0001.1",
+            position_observed_counts=(observed,),
+            position_prior_masses=(prior,),
+            position_denominators=(observed + prior + 999.0,),
+        )
+
+
+def test_new_conversion_fields_do_not_change_historical_conversion_bytes() -> None:
+    conversion = MotifConversion(
+        method="probability_matrix_prior_mixture_v1",
+        prior_weight=0.1,
+        source_motif_id="source_cpxR",
+    )
+
+    assert conversion.model_dump(mode="json") == {
         "schema_version": "motif-conversion/v1",
         "method": "probability_matrix_prior_mixture_v1",
         "prior_weight": 0.1,

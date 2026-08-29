@@ -376,7 +376,6 @@ def prepare_motif_command(
     source: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
     motif_id: Annotated[str, typer.Option("--motif-id")],
     background: Annotated[str, typer.Option("--background")],
-    prior_weight: Annotated[float, typer.Option("--prior-weight", min=0.0)],
     out: Annotated[Path, typer.Option("--out")],
     debug: Annotated[bool, typer.Option("--debug")] = False,
 ) -> None:
@@ -387,7 +386,6 @@ def prepare_motif_command(
             source,
             motif_id=motif_id,
             background=_background(background),
-            prior_weight=prior_weight,
         )
         payload = yaml.safe_dump(
             motif.model_dump(mode="json", exclude_none=True),

@@ -81,12 +81,10 @@ cmp "$smoke_root/source-check.txt" "$smoke_root/wheel-check.txt"
 uv run --locked motif-balance motif prepare examples/formats/synthetic.jaspar \
   --motif-id converted \
   --background 0.25,0.25,0.25,0.25 \
-  --prior-weight 0.1 \
   --out "$smoke_root/source-converted.yaml" >/dev/null
 "$smoke_root/venv/bin/motif-balance" motif prepare examples/formats/synthetic.jaspar \
   --motif-id converted \
   --background 0.25,0.25,0.25,0.25 \
-  --prior-weight 0.1 \
   --out "$smoke_root/wheel-converted.yaml" >/dev/null
 cmp "$smoke_root/source-converted.yaml" "$smoke_root/wheel-converted.yaml"
 
