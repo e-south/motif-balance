@@ -204,6 +204,14 @@ if [[ "$source_behavior" != "$wheel_behavior" ]]; then
   exit 1
 fi
 
+observation_program='import json; from motif_balance import DesignSpec,MotifModel; from motif_balance.observation import observe_evaluated_pool; target=MotifModel(motif_id="target",probabilities=((0.7,0.1,0.1,0.1),),background=(0.25,0.25,0.25,0.25)); avoider=MotifModel(motif_id="avoid",probabilities=((0.7,0.1,0.1,0.1),),background=(0.25,0.25,0.25,0.25)); spec=DesignSpec(motifs={"target":target},avoiders={"avoid":{"motif":avoider,"score_ceiling":0.0}},length=1,count=1,strands="forward",evaluations=4,seed=11); value=observe_evaluated_pool(spec); print(json.dumps({"id":value.observation_id,"schema":value.schema_version,"count":value.evaluation_count,"feasible":sum(row.constraint_feasible for row in value.evaluations)},sort_keys=True))'
+source_observation="$(uv run --locked python -c "$observation_program")"
+wheel_observation="$("$smoke_root/venv/bin/python" -c "$observation_program")"
+if [[ "$source_observation" != "$wheel_observation" ]]; then
+  echo "source/wheel evaluated-pool observation mismatch" >&2
+  exit 1
+fi
+
 uv run --locked motif-balance design examples/synthetic-multimotif/design.yaml \
   --out "$smoke_root/source-multimotif-result" >/dev/null
 "$smoke_root/venv/bin/motif-balance" design examples/synthetic-multimotif/design.yaml \

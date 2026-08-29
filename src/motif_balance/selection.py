@@ -116,6 +116,9 @@ def select_candidates(
             sequence=evaluation.sequence,
             balance_score=evaluation.balance_score,
             matches=evaluation.matches,
+            avoidance_matches=evaluation.avoidance_matches,
+            constraint_status=evaluation.constraint_status,
+            max_avoidance_excess=evaluation.max_avoidance_excess,
         )
         for rank, evaluation in enumerate(selected, start=1)
     )

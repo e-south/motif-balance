@@ -32,6 +32,58 @@ seed: 0
     assert spec.motifs[0].source_name == "motif.yaml"
 
 
+def test_load_spec_resolves_contained_avoider_file_and_ceiling(tmp_path: Path) -> None:
+    for name, motif_id, row in (
+        ("target.yaml", "target", "[0.7, 0.1, 0.1, 0.1]"),
+        ("avoider.yaml", "avoider", "[0.1, 0.7, 0.1, 0.1]"),
+    ):
+        (tmp_path / name).write_text(
+            f"motif_id: {motif_id}\nprobabilities:\n  - {row}\n"
+            "background: [0.25, 0.25, 0.25, 0.25]\n"
+        )
+    design_path = tmp_path / "design.yaml"
+    design_path.write_text(
+        "schema_version: design-spec/v2\n"
+        "motifs:\n  target: target.yaml\n"
+        "avoiders:\n"
+        "  avoider:\n"
+        "    motif: avoider.yaml\n"
+        "    score_ceiling: 0.2\n"
+        "length: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
+    )
+
+    spec = load_design_spec(design_path)
+
+    assert spec.avoiders[0].motif.source_name == "avoider.yaml"
+    assert spec.avoiders[0].score_ceiling == 0.2
+
+
+def test_load_spec_applies_the_same_containment_boundary_to_avoiders(tmp_path: Path) -> None:
+    root = tmp_path / "specification"
+    root.mkdir()
+    private = tmp_path / "private.yaml"
+    private.write_text(
+        "motif_id: avoider\nprobabilities:\n  - [0.7, 0.1, 0.1, 0.1]\n"
+        "background: [0.25, 0.25, 0.25, 0.25]\n"
+    )
+    (root / "link.yaml").symlink_to(private)
+    target = (
+        "motif_id: target\nprobabilities:\n  - [0.7, 0.1, 0.1, 0.1]\n"
+        "background: [0.25, 0.25, 0.25, 0.25]\n"
+    )
+    (root / "target.yaml").write_text(target)
+
+    for index, reference in enumerate(("../private.yaml", "link.yaml")):
+        design_path = root / f"avoidance-{index}.yaml"
+        design_path.write_text(
+            "motifs:\n  target: target.yaml\n"
+            f"avoiders:\n  avoider:\n    motif: {reference}\n    score_ceiling: 0.2\n"
+            "length: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
+        )
+        with pytest.raises(InvalidDesign, match=r"contained|symbolic"):
+            load_design_spec(design_path)
+
+
 @pytest.mark.parametrize(
     ("content", "message"),
     [

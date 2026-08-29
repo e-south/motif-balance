@@ -66,6 +66,11 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
         if is_legacy
         else "1.0 score-maximizing PWM reference"
     )
+    constraint_status = (
+        "feasible"
+        if all(candidate.constraint_status == "feasible" for candidate in candidates)
+        else "mixed"
+    )
     row_height = 34
     cell_width = 104
     left = 210
@@ -114,6 +119,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
             f'<g id="score-matrix" data-score-lower="0" data-score-upper="{display_max:.17g}" '
             f'data-best-observed-score="{inspection.portfolio.best_observed_score:.17g}" '
             f'data-best-observed-selected-rank="{best_observed_rank}" '
+            f'data-constraint-status="{constraint_status}" '
             f'data-displayed-candidates="{len(candidates)}" '
             f'data-total-candidates="{len(inspection.portfolio.candidates)}" '
             f'data-displayed-motifs="{len(motifs)}" '

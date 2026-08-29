@@ -84,4 +84,9 @@ def render_text(inspection: ResultInspection) -> str:
             f"Producer revision: {inspection.execution.producer_revision}",
             "",
         ]
+    if inspection.problem.avoiders:
+        constraints = ", ".join(
+            f"{item.motif_id} <= {item.score_ceiling:.6g}" for item in inspection.problem.avoiders
+        )
+        lines.insert(12, f"Hard avoidance: {constraints}")
     return "\n".join(lines) + "\n"

@@ -7,7 +7,7 @@ audience:
   - security reviewers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
+last_verified: 2026-08-29
 doc_type: reference
 ---
 
@@ -41,6 +41,11 @@ the bundle contract by default and requires an explicit execution-source mode.
 Derived output is rejected if it would land at or below an inspected result
 root. Inspection records contain no source path and do not execute, import, or
 fetch anything named by the inspected object.
+
+The optional evaluated-pool export is path-free and bounded. Its writer refuses
+existing paths and publishes atomically; its reader rejects symlinks and
+descriptor substitution, enforces byte and row limits, checks canonical
+encoding and content identity, and replays every evaluation.
 
 Artifact paths are normalized relative POSIX paths. Parent traversal, absolute
 paths, symlinks, special files, and pre-existing output directories are

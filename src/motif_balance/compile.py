@@ -35,7 +35,14 @@ class CompiledMotif:
 class CompiledProblem:
     spec: DesignSpec
     motifs: tuple[CompiledMotif, ...]
+    avoiders: tuple[CompiledAvoider, ...]
     problem_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class CompiledAvoider:
+    motif: CompiledMotif
+    score_ceiling: float
 
 
 def sequence_space_at_most(length: int, limit: int) -> int | None:
@@ -151,6 +158,15 @@ def _problem_id(spec: DesignSpec) -> str:
         "objective_semantics": spec.objective_semantics,
         "tie_break_semantics": spec.tie_break_semantics,
     }
+    if spec.avoiders:
+        payload["avoiders"] = [
+            {
+                "motif_id": item.motif.motif_id,
+                "model_digest": item.motif.model_digest,
+                "score_ceiling": item.score_ceiling,
+            }
+            for item in spec.avoiders
+        ]
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -158,8 +174,9 @@ def _problem_id(spec: DesignSpec) -> str:
 
 
 def compile_design(spec: DesignSpec) -> CompiledProblem:
-    if any(motif.width > spec.length for motif in spec.motifs):
-        widest = max(spec.motifs, key=lambda motif: motif.width)
+    all_motifs = (*spec.motifs, *(item.motif for item in spec.avoiders))
+    if any(motif.width > spec.length for motif in all_motifs):
+        widest = max(all_motifs, key=lambda motif: motif.width)
         raise IncompatibleDesign(
             f"Motif '{widest.motif_id}' is wider than the requested sequence length.",
             field="length",
@@ -173,4 +190,13 @@ def compile_design(spec: DesignSpec) -> CompiledProblem:
             hint="Reduce count or increase sequence length.",
         )
     compiled = tuple(_compile_motif(motif) for motif in spec.motifs)
-    return CompiledProblem(spec=spec, motifs=compiled, problem_id=_problem_id(spec))
+    avoiders = tuple(
+        CompiledAvoider(motif=_compile_motif(item.motif), score_ceiling=item.score_ceiling)
+        for item in spec.avoiders
+    )
+    return CompiledProblem(
+        spec=spec,
+        motifs=compiled,
+        avoiders=avoiders,
+        problem_id=_problem_id(spec),
+    )

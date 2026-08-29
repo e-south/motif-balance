@@ -37,7 +37,7 @@ def _candidate(inspection: ResultInspection, rank: int) -> InspectionCandidate:
 def _shown_matches(candidate: InspectionCandidate) -> tuple[InspectionMatch, ...]:
     ordered = tuple(
         sorted(
-            candidate.matches,
+            (*candidate.matches, *candidate.avoidance_matches),
             key=lambda match: (
                 match.motif_id not in candidate.limiting_motif_ids,
                 match.motif_id,
@@ -58,6 +58,8 @@ def _match_lane(
     left: int,
     cell: int,
     limiting: bool,
+    avoider: bool,
+    score_ceiling: float | None,
 ) -> str:
     x = left + match.start * cell
     width = (match.end - match.start) * cell
@@ -67,13 +69,24 @@ def _match_lane(
     else:
         y = complement_y + 10 + lane * 30
         label_y = y + 30
-    color = ACCENT if limiting else POSITIVE
+    color = NEGATIVE if avoider else ACCENT if limiting else POSITIVE
+    ceiling_label = (
+        f" · ceiling {score_ceiling:.6g}" if avoider and score_ceiling is not None else ""
+    )
     label = (
         f"{motif_id(match.motif_id)} · {match.normalized_score:.6g} · "
-        f"{match.strand} · [{match.start}, {match.end})"
+        f"{match.strand} · [{match.start}, {match.end}){ceiling_label}"
     )
+    ceiling_attribute = (
+        f'data-score-ceiling="{score_ceiling:.17g}" '
+        if avoider and score_ceiling is not None
+        else ""
+    )
+    role_attribute = 'data-role="avoider" ' if avoider else ""
     return (
         f'<g class="motif-match" data-motif-id="{motif_id(match.motif_id)}" '
+        f"{role_attribute}"
+        f"{ceiling_attribute}"
         f'data-start="{match.start}" data-end="{match.end}" data-strand="{match.strand}">'
         f'<rect x="{x}" y="{y}" width="{width}" height="16" rx="3" '
         f'fill="{color}" fill-opacity=".18" stroke="{color}" stroke-width="1.5"/>'
@@ -164,7 +177,13 @@ def render_candidate_svg(
 
     candidate = _candidate(inspection, candidate_rank)
     shown = _shown_matches(candidate)
-    motifs_by_id = {motif.motif_id: motif for motif in inspection.problem.motifs}
+    motifs_by_id = {
+        motif.motif_id: motif
+        for motif in (*inspection.problem.motifs, *inspection.problem.avoiders)
+    }
+    avoider_ceilings = {
+        motif.motif_id: motif.score_ceiling for motif in inspection.problem.avoiders
+    }
     forward = tuple(match for match in shown if match.strand == "+")
     reverse = tuple(match for match in shown if match.strand == "-")
     cell = 24
@@ -247,6 +266,8 @@ def render_candidate_svg(
                     left=left,
                     cell=cell,
                     limiting=match.motif_id in candidate.limiting_motif_ids,
+                    avoider=match.motif_id in avoider_ceilings,
+                    score_ceiling=avoider_ceilings.get(match.motif_id),
                 )
                 for index, match in enumerate(forward)
             ),
@@ -326,6 +347,8 @@ def render_candidate_svg(
                     left=left,
                     cell=cell,
                     limiting=match.motif_id in candidate.limiting_motif_ids,
+                    avoider=match.motif_id in avoider_ceilings,
+                    score_ceiling=avoider_ceilings.get(match.motif_id),
                 )
                 for index, match in enumerate(reverse)
             ),
@@ -388,12 +411,13 @@ def render_candidate_svg(
                 ]
             )
     parts.append("</g>")
-    if len(shown) < len(candidate.matches):
+    total_matches = len(candidate.matches) + len(candidate.avoidance_matches)
+    if len(shown) < total_matches:
         parts.append(
             text(
                 20,
                 height - 18,
-                f"Showing {len(shown)} of {len(candidate.matches)} matches; "
+                f"Showing {len(shown)} of {total_matches} matches; "
                 "exact records remain in the inspection JSON.",
                 size=11,
                 fill=MUTED,

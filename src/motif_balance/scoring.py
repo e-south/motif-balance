@@ -97,7 +97,27 @@ def evaluate(sequence: str, problem: CompiledProblem) -> Evaluation:
         )
         for motif in problem.motifs
     )
+    avoidance_matches = tuple(
+        _best_match(
+            normalized,
+            item.motif,
+            both_strands=problem.spec.strands == "both",
+        )
+        for item in problem.avoiders
+    )
     balance_score = min(match.normalized_score for match in matches)
     if not math.isfinite(balance_score):
         raise ValueError("evaluation produced a nonfinite balance score")
-    return Evaluation(sequence=normalized, balance_score=balance_score, matches=matches)
+    excesses = tuple(
+        max(0.0, match.normalized_score - item.score_ceiling)
+        for match, item in zip(avoidance_matches, problem.avoiders, strict=True)
+    )
+    max_excess = max(excesses, default=0.0)
+    return Evaluation(
+        sequence=normalized,
+        balance_score=balance_score,
+        matches=matches,
+        avoidance_matches=avoidance_matches,
+        constraint_status="feasible" if max_excess <= 1.0e-12 else "infeasible",
+        max_avoidance_excess=max_excess,
+    )

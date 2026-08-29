@@ -7,7 +7,7 @@ audience:
   - integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-28
+last_verified: 2026-08-29
 doc_type: reference
 journey:
   - integrate
@@ -88,7 +88,8 @@ candidates.fasta  # derived, manifest-bound
 
 The manifest binds every other member by relative path, size, and SHA-256.
 Verification recompiles the problem and replays each published candidate's
-matches and hard-minimum score. Current manifests additionally bind and replay
+target matches, avoider matches, hard-constraint status, and hard-minimum
+target score. Current manifests additionally bind and replay
 the complete best observed evaluation even when it is excluded from the
 distance-constrained selected portfolio. It does not rerun search. Text, inspection
 JSON, SVG, and HTML are regenerable projections outside the bundle.
@@ -97,9 +98,17 @@ Version `0.3` reads `run-manifest/v2` through `run-manifest/v4` and writes v4.
 Version `0.4` additionally reads and writes `run-manifest/v5`; new projections
 use `motif-balance.result-inspection/v4`. Unknown schemas
 fail closed. A workflow
+New publication in version `0.4` requires v2 inputs and v5 output; v1 remains
+readable and scoreable but cannot initiate a new design publication. A workflow
 that needs exact runtime identity retains the complete
 `motif-balance.execution-workspace/v1` with its wheel and external trust
 anchors.
 
 Package verification establishes product integrity. It does not accept a
 scientific claim, define a benchmark cohort, or confer manuscript status.
+
+Downstream analyses that require the complete unique evaluated pool may use
+the deliberately advanced `motif_balance.observation` submodule. Its single
+bounded JSON record is immutable, canonical, path-free, identity-checked, and
+scientifically replayed. It is not a `Portfolio`, canonical bundle member, CLI
+journey, or top-level export.

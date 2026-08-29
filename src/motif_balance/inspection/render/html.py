@@ -340,6 +340,25 @@ def _best_observed_record(inspection: ResultInspection) -> str:
     )
 
 
+def _avoidance_contract(inspection: ResultInspection) -> str:
+    if not inspection.problem.avoiders:
+        return ""
+    rows = "".join(
+        "<tr>"
+        f"<td>{escape(item.motif_id)}</td>"
+        f"<td>{item.score_ceiling:.17g}</td>"
+        f"<td><code>{item.model_digest}</code></td>"
+        "</tr>"
+        for item in inspection.problem.avoiders
+    )
+    return (
+        "<h3>Hard avoidance constraints</h3>"
+        "<p>Each ceiling applies to that avoider motif's best normalized match. "
+        "Avoider scores do not enter the target balance_score.</p>"
+        + _table(("Avoider", "Maximum normalized score", "Model digest"), rows)
+    )
+
+
 def render_html(
     inspection: ResultInspection,
     *,
@@ -383,6 +402,7 @@ def render_html(
             _best_observed_record(inspection),
             _status_line(inspection),
             f'<h2>Design contract</h2><p class="contract">{escape(contract)}</p>',
+            _avoidance_contract(inspection),
             "<h2>Portfolio balance</h2>",
             "<p>Rows retain deterministic rank order and columns retain canonical motif order. "
             "Numeric values are authoritative; color is only a reading aid.</p>",

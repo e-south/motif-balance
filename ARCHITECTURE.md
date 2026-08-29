@@ -7,7 +7,7 @@ audience:
   - agent executors
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
+last_verified: 2026-08-29
 doc_type: explanation
 journey:
   - maintain
@@ -40,9 +40,9 @@ verified artifacts.
 
 ```text
 errors, constants, and model
-  <- formats, compile, and scoring
+  <- formats, compile, scoring, and admissibility
   <- search and selection
-  <- api and artifacts
+  <- api, artifacts, and observation
   <- receipt and execution
   <- inspection/{verify, project, render}
   <- cli
@@ -56,12 +56,17 @@ errors, constants, and model
   choose scientific policy.
 - `compile.py` normalizes a specification into evaluator-ready state.
 - `scoring.py` is the single matching and public-score authority.
+- `admissibility.py` applies hard constraint status and feasibility-first
+  ordering without changing the target score.
 - `search.py` proposes sequences under explicit budgets. It may evaluate a
   proposal but may not reinterpret a score.
 - `selection.py` chooses from already evaluated candidates and cannot mutate or
   rescore them.
 - `artifacts.py` serializes canonical bundles and replays their identities and
   scientific records. It does not own downstream registration or presentation.
+- `observation.py` owns the bounded, immutable complete evaluated-pool export
+  for explicit analysis consumers. It does not enlarge `Portfolio`, write into
+  canonical bundles, discover storage, or enter the top-level facade.
 - `api.py` contains only the public `design` and `score` operations plus the
   `Portfolio` publication methods used by the top-level scientific facade.
 - `receipt.py` defines the runtime receipt and execution-workspace identity

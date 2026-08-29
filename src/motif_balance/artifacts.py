@@ -68,7 +68,7 @@ def _digest(payload: bytes) -> str:
 
 
 def _design_payload(spec: DesignSpec) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "schema_version": spec.schema_version,
         "motifs": [
             {"motif_id": motif.motif_id, "model_digest": motif.model_digest}
@@ -84,11 +84,22 @@ def _design_payload(spec: DesignSpec) -> dict[str, object]:
         "objective_semantics": spec.objective_semantics,
         "tie_break_semantics": spec.tie_break_semantics,
     }
+    if spec.avoiders:
+        payload["avoiders"] = [
+            {
+                "motif_id": item.motif.motif_id,
+                "model_digest": item.motif.model_digest,
+                "score_ceiling": item.score_ceiling,
+            }
+            for item in spec.avoiders
+        ]
+    return payload
 
 
 def _motifs_payload(spec: DesignSpec) -> dict[str, object]:
     motifs = []
-    for motif in spec.motifs:
+    all_motifs = (*spec.motifs, *(item.motif for item in spec.avoiders))
+    for motif in sorted(all_motifs, key=lambda item: item.motif_id):
         payload = motif.model_dump(mode="json")
         payload["width"] = motif.width
         payload["model_digest"] = motif.model_digest
@@ -121,24 +132,55 @@ def candidates_tsv(candidates: tuple[Candidate, ...]) -> bytes:
     return _tsv_bytes(("candidate_id", "rank", "sequence", "length", "balance_score"), rows)
 
 
-def matches_tsv(candidates: tuple[Candidate, ...]) -> bytes:
+def matches_tsv(spec: DesignSpec, candidates: tuple[Candidate, ...]) -> bytes:
     rows: list[dict[str, object]] = []
+    ceilings = {item.motif.motif_id: item.score_ceiling for item in spec.avoiders}
     for candidate in candidates:
         for match in sorted(candidate.matches, key=lambda item: item.motif_id):
-            rows.append(
-                {
-                    "candidate_id": candidate.candidate_id,
-                    "motif_id": match.motif_id,
-                    "start": match.start,
-                    "end": match.end,
-                    "strand": match.strand,
-                    "matched_sequence": match.matched_sequence,
-                    "raw_score": format(match.raw_score, ".17g"),
-                    "normalized_score": format(match.normalized_score, ".17g"),
-                }
-            )
-    return _tsv_bytes(
+            row: dict[str, object] = {
+                "candidate_id": candidate.candidate_id,
+                "motif_id": match.motif_id,
+                "start": match.start,
+                "end": match.end,
+                "strand": match.strand,
+                "matched_sequence": match.matched_sequence,
+                "raw_score": format(match.raw_score, ".17g"),
+                "normalized_score": format(match.normalized_score, ".17g"),
+            }
+            if spec.schema_version == "design-spec/v2":
+                row = {**row, "role": "target", "score_ceiling": ""}
+            rows.append(row)
+        if spec.schema_version == "design-spec/v2":
+            for match in sorted(candidate.avoidance_matches, key=lambda item: item.motif_id):
+                rows.append(
+                    {
+                        "candidate_id": candidate.candidate_id,
+                        "role": "avoider",
+                        "motif_id": match.motif_id,
+                        "score_ceiling": format(ceilings[match.motif_id], ".17g"),
+                        "start": match.start,
+                        "end": match.end,
+                        "strand": match.strand,
+                        "matched_sequence": match.matched_sequence,
+                        "raw_score": format(match.raw_score, ".17g"),
+                        "normalized_score": format(match.normalized_score, ".17g"),
+                    }
+                )
+    fields = (
         (
+            "candidate_id",
+            "role",
+            "motif_id",
+            "score_ceiling",
+            "start",
+            "end",
+            "strand",
+            "matched_sequence",
+            "raw_score",
+            "normalized_score",
+        )
+        if spec.schema_version == "design-spec/v2"
+        else (
             "candidate_id",
             "motif_id",
             "start",
@@ -147,9 +189,9 @@ def matches_tsv(candidates: tuple[Candidate, ...]) -> bytes:
             "matched_sequence",
             "raw_score",
             "normalized_score",
-        ),
-        rows,
+        )
     )
+    return _tsv_bytes(fields, rows)
 
 
 def candidates_fasta(candidates: tuple[Candidate, ...]) -> bytes:
@@ -168,7 +210,7 @@ def base_artifact_payloads(
         "design.json": _json_bytes(_design_payload(spec)),
         "motifs.json": _json_bytes(_motifs_payload(spec)),
         "candidates.tsv": candidates_tsv(candidates),
-        "matches.tsv": matches_tsv(candidates),
+        "matches.tsv": matches_tsv(spec, candidates),
         "candidates.fasta": candidates_fasta(candidates),
     }
 
@@ -242,7 +284,7 @@ def _read_spec(members: dict[str, bytes]) -> DesignSpec:
         raw_motifs, list
     ):
         raise ArtifactError("motifs.json does not satisfy a supported motif collection schema")
-    motifs: list[MotifModel] = []
+    motifs: dict[str, MotifModel] = {}
     for raw in raw_motifs:
         if not isinstance(raw, dict):
             raise ArtifactError("motifs.json contains a malformed motif")
@@ -251,17 +293,49 @@ def _read_spec(members: dict[str, bytes]) -> DesignSpec:
         motif = MotifModel.model_validate(raw)
         if motif.model_digest != expected_digest:
             raise ArtifactError(f"model digest mismatch for motif '{motif.motif_id}'")
-        motifs.append(motif)
+        if motif.motif_id in motifs:
+            raise ArtifactError("motifs.json contains duplicate motif identifiers")
+        motifs[motif.motif_id] = motif
     design_payload = _json_object(members["design.json"], label="design.json")
     references = design_payload.pop("motifs", None)
     if not isinstance(references, list):
         raise ArtifactError("design.json motifs must be a list")
-    expected = [
-        {"motif_id": motif.motif_id, "model_digest": motif.model_digest} for motif in motifs
-    ]
+    expected: list[dict[str, str]] = []
+    for item in references:
+        if not isinstance(item, dict):
+            raise ArtifactError("design.json contains a malformed target motif reference")
+        motif_id = item.get("motif_id")
+        if not isinstance(motif_id, str) or motif_id not in motifs:
+            raise ArtifactError("design.json target motif does not reference motifs.json")
+        expected.append({"motif_id": motif_id, "model_digest": motifs[motif_id].model_digest})
     if references != expected:
         raise ArtifactError("design.json motif references do not match motifs.json")
-    spec = DesignSpec.model_validate({**design_payload, "motifs": tuple(motifs)})
+    target_models = tuple(motifs[item["motif_id"]] for item in references)
+    schema_version = design_payload.get("schema_version")
+    avoiders_payload = design_payload.pop("avoiders", [])
+    avoiders: list[dict[str, object]] = []
+    referenced_avoider_ids: set[str] = set()
+    if schema_version == "design-spec/v2":
+        if not isinstance(avoiders_payload, list):
+            raise ArtifactError("design.json avoiders must be a list")
+        for item in avoiders_payload:
+            if not isinstance(item, dict):
+                raise ArtifactError("design.json contains a malformed avoider")
+            motif_id = item.get("motif_id")
+            if not isinstance(motif_id, str) or motif_id not in motifs:
+                raise ArtifactError("design.json avoider does not reference motifs.json")
+            if item.get("model_digest") != motifs[motif_id].model_digest:
+                raise ArtifactError("design.json avoider digest does not match motifs.json")
+            avoiders.append({"motif": motifs[motif_id], "score_ceiling": item.get("score_ceiling")})
+            referenced_avoider_ids.add(motif_id)
+        referenced_ids = {item["motif_id"] for item in references} | referenced_avoider_ids
+        if referenced_ids != set(motifs):
+            raise ArtifactError("motifs.json contains unreferenced motif models")
+    elif {item["motif_id"] for item in references} != set(motifs):
+        raise ArtifactError("motifs.json contains unreferenced motif models")
+    spec = DesignSpec.model_validate(
+        {**design_payload, "motifs": target_models, "avoiders": tuple(avoiders)}
+    )
     expected_collection = (
         "motif-collection/v1" if spec.schema_version == "design-spec/v1" else "motif-collection/v2"
     )
@@ -272,7 +346,8 @@ def _read_spec(members: dict[str, bytes]) -> DesignSpec:
 
 def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candidate, ...]:
     matches_by_candidate: dict[str, list[MotifMatch]] = defaultdict(list)
-    expected_match_rows = spec.count * len(spec.motifs)
+    avoidance_by_candidate: dict[str, list[MotifMatch]] = defaultdict(list)
+    expected_match_rows = spec.count * (len(spec.motifs) + len(spec.avoiders))
     if spec.count > MAX_BUNDLE_ROWS or expected_match_rows > MAX_BUNDLE_ROWS:
         raise ArtifactError("design exceeds the canonical table row limit")
     try:
@@ -281,7 +356,21 @@ def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candi
             if row_number > expected_match_rows:
                 raise ArtifactError("matches.tsv exceeds its semantic row limit")
             candidate_id = row.pop("candidate_id")
-            matches_by_candidate[candidate_id].append(
+            role = row.pop("role", "target")
+            ceiling = row.pop("score_ceiling", "")
+            destination = matches_by_candidate if role == "target" else avoidance_by_candidate
+            if role not in {"target", "avoider"}:
+                raise ArtifactError("matches.tsv contains an unknown motif role")
+            if role == "target" and ceiling:
+                raise ArtifactError("target match cannot declare an avoider ceiling")
+            expected_ceiling = {
+                item.motif.motif_id: item.score_ceiling for item in spec.avoiders
+            }.get(row["motif_id"])
+            if role == "avoider" and (
+                expected_ceiling is None or float(ceiling) != expected_ceiling
+            ):
+                raise ArtifactError("avoider match ceiling does not match design.json")
+            destination[candidate_id].append(
                 MotifMatch(
                     motif_id=row["motif_id"],
                     start=int(row["start"]),
@@ -301,6 +390,20 @@ def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candi
             sequence = row["sequence"]
             if int(row["length"]) != len(sequence):
                 raise ArtifactError(f"candidate length mismatch for '{candidate_id}'")
+            avoider_matches = tuple(
+                sorted(
+                    avoidance_by_candidate.pop(candidate_id, []),
+                    key=lambda match: match.motif_id,
+                )
+            )
+            ceilings = {item.motif.motif_id: item.score_ceiling for item in spec.avoiders}
+            max_excess = max(
+                (
+                    max(0.0, match.normalized_score - ceilings[match.motif_id])
+                    for match in avoider_matches
+                ),
+                default=0.0,
+            )
             candidates.append(
                 Candidate(
                     candidate_id=candidate_id,
@@ -313,13 +416,16 @@ def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candi
                             key=lambda match: match.motif_id,
                         )
                     ),
+                    avoidance_matches=avoider_matches,
+                    constraint_status="feasible" if max_excess <= 1.0e-12 else "infeasible",
+                    max_avoidance_excess=max_excess,
                 )
             )
     except (UnicodeDecodeError, csv.Error, KeyError, TypeError, ValueError) as exc:
         if isinstance(exc, ArtifactError):
             raise
         raise ArtifactError(f"unable to read canonical tables: {exc}") from exc
-    if matches_by_candidate:
+    if matches_by_candidate or avoidance_by_candidate:
         raise ArtifactError("matches.tsv contains unresolved candidate identifiers")
     if len(candidates) != spec.count:
         raise ArtifactError("candidate row count does not equal design count")
@@ -555,6 +661,9 @@ def verify_portfolio_record(portfolio: PortfolioRecord) -> None:
         if (
             candidate.balance_score != authoritative.balance_score
             or candidate.matches != authoritative.matches
+            or candidate.avoidance_matches != authoritative.avoidance_matches
+            or candidate.constraint_status != authoritative.constraint_status
+            or candidate.max_avoidance_excess != authoritative.max_avoidance_excess
         ):
             raise ArtifactError(
                 f"scientific replay found scoring drift for '{candidate.candidate_id}'"

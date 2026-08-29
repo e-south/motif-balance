@@ -8,7 +8,7 @@ audience:
   - downstream integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-28
+last_verified: 2026-08-29
 doc_type: reference
 journey:
   - inspect
@@ -79,6 +79,11 @@ complement. Position-support cells are the observed-base log-likelihood
 contributions replayed by scoring; renderers do not rescan a motif or recompute
 a score. Shared coordinates are a union of positions covered by more than one
 representative window, not evidence of simultaneous occupancy.
+
+Constraint-bearing results display avoider matches on separate lanes with
+their ceilings and feasibility state. The portfolio remains ranked by target
+`balance_score`; avoider scores are never presented as target objectives or a
+weighted penalty.
 
 The portfolio view is a candidate-by-motif matrix in deterministic rank and
 canonical motif order. Values remain numeric. Under

@@ -8,7 +8,7 @@ audience:
   - downstream integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-28
+last_verified: 2026-08-29
 doc_type: reference
 ---
 
@@ -24,8 +24,8 @@ verify, or inspect that operation.
 
 | Question | Authority | Versioned identity |
 | --- | --- | --- |
-| What is being requested? | `DesignSpec` | `design-spec/v2` |
-| What does a motif mean? | `MotifModel` | `motif-model/v2` |
+| What is being requested? | `DesignSpec` | `design-spec/v2` (v1 read-only) |
+| What does a motif mean? | `MotifModel` | `motif-model/v2` (v1 read-only) |
 | How did source values become positive probabilities? | `MotifConversion` | `motif-conversion/v1` |
 | How is a sequence scored? | compile and scoring | `relative_pwm_attainment_v2` |
 | Which match wins? | scoring | `leftmost_plus_first_v1` |
@@ -39,7 +39,7 @@ verify, or inspect that operation.
 ## Ontology
 
 ```text
-MotifModel[] + length + count + strands + evaluations + seed + min_distance
+target MotifModel[] + optional avoider ceilings + design fields
                                 │
                                 ▼
                            DesignSpec
@@ -79,8 +79,12 @@ total order, and reports its relative attainment between the motif's attainable
 minimum and maximum raw log-likelihood-ratio scores. The conventional
 probability consensus is recorded separately from the score-maximizing reference
 because they can differ under a nonuniform background. The lowest relative
-attainment is `balance_score`; v2 never clips scores and fails closed if a value
-falls outside `[0, 1]` beyond numerical tolerance.
+attainment is `balance_score`. Avoider motifs use the same scanner but have
+explicit upper ceilings; their scores and violations are separate records and
+never enter the target hard minimum. The conventional probability consensus is
+recorded separately from the score-maximizing reference because they can differ
+under a nonuniform background. V2 snaps only endpoint-scale numerical excursions
+within tolerance and fails closed beyond it.
 
 The smooth minimum exists only inside search. It is never serialized as a
 candidate score or treated as accepted study support.
@@ -100,11 +104,19 @@ with single-base, block, multi-base, and motif-insertion proposals. The engine
 records bounded checkpoints, restart-final scores, and proposal summaries; raw
 state traces are not product artifacts.
 
+Hard avoidance is feasibility-first: feasible evaluations outrank infeasible
+evaluations before target score is considered. Among infeasible evaluations,
+search prefers smaller maximum ceiling excess. This lexicographic contract is
+not a weighted penalty. Exhaustive search can prove exact constraint
+infeasibility; bounded search can report only unresolved feasibility at its
+declared budget.
+
 ### Selection
 
 Selection ranks immutable evaluations by descending balance score and then
 sequence. It applies the declared distance rule without relaxation. It returns
 the exact requested count or raises a typed `SearchBudgetExhausted`,
+`ConstraintFeasibilityExhausted`, `ExactConstraintInfeasible`,
 `PortfolioInfeasible`, or `SelectionLimitReached` failure. The last state means
 the bounded subset traversal did not resolve feasibility; it is not proof that
 no feasible portfolio exists.
@@ -141,6 +153,11 @@ references, mutable cache, discovery behavior, or interpretation authority.
 
 Text, inspection JSON, SVG, and HTML are on-demand review projections and
 never enter the bundle.
+
+A separately requested `evaluated-pool-observation/v1` can carry the complete
+unique evaluated pool to an analysis owner. It is bounded, immutable,
+identity-checked, scientifically replayed, and path-free. It is not a bundle
+member, public `Portfolio` field, ordinary CLI journey, or top-level noun.
 
 Inspection is one immutable typed projection over a verified bundle or
 execution. Verification and score replay produce `ResultInspection`; every

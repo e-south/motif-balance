@@ -8,6 +8,7 @@ from typing import Literal, Protocol, cast
 import numpy as np
 from numpy.typing import NDArray
 
+from motif_balance.admissibility import is_preferred
 from motif_balance.compile import CompiledMotif, CompiledProblem, sequence_space_at_most
 from motif_balance.constants import DNA_ALPHABET, RNG_NAME, SEARCH_ENGINE, SEARCH_ENGINE_VERSION
 from motif_balance.model import (
@@ -47,14 +48,18 @@ class _SearchLedger:
     evaluations: dict[str, Evaluation] = field(default_factory=dict)
     checkpoints: list[SearchCheckpoint] = field(default_factory=list)
     evaluations_used: int = 0
-    best_score: float = -math.inf
+    best_evaluation: Evaluation | None = None
+    best_feasible_score: float = 0.0
 
     def record(self, result: Evaluation) -> None:
         if self.evaluations_used >= self.budget:
             raise RuntimeError("search engine exceeded the public evaluation budget")
         self.evaluations_used += 1
         self.evaluations.setdefault(result.sequence, result)
-        self.best_score = max(self.best_score, result.balance_score)
+        if is_preferred(result, self.best_evaluation):
+            self.best_evaluation = result
+        if result.constraint_feasible:
+            self.best_feasible_score = max(self.best_feasible_score, result.balance_score)
         interval = max(1, self.budget // 20)
         if (
             self.evaluations_used == 1
@@ -63,7 +68,7 @@ class _SearchLedger:
         ):
             checkpoint = SearchCheckpoint(
                 evaluations=self.evaluations_used,
-                best_score=self.best_score,
+                best_score=self.best_feasible_score,
             )
             if self.checkpoints and self.checkpoints[-1].evaluations == self.evaluations_used:
                 self.checkpoints[-1] = checkpoint
@@ -105,7 +110,14 @@ def _worst_match(result: Evaluation) -> MotifMatch:
 
 
 def _target_bounds(result: Evaluation, *, length: int) -> tuple[int, int]:
-    match = _worst_match(result)
+    match = (
+        max(
+            result.avoidance_matches,
+            key=lambda item: (item.normalized_score, item.motif_id),
+        )
+        if not result.constraint_feasible and result.avoidance_matches
+        else _worst_match(result)
+    )
     return max(0, match.start - 3), min(length, match.end + 3)
 
 
@@ -143,9 +155,9 @@ class ExhaustiveSearchEngine:
             ledger.record(evaluate("".join(bases), problem))
         diagnostics = SearchDiagnostics(
             restarts=1,
-            best_score=ledger.best_score,
+            best_score=ledger.best_feasible_score,
             checkpoints=tuple(ledger.checkpoints),
-            restart_final_scores=(ledger.best_score,),
+            restart_final_scores=(ledger.best_feasible_score,),
             proposals=(),
         )
         return SearchResult(
@@ -229,8 +241,25 @@ class AnnealedSearchEngine:
             ledger.record(result)
             candidates.append((proposal, result))
         soft_beta = 0.5 + 11.5 * progress
-        scores = np.asarray([_soft_min(result, beta=soft_beta) for _, result in candidates])
+        has_feasible = any(result.constraint_feasible for _, result in candidates)
+        scores = np.asarray(
+            [
+                (
+                    _soft_min(result, beta=soft_beta)
+                    if result.constraint_feasible
+                    else -result.max_avoidance_excess
+                )
+                for _, result in candidates
+            ]
+        )
         logits = _mcmc_beta(progress) * scores
+        if has_feasible:
+            logits = np.asarray(
+                [
+                    value if result.constraint_feasible else -math.inf
+                    for value, (_, result) in zip(logits, candidates, strict=True)
+                ]
+            )
         logits -= logits.max()
         probabilities = np.exp(logits)
         probabilities /= probabilities.sum()
@@ -393,7 +422,7 @@ class AnnealedSearchEngine:
             chain = (chain + 1) % len(states)
         diagnostics = SearchDiagnostics(
             restarts=len(states),
-            best_score=ledger.best_score,
+            best_score=ledger.best_feasible_score,
             checkpoints=tuple(ledger.checkpoints),
             restart_final_scores=tuple(result.balance_score for result in current),
             proposals=tuple(
@@ -418,8 +447,14 @@ class AnnealedSearchEngine:
         progress: float,
         rng: np.random.Generator,
     ) -> bool:
+        if current.constraint_feasible != proposed.constraint_feasible:
+            return proposed.constraint_feasible
         soft_beta = 0.5 + 11.5 * progress
-        delta = _soft_min(proposed, beta=soft_beta) - _soft_min(current, beta=soft_beta)
+        delta = (
+            _soft_min(proposed, beta=soft_beta) - _soft_min(current, beta=soft_beta)
+            if proposed.constraint_feasible
+            else current.max_avoidance_excess - proposed.max_avoidance_excess
+        )
         return delta >= 0.0 or math.log(max(float(rng.random()), 1.0e-300)) < (
             _mcmc_beta(progress) * delta
         )
