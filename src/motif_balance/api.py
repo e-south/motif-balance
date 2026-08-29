@@ -16,7 +16,7 @@ from motif_balance.constants import (
     PACKAGE_VERSION,
     RUNTIME_CONTRACT,
 )
-from motif_balance.errors import ArtifactError
+from motif_balance.errors import ArtifactError, IncompatibleDesign
 from motif_balance.model import (
     DesignSpec,
     Evaluation,
@@ -60,6 +60,13 @@ def score(sequence: str, spec: DesignSpec) -> Evaluation:
 
 def design(spec: DesignSpec) -> Portfolio:
     """Return one exact immutable portfolio or raise a typed failure."""
+
+    if spec.schema_version != "design-spec/v2":
+        raise IncompatibleDesign(
+            "design-spec/v1 is read-only and cannot publish a new result",
+            field="schema_version",
+            hint="Use design-spec/v2 and motif-model/v2 for new design runs.",
+        )
 
     problem = compile_design(spec)
     result = search(problem)

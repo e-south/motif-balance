@@ -29,6 +29,7 @@ class InspectionMotif(FrozenModel):
     background: tuple[float, float, float, float]
     score_min: float = Field(allow_inf_nan=False)
     score_max: float = Field(allow_inf_nan=False)
+    score_reference_semantics: Literal["null_mean_to_score_max_v1", "attainable_min_max_v2"]
     probability_consensus: str
     score_maximizing_sequence: str
     source_name: str | None = None
@@ -65,6 +66,13 @@ class InspectionProblem(FrozenModel):
         ids = tuple(motif.motif_id for motif in self.motifs)
         if not ids or ids != tuple(sorted(ids)) or len(ids) != len(set(ids)):
             raise ValueError("inspection motifs must be nonempty, unique, and canonical")
+        expected_reference = (
+            "null_mean_to_score_max_v1"
+            if self.scoring_semantics == "normalized_llr_v1"
+            else "attainable_min_max_v2"
+        )
+        if any(motif.score_reference_semantics != expected_reference for motif in self.motifs):
+            raise ValueError("inspection score references do not match scoring semantics")
         return self
 
 

@@ -116,8 +116,8 @@ or the canonical bundle.
 
 ## Supported schemas
 
-Motif Balance `0.3` verifies `run-manifest/v2`, `run-manifest/v3`,
-`run-manifest/v4`, and `run-manifest/v5`, execution
+Motif Balance `0.3` verifies `run-manifest/v2` through `run-manifest/v4`.
+Motif Balance `0.4` additionally verifies `run-manifest/v5`, execution
 receipt v1, and execution workspace v1. It rejects earlier or unknown schemas. Retain the exact
 wheel because scientific replay is exact-build replay; a package version alone
 is not enough. Future compatibility must be implemented as an explicit schema

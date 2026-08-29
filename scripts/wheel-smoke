@@ -108,52 +108,78 @@ uv run --locked motif-balance inspect "$smoke_root/source-result" \
   --out "$smoke_root/wheel-review.html" >/dev/null
 cmp "$smoke_root/source-review.html" "$smoke_root/wheel-review.html"
 
-# Exercise the explicit reader for released run-manifest/v2 bundles. The old
-# schema binds a report.html member; v3 deliberately does not publish one.
-"$smoke_root/venv/bin/python" - "$smoke_root/source-result" "$smoke_root/legacy-v2-result" <<'PY'
-import hashlib
-import json
-import shutil
+# Exercise the explicit reader with genuinely v1-scored run-manifest/v2 bytes.
+"$smoke_root/venv/bin/python" - examples/synthetic-pairwise/design.yaml "$smoke_root/legacy-v2-result" <<'PY'
 import sys
 from pathlib import Path
 
-from motif_balance.artifacts import bundle_id, manifest_bytes
-from motif_balance.model import ArtifactDigest, RunManifest
+from motif_balance.artifacts import artifact_records, base_artifact_payloads, bundle_id, manifest_bytes
+from motif_balance.compile import build_run_id, compile_design
+from motif_balance.constants import BUILD_LOCK_SHA256, RUNTIME_CONTRACT
+from motif_balance.formats.design import load_design_spec
+from motif_balance.model import DesignSpec, MotifModel, RunManifest
+from motif_balance.search import search
+from motif_balance.selection import select_candidates
 
-source = Path(sys.argv[1])
+current = load_design_spec(Path(sys.argv[1]))
 target = Path(sys.argv[2])
-shutil.copytree(source, target)
-report = b"<!doctype html><title>Released Motif Balance v2 report</title>\n"
-(target / "report.html").write_bytes(report)
-manifest = json.loads((target / "manifest.json").read_bytes())
-design = json.loads((target / "design.json").read_bytes())
-manifest["schema_version"] = "run-manifest/v2"
-manifest.pop("best_observed", None)
-manifest["package_version"] = "0.2.0a3"
-run_payload = {
-    "problem_id": manifest["problem_id"],
-    "count": design["count"],
-    "min_distance": design["min_distance"],
-    "evaluations": design["evaluations"],
-    "seed": design["seed"],
-    "search_engine": manifest["search_engine"],
-    "search_engine_version": manifest["search_engine_version"],
-    "package_version": manifest["package_version"],
-}
-run_digest = hashlib.sha256(
-    json.dumps(run_payload, sort_keys=True, separators=(",", ":")).encode()
-).hexdigest()
-manifest["run_id"] = f"run-{run_digest[:24]}"
-manifest["artifacts"]["report.html"] = {
-    "bytes": len(report),
-    "sha256": hashlib.sha256(report).hexdigest(),
-}
-artifacts = tuple(
-    ArtifactDigest(path=path, **record)
-    for path, record in sorted(manifest["artifacts"].items())
+motifs = tuple(
+    MotifModel.model_validate(
+        {**motif.model_dump(mode="python"), "schema_version": "motif-model/v1"}
+    )
+    for motif in current.motifs
 )
-provisional = RunManifest.model_validate({**manifest, "artifacts": artifacts})
+spec = DesignSpec(
+    schema_version="design-spec/v1",
+    motifs=motifs,
+    length=current.length,
+    count=current.count,
+    strands=current.strands,
+    evaluations=current.evaluations,
+    seed=current.seed,
+    min_distance=current.min_distance,
+    scoring_semantics="normalized_llr_v1",
+)
+problem = compile_design(spec)
+result = search(problem)
+candidates = select_candidates(
+    result.evaluations,
+    count=spec.count,
+    min_distance=spec.min_distance,
+    evaluations_used=result.evaluations_used,
+)
+report = b"<!doctype html><title>Released Motif Balance v2 report</title>\n"
+payloads = base_artifact_payloads(spec, candidates)
+payloads["report.html"] = report
+run_id = build_run_id(
+    spec,
+    problem.problem_id,
+    result.engine,
+    result.engine_version,
+    package_version="0.2.0a3",
+)
+provisional = RunManifest(
+    schema_version="run-manifest/v2",
+    package_version="0.2.0a3",
+    runtime_contract=RUNTIME_CONTRACT,
+    build_lock_sha256=BUILD_LOCK_SHA256,
+    problem_id=problem.problem_id,
+    run_id=run_id,
+    bundle_id="bundle-000000000000000000000000",
+    search_engine=result.engine,
+    search_engine_version=result.engine_version,
+    rng=result.rng,
+    evaluation_count=result.evaluations_used,
+    unique_evaluations=result.unique_evaluations,
+    completion_status=result.completion_status,
+    search_validation_status=result.search_validation_status,
+    search_diagnostics=result.diagnostics,
+    artifacts=artifact_records(payloads),
+)
 sealed = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
+target.mkdir()
+for name, payload in payloads.items():
+    (target / name).write_bytes(payload)
 (target / "manifest.json").write_bytes(manifest_bytes(sealed))
 PY
 legacy_bundle_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["bundle_id"])' "$smoke_root/legacy-v2-result/manifest.json")"

@@ -93,9 +93,9 @@ the complete best observed evaluation even when it is excluded from the
 distance-constrained selected portfolio. It does not rerun search. Text, inspection
 JSON, SVG, and HTML are regenerable projections outside the bundle.
 
-Version `0.3` reads `run-manifest/v2`, `run-manifest/v3`, `run-manifest/v4`,
-and `run-manifest/v5`; new projections use
-`motif-balance.result-inspection/v4`. New results write v5. Unknown schemas
+Version `0.3` reads `run-manifest/v2` through `run-manifest/v4` and writes v4.
+Version `0.4` additionally reads and writes `run-manifest/v5`; new projections
+use `motif-balance.result-inspection/v4`. Unknown schemas
 fail closed. A workflow
 that needs exact runtime identity retains the complete
 `motif-balance.execution-workspace/v1` with its wheel and external trust

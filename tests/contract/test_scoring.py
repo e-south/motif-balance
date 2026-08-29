@@ -82,6 +82,42 @@ def test_v2_relative_attainment_fails_closed_outside_tolerance() -> None:
         evaluate("A", problem)
 
 
+@pytest.mark.parametrize(("excursion", "expected"), [(-5.0e-13, 0.0), (5.0e-13, 1.0)])
+def test_v2_relative_attainment_snaps_only_endpoint_roundoff(
+    excursion: float,
+    expected: float,
+) -> None:
+    motif = MotifModel(
+        motif_id="roundoff",
+        probabilities=((0.7, 0.1, 0.1, 0.1),),
+        background=(0.25, 0.25, 0.25, 0.25),
+    )
+    problem = compile_design(
+        DesignSpec(
+            motifs=(motif,),
+            length=1,
+            count=1,
+            strands="forward",
+            evaluations=4,
+            seed=1,
+        )
+    )
+    compiled = problem.motifs[0]
+    sequence = "C" if expected == 0.0 else "A"
+    raw = math.log2((0.1 if sequence == "C" else 0.7) / 0.25)
+    denominator = compiled.score_max - compiled.score_min
+    if expected == 0.0:
+        object.__setattr__(compiled, "score_min", raw - excursion * denominator)
+    else:
+        object.__setattr__(
+            compiled,
+            "score_max",
+            compiled.score_min + (raw - compiled.score_min) / (1.0 + excursion),
+        )
+
+    assert evaluate(sequence, problem).matches[0].normalized_score == expected
+
+
 def test_explicit_v1_scoring_remains_readable_without_v2_reinterpretation() -> None:
     motif = MotifModel(
         schema_version="motif-model/v1",

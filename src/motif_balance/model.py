@@ -540,6 +540,19 @@ class PortfolioRecord(FrozenModel):
 
     @model_validator(mode="after")
     def validate_portfolio(self) -> Self:
+        current_contract = (
+            self.manifest.schema_version == "run-manifest/v5"
+            and self.spec.schema_version == "design-spec/v2"
+            and self.spec.scoring_semantics == SCORING_SEMANTICS
+        )
+        legacy_contract = (
+            self.manifest.schema_version
+            in {"run-manifest/v2", "run-manifest/v3", "run-manifest/v4"}
+            and self.spec.schema_version == "design-spec/v1"
+            and self.spec.scoring_semantics == LEGACY_SCORING_SEMANTICS
+        )
+        if not (current_contract or legacy_contract):
+            raise ValueError("portfolio violates the manifest/design scoring version matrix")
         if self.problem_id != self.manifest.problem_id or self.run_id != self.manifest.run_id:
             raise ValueError("portfolio and manifest identities must agree")
         if len(self.candidates) != self.spec.count:

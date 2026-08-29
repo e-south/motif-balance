@@ -1,18 +1,25 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from pydantic import ValidationError
 
 from motif_balance.api import design, score
-from motif_balance.artifacts import bundle_id, manifest_bytes
+from motif_balance.artifacts import (
+    artifact_records,
+    base_artifact_payloads,
+    bundle_id,
+    manifest_bytes,
+)
+from motif_balance.compile import build_run_id, compile_design
+from motif_balance.constants import BUILD_LOCK_SHA256, RUNTIME_CONTRACT
 from motif_balance.errors import ArtifactError
 from motif_balance.inspection import ResultInspection, inspect_result
 from motif_balance.inspection.model import (
@@ -42,6 +49,8 @@ from motif_balance.model import (
     RunManifest,
     SearchCheckpoint,
 )
+from motif_balance.search import search
+from motif_balance.selection import select_candidates
 
 
 def _candidate_for(sequence: str, spec: DesignSpec) -> Candidate:
@@ -55,56 +64,79 @@ def _candidate_for(sequence: str, spec: DesignSpec) -> Candidate:
     )
 
 
-def _rewrite_as_v2_bundle(bundle: Path) -> str:
-    """Add the report.html member required by released run-manifest/v2."""
+def _write_legacy_bundle(
+    bundle: Path,
+    current_spec: DesignSpec,
+    *,
+    schema: Literal["run-manifest/v2", "run-manifest/v3", "run-manifest/v4"],
+) -> str:
+    """Build an exact v1-scored fixture; never relabel current v2 records."""
 
-    report = b"<!doctype html><title>Released Motif Balance v2 report</title>\n"
-    (bundle / "report.html").write_bytes(report)
-    payload = json.loads((bundle / "manifest.json").read_bytes())
-    payload["schema_version"] = "run-manifest/v2"
-    payload.pop("best_observed")
-    payload["package_version"] = "0.2.0a3"
-    design_payload = json.loads((bundle / "design.json").read_bytes())
-    run_payload = {
-        "problem_id": payload["problem_id"],
-        "count": design_payload["count"],
-        "min_distance": design_payload["min_distance"],
-        "evaluations": design_payload["evaluations"],
-        "seed": design_payload["seed"],
-        "search_engine": payload["search_engine"],
-        "search_engine_version": payload["search_engine_version"],
-        "package_version": payload["package_version"],
-    }
-    run_digest = hashlib.sha256(
-        json.dumps(run_payload, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
-    payload["run_id"] = f"run-{run_digest[:24]}"
-    payload["artifacts"]["report.html"] = {
-        "bytes": len(report),
-        "sha256": hashlib.sha256(report).hexdigest(),
-    }
-    artifacts = tuple(
-        ArtifactDigest(path=path, **record) for path, record in sorted(payload["artifacts"].items())
+    legacy_motifs = tuple(
+        MotifModel.model_validate(
+            {**motif.model_dump(mode="python"), "schema_version": "motif-model/v1"}
+        )
+        for motif in current_spec.motifs
     )
-    provisional = RunManifest.model_validate({**payload, "artifacts": artifacts})
-    sealed = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
-    (bundle / "manifest.json").write_bytes(manifest_bytes(sealed))
-    return sealed.bundle_id
-
-
-def _rewrite_as_v3_bundle(bundle: Path) -> str:
-    """Remove the best-observed record that did not exist in run-manifest/v3."""
-
-    payload = json.loads((bundle / "manifest.json").read_bytes())
-    payload["schema_version"] = "run-manifest/v3"
-    payload.pop("best_observed")
-    artifacts = tuple(
-        ArtifactDigest(path=path, **record) for path, record in sorted(payload["artifacts"].items())
+    spec = DesignSpec(
+        schema_version="design-spec/v1",
+        motifs=legacy_motifs,
+        length=current_spec.length,
+        count=current_spec.count,
+        strands=current_spec.strands,
+        evaluations=current_spec.evaluations,
+        seed=current_spec.seed,
+        min_distance=current_spec.min_distance,
+        scoring_semantics="normalized_llr_v1",
     )
-    provisional = RunManifest.model_validate({**payload, "artifacts": artifacts})
-    sealed = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
-    (bundle / "manifest.json").write_bytes(manifest_bytes(sealed))
-    return sealed.bundle_id
+    problem = compile_design(spec)
+    result = search(problem)
+    package_version = "0.2.0a3" if schema == "run-manifest/v2" else "0.3.0a3"
+    candidates = select_candidates(
+        result.evaluations,
+        count=spec.count,
+        min_distance=spec.min_distance,
+        evaluations_used=result.evaluations_used,
+    )
+    best_observed = min(
+        result.evaluations,
+        key=lambda evaluation: (-evaluation.balance_score, evaluation.sequence),
+    )
+    run_id = build_run_id(
+        spec,
+        problem.problem_id,
+        result.engine,
+        result.engine_version,
+        package_version=package_version,
+    )
+    payloads = base_artifact_payloads(spec, candidates)
+    if schema == "run-manifest/v2":
+        payloads["report.html"] = b"<!doctype html><title>Legacy v2 report</title>\n"
+    provisional = RunManifest(
+        schema_version=schema,
+        package_version=package_version,
+        runtime_contract=RUNTIME_CONTRACT,
+        build_lock_sha256=BUILD_LOCK_SHA256,
+        problem_id=problem.problem_id,
+        run_id=run_id,
+        bundle_id="bundle-000000000000000000000000",
+        search_engine=result.engine,
+        search_engine_version=result.engine_version,
+        rng=result.rng,
+        evaluation_count=result.evaluations_used,
+        unique_evaluations=result.unique_evaluations,
+        completion_status=result.completion_status,
+        search_validation_status=result.search_validation_status,
+        search_diagnostics=result.diagnostics,
+        best_observed=best_observed if schema == "run-manifest/v4" else None,
+        artifacts=artifact_records(payloads),
+    )
+    manifest = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
+    bundle.mkdir()
+    for name, payload in payloads.items():
+        (bundle / name).write_bytes(payload)
+    (bundle / "manifest.json").write_bytes(manifest_bytes(manifest))
+    return manifest.bundle_id
 
 
 def test_projection_separates_delivery_search_and_integrity(
@@ -137,10 +169,8 @@ def test_new_writer_uses_v5_and_inspection_reads_strict_released_v2_bundle(
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
-    portfolio = design(pairwise_spec)
-    assert portfolio.manifest.schema_version == "run-manifest/v5"
-    portfolio.write(bundle)
-    expected_bundle_id = _rewrite_as_v2_bundle(bundle)
+    assert design(pairwise_spec).manifest.schema_version == "run-manifest/v5"
+    expected_bundle_id = _write_legacy_bundle(bundle, pairwise_spec, schema="run-manifest/v2")
 
     inspection = inspect_result(
         bundle,
@@ -158,12 +188,30 @@ def test_released_v2_inventory_remains_schema_strict(
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
-    expected_bundle_id = _rewrite_as_v2_bundle(bundle)
+    expected_bundle_id = _write_legacy_bundle(bundle, pairwise_spec, schema="run-manifest/v2")
     (bundle / "unexpected.txt").write_text("not declared")
 
     with pytest.raises(ArtifactError, match="inventory mismatch"):
         inspect_result(bundle, kind="bundle", expected_bundle_id=expected_bundle_id)
+
+
+def test_readback_rejects_v2_result_relabelled_as_v5(
+    tmp_path: Path,
+    pairwise_spec: DesignSpec,
+) -> None:
+    bundle = tmp_path / "bundle"
+    _write_legacy_bundle(bundle, pairwise_spec, schema="run-manifest/v4")
+    payload = json.loads((bundle / "manifest.json").read_bytes())
+    payload["schema_version"] = "run-manifest/v5"
+    artifacts = tuple(
+        ArtifactDigest(path=path, **record) for path, record in sorted(payload["artifacts"].items())
+    )
+    provisional = RunManifest.model_validate({**payload, "artifacts": artifacts})
+    sealed = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
+    (bundle / "manifest.json").write_bytes(manifest_bytes(sealed))
+
+    with pytest.raises(ArtifactError, match="internally inconsistent"):
+        inspect_result(bundle, kind="bundle", expected_bundle_id=sealed.bundle_id)
 
 
 def test_released_v3_remains_readable_without_inventing_best_observed_sequence(
@@ -171,10 +219,10 @@ def test_released_v3_remains_readable_without_inventing_best_observed_sequence(
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
-    portfolio = design(pairwise_spec)
-    portfolio.write(bundle)
-    expected_score = portfolio.manifest.search_diagnostics.best_score
-    expected_bundle_id = _rewrite_as_v3_bundle(bundle)
+    expected_bundle_id = _write_legacy_bundle(bundle, pairwise_spec, schema="run-manifest/v3")
+    expected_score = json.loads((bundle / "manifest.json").read_bytes())["search_diagnostics"][
+        "best_score"
+    ]
 
     inspection = inspect_result(bundle, kind="bundle", expected_bundle_id=expected_bundle_id)
 
@@ -280,6 +328,25 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
     assert b"Best observed balance_score" in search_record
     assert b"running maximum" in search_record
     assert b"global optimality" in search_record
+
+
+def test_portfolio_labels_are_scoring_version_specific(
+    tmp_path: Path,
+    pairwise_spec: DesignSpec,
+) -> None:
+    current_bundle = tmp_path / "current"
+    design(pairwise_spec).write(current_bundle)
+    current = render_portfolio_svg(inspect_result(current_bundle, kind="bundle"))
+    assert b"attainable raw-LLR minimum" in current
+    assert b"score-maximizing PWM reference" in current
+
+    legacy_bundle = tmp_path / "legacy"
+    legacy_id = _write_legacy_bundle(legacy_bundle, pairwise_spec, schema="run-manifest/v4")
+    legacy = render_portfolio_svg(
+        inspect_result(legacy_bundle, kind="bundle", expected_bundle_id=legacy_id)
+    )
+    assert b"null-mean-to-score-maximum" in legacy
+    assert b"attainable raw-LLR minimum" not in legacy
 
 
 def test_one_html_compositor_uses_result_reading_order_and_scrolls_wide_figures(

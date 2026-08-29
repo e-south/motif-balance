@@ -62,11 +62,10 @@ def _best_match(sequence: str, motif: CompiledMotif, *, both_strands: bool) -> M
                 f"relative PWM attainment for motif '{motif.model.motif_id}' is outside "
                 "the attainable range"
             )
-        if normalized < 0.0 or normalized > 1.0:
-            raise ValueError(
-                f"relative PWM attainment for motif '{motif.model.motif_id}' crossed "
-                "an endpoint within numerical tolerance"
-            )
+        if normalized < 0.0:
+            normalized = 0.0
+        elif normalized > 1.0:
+            normalized = 1.0
     return MotifMatch(
         motif_id=motif.model.motif_id,
         start=start,

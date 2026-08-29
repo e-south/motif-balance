@@ -295,8 +295,21 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
                     model_digest=motif.model_digest,
                     probabilities=motif.probabilities,
                     background=motif.background,
-                    score_min=compiled.score_min,
-                    score_max=compiled.score_max,
+                    score_min=(
+                        compiled.null_mean
+                        if spec.scoring_semantics == "normalized_llr_v1"
+                        else compiled.score_min
+                    ),
+                    score_max=(
+                        compiled.consensus_score
+                        if spec.scoring_semantics == "normalized_llr_v1"
+                        else compiled.score_max
+                    ),
+                    score_reference_semantics=(
+                        "null_mean_to_score_max_v1"
+                        if spec.scoring_semantics == "normalized_llr_v1"
+                        else "attainable_min_max_v2"
+                    ),
                     probability_consensus=compiled.probability_consensus,
                     score_maximizing_sequence=compiled.score_maximizing_sequence,
                     source_name=motif.source_name,

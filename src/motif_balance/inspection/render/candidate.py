@@ -93,6 +93,11 @@ def _motif_model(
     """Render one small information-weighted logo beside its selected match contract."""
 
     model_name = motif_id(motif.motif_id)
+    score_label = (
+        "normalized score"
+        if motif.score_reference_semantics == "null_mean_to_score_max_v1"
+        else "attainment"
+    )
     baseline = top + 58
     parts = [
         f'<g class="motif-model" data-motif-id="{model_name}" '
@@ -105,7 +110,7 @@ def _motif_model(
         text(
             20,
             top + 38,
-            f"width {motif.width} · attainment {match.normalized_score:.4g} · "
+            f"width {motif.width} · {score_label} {match.normalized_score:.4g} · "
             f"best [{match.start}, {match.end}) {match.strand}",
             size=10,
             fill=MUTED,
