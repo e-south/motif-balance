@@ -15,11 +15,12 @@ doc_type: explanation
 
 A motif model assigns a score to each possible placement of a motif in a DNA
 sequence. Motif Balance finds the single declared best match for every motif,
-normalizes those scores on one published scale, and optimizes the weakest
-normalized score. The public balance score is therefore:
+reports each best raw log-likelihood-ratio score as relative attainment between
+that motif's attainable score minimum and maximum, and optimizes the weakest
+relative score. The public balance score is therefore:
 
 ```text
-balance_score = min(per_motif_normalized_scores)
+balance_score = min(per_motif_relative_attainments)
 ```
 
 This max-min objective makes the bottleneck explicit: a candidate cannot look
@@ -33,6 +34,6 @@ The method has three separate decisions:
    candidates.
 
 Those separations prevent an optimizer surrogate or a diversity rule from
-silently changing the public score. A high model score remains a model-relative
+silently changing the public score. A high relative attainment remains model-relative
 result, not proof of expression, binding, transferability, or experimental
 success.

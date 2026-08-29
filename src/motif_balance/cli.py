@@ -46,7 +46,7 @@ def _validation_error(exc: ValidationError, *, domain: str) -> MotifBalanceError
     location = ".".join(str(part) for part in error.get("loc", ())) or None
     if domain == "design" and error.get("type") == "extra_forbidden":
         message = f"Unknown field '{location}'."
-        hint = "Remove the field or use a documented design-spec/v1 field."
+        hint = "Remove the field or use a documented design-spec/v2 field."
     else:
         message = f"Invalid {domain} value{f' for {location}' if location else ''}: {error['msg']}."
         hint = f"Correct the {domain} input and retry the operation."

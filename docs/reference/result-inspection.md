@@ -17,7 +17,7 @@ journey:
 # Result inspection
 
 `inspect` verifies one explicit result, replays every published match and
-score, and creates one immutable `motif-balance.result-inspection/v3`
+score, and creates one immutable `motif-balance.result-inspection/v4`
 projection. Text, JSON, SVG, and HTML all render that same projection. They do
 not enter the result bundle or change its identity. Bundle members are read
 once into a descriptor-bound byte snapshot; parsing, score replay, and rendering
@@ -81,9 +81,11 @@ a score. Shared coordinates are a union of positions covered by more than one
 representative window, not evidence of simultaneous occupancy.
 
 The portfolio view is a candidate-by-motif matrix in deterministic rank and
-canonical motif order. Values remain numeric. The color scale begins at zero,
-preserves values above one, and labels `1.0` as a consensus-relative reference,
-not a maximum or probability.
+canonical motif order. Values remain numeric. Under
+`relative_pwm_attainment_v2`, the color scale spans zero to one: the attainable
+raw-LLR minimum and score-maximizing reference. Neither endpoint is a
+probability. Explicitly versioned historical results retain their original
+scoring interpretation.
 
 The search view is a closed diagnostic in HTML and remains directly exportable
 as SVG. It is the running maximum of recorded published hard-minimum scores

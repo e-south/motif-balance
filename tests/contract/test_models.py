@@ -27,6 +27,24 @@ def test_public_models_are_strict_and_frozen(motif_a: MotifModel) -> None:
         motif_a.motif_id = "changed"
 
 
+def test_model_identity_preserves_v1_receipts_and_distinguishes_v2() -> None:
+    payload = {
+        "motif_id": "identity",
+        "probabilities": ((0.7, 0.1, 0.1, 0.1),),
+        "background": (0.25, 0.25, 0.25, 0.25),
+    }
+    legacy = MotifModel(schema_version="motif-model/v1", **payload)
+    current = MotifModel(schema_version="motif-model/v2", **payload)
+
+    assert legacy.model_digest == (
+        "b18f59802cb2e905ce66b79b198f001a766f970fc5c2ec758a70ed3755093a05"
+    )
+    assert current.model_digest == (
+        "0653221b1809dbded9e936d72f0dcef5cfefb466fdbda0d9e4a399539647f144"
+    )
+    assert legacy.model_digest != current.model_digest
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

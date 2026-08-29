@@ -22,10 +22,13 @@ Verify a bundle before reading it. Then use each file for one question:
 - `manifest.json`: which semantics, search provenance, diagnostics, and bytes
   form this result?
 
-The lowest per-motif normalized score is the candidate's `balance_score`.
+The lowest per-motif relative PWM attainment is the candidate's `balance_score`.
 Inspect that limiting motif instead of reading the aggregate as a probability.
-Two scores are directly comparable only when motif content, score version,
-strand rule, and normalization authority are identical.
+Zero is the motif's attainable minimum raw LLR and one is its attainable maximum
+raw LLR. The conventional probability consensus can differ from the
+score-maximizing reference under a nonuniform background. Two scores are
+directly comparable only when motif content, score version, strand rule, and
+attainment authority are identical.
 
 Best-score checkpoints describe computational progress. Restart-final scores
 describe variation among starts. Proposal summaries describe search execution.

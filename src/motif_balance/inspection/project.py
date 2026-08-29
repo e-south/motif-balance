@@ -295,13 +295,17 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
                     model_digest=motif.model_digest,
                     probabilities=motif.probabilities,
                     background=motif.background,
+                    score_min=compiled.score_min,
+                    score_max=compiled.score_max,
+                    probability_consensus=compiled.probability_consensus,
+                    score_maximizing_sequence=compiled.score_maximizing_sequence,
                     source_name=motif.source_name,
                     source_digest=motif.source_digest,
                     canonical_file_name=motif.canonical_file_name,
                     canonical_file_digest=motif.canonical_file_digest,
                     conversion=motif.conversion,
                 )
-                for motif in spec.motifs
+                for motif, compiled in zip(spec.motifs, problem.motifs, strict=True)
             ),
             length=spec.length,
             strands=spec.strands,

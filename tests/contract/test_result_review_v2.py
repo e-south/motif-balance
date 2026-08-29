@@ -116,7 +116,12 @@ def test_projection_separates_delivery_search_and_integrity(
 
     inspection = inspect_result(bundle, kind="bundle")
 
-    assert inspection.schema_version == "motif-balance.result-inspection/v3"
+    assert inspection.schema_version == "motif-balance.result-inspection/v4"
+    assert inspection.problem.scoring_semantics == "relative_pwm_attainment_v2"
+    for motif in inspection.problem.motifs:
+        assert motif.score_min < motif.score_max
+        assert len(motif.probability_consensus) == motif.width
+        assert len(motif.score_maximizing_sequence) == motif.width
     assert inspection.delivery.requested_count == pairwise_spec.count
     assert inspection.delivery.delivered_count == pairwise_spec.count
     assert inspection.delivery.status == "complete"
@@ -127,13 +132,13 @@ def test_projection_separates_delivery_search_and_integrity(
     assert inspection.integrity.checked_identities == ()
 
 
-def test_new_writer_uses_v4_and_inspection_reads_strict_released_v2_bundle(
+def test_new_writer_uses_v5_and_inspection_reads_strict_released_v2_bundle(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
     portfolio = design(pairwise_spec)
-    assert portfolio.manifest.schema_version == "run-manifest/v4"
+    assert portfolio.manifest.schema_version == "run-manifest/v5"
     portfolio.write(bundle)
     expected_bundle_id = _rewrite_as_v2_bundle(bundle)
 
@@ -269,7 +274,7 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
     assert b'id="position-support"' in candidate
     assert "5\u2032\u21923\u2032".encode() in candidate
     assert "3\u2032\u21925\u2032".encode() in candidate
-    assert b"consensus-relative reference" in balance
+    assert b"score-maximizing PWM reference" in balance
     assert b"balance_score" in balance
     assert b"Evaluator calls" in search_record
     assert b"Best observed balance_score" in search_record

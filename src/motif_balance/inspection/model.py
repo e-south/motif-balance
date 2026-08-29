@@ -27,6 +27,10 @@ class InspectionMotif(FrozenModel):
     model_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     probabilities: tuple[tuple[float, float, float, float], ...]
     background: tuple[float, float, float, float]
+    score_min: float = Field(allow_inf_nan=False)
+    score_max: float = Field(allow_inf_nan=False)
+    probability_consensus: str
+    score_maximizing_sequence: str
     source_name: str | None = None
     source_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     canonical_file_name: str | None = None
@@ -37,6 +41,13 @@ class InspectionMotif(FrozenModel):
     def validate_width(self) -> Self:
         if self.width != len(self.probabilities):
             raise ValueError("motif width must equal the probability-matrix length")
+        if self.score_max <= self.score_min:
+            raise ValueError("motif score maximum must exceed its score minimum")
+        if (
+            len(self.probability_consensus) != self.width
+            or len(self.score_maximizing_sequence) != self.width
+        ):
+            raise ValueError("motif reference sequences must equal the motif width")
         return self
 
 
@@ -360,8 +371,8 @@ class ExecutionInspection(FrozenModel):
 
 
 class ResultInspection(FrozenModel):
-    schema_version: Literal["motif-balance.result-inspection/v3"] = (
-        "motif-balance.result-inspection/v3"
+    schema_version: Literal["motif-balance.result-inspection/v4"] = (
+        "motif-balance.result-inspection/v4"
     )
     subject_kind: Literal["bundle", "execution"]
     integrity: IntegrityInspection

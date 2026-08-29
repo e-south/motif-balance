@@ -38,7 +38,7 @@ class Portfolio(PortfolioRecord):
 
     def write(self, path: str | Path) -> Path:
         if (
-            self.manifest.schema_version != "run-manifest/v4"
+            self.manifest.schema_version != "run-manifest/v5"
             or self.manifest.package_version != PACKAGE_VERSION
             or self.manifest.runtime_contract != RUNTIME_CONTRACT
             or self.manifest.build_lock_sha256 != BUILD_LOCK_SHA256

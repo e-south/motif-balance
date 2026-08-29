@@ -45,6 +45,7 @@ _CANONICAL_FILES = {
 _DERIVED_FILES = {"candidates.fasta"}
 _V3_FILES = _CANONICAL_FILES | _DERIVED_FILES
 _V4_FILES = _V3_FILES
+_V5_FILES = _V4_FILES
 _V2_FILES = _V3_FILES | {"report.html"}
 
 
@@ -53,7 +54,9 @@ def _schema_files(manifest: RunManifest) -> set[str]:
         return _V2_FILES
     if manifest.schema_version == "run-manifest/v3":
         return _V3_FILES
-    return _V4_FILES
+    if manifest.schema_version == "run-manifest/v4":
+        return _V4_FILES
+    return _V5_FILES
 
 
 def _json_bytes(payload: object) -> bytes:
@@ -90,7 +93,10 @@ def _motifs_payload(spec: DesignSpec) -> dict[str, object]:
         payload["width"] = motif.width
         payload["model_digest"] = motif.model_digest
         motifs.append(payload)
-    return {"schema_version": "motif-collection/v1", "motifs": motifs}
+    collection_version = (
+        "motif-collection/v1" if spec.schema_version == "design-spec/v1" else "motif-collection/v2"
+    )
+    return {"schema_version": collection_version, "motifs": motifs}
 
 
 def _tsv_bytes(fieldnames: tuple[str, ...], rows: list[dict[str, object]]) -> bytes:
@@ -231,10 +237,11 @@ def _json_object(raw: bytes, *, label: str) -> dict[str, Any]:
 def _read_spec(members: dict[str, bytes]) -> DesignSpec:
     motif_collection = _json_object(members["motifs.json"], label="motifs.json")
     raw_motifs = motif_collection.get("motifs")
-    if motif_collection.get("schema_version") != "motif-collection/v1" or not isinstance(
+    collection_version = motif_collection.get("schema_version")
+    if collection_version not in {"motif-collection/v1", "motif-collection/v2"} or not isinstance(
         raw_motifs, list
     ):
-        raise ArtifactError("motifs.json does not satisfy motif-collection/v1")
+        raise ArtifactError("motifs.json does not satisfy a supported motif collection schema")
     motifs: list[MotifModel] = []
     for raw in raw_motifs:
         if not isinstance(raw, dict):
@@ -254,7 +261,13 @@ def _read_spec(members: dict[str, bytes]) -> DesignSpec:
     ]
     if references != expected:
         raise ArtifactError("design.json motif references do not match motifs.json")
-    return DesignSpec.model_validate({**design_payload, "motifs": tuple(motifs)})
+    spec = DesignSpec.model_validate({**design_payload, "motifs": tuple(motifs)})
+    expected_collection = (
+        "motif-collection/v1" if spec.schema_version == "design-spec/v1" else "motif-collection/v2"
+    )
+    if collection_version != expected_collection:
+        raise ArtifactError("motif collection and design schema versions do not agree")
+    return spec
 
 
 def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candidate, ...]:
@@ -604,9 +617,9 @@ def write_bundle(
         output.parent.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         raise ArtifactError("unable to create the bundle publication directory") from exc
-    if portfolio.manifest.schema_version != "run-manifest/v4":
-        raise ArtifactError("new bundle publication requires run-manifest/v4")
-    if set(payloads) != _V4_FILES - {"manifest.json"}:
+    if portfolio.manifest.schema_version != "run-manifest/v5":
+        raise ArtifactError("new bundle publication requires run-manifest/v5")
+    if set(payloads) != _V5_FILES - {"manifest.json"}:
         raise ArtifactError("bundle payload inventory is incomplete")
     records = artifact_records(payloads)
     if records != portfolio.manifest.artifacts:

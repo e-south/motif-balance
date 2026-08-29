@@ -79,10 +79,11 @@ meaning change requires an architecture decision, compatibility statement,
 negative tests, and reference-document updates. Optimizer improvements must not
 change scoring or selection semantics accidentally.
 
-Version `0.3` reads strict `run-manifest/v2`, `run-manifest/v3`, and
-`run-manifest/v4` inventories and writes only v4. V4 adds the complete best
+Version `0.3` reads strict `run-manifest/v2`, `run-manifest/v3`,
+`run-manifest/v4`, and `run-manifest/v5` inventories and writes only v5. V4 adds the complete best
 observed evaluation without changing the selected-candidate tables. Exact
-score replay pins the declared scoring, search, and selection semantics.
+score replay pins the declared scoring, search, and selection semantics. V5
+binds the `relative_pwm_attainment_v2` scoring contract and v2 input schemas.
 Earlier schemas require an explicit compatibility dispatcher; they are never
 accepted through loosened validation.
 

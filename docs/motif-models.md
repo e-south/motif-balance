@@ -24,9 +24,21 @@ probability rows, invalid backgrounds, and a motif longer than the designed
 sequence. Reverse-strand evaluation uses the declared DNA reverse-complement
 rule; it is not a second independently authored motif.
 
-The canonical artifact `motifs.json` records the normalized model content and
+The canonical artifact `motifs.json` records the validated model content and
 content digest used for the run. A filename, database row number, or mutable
 external URL is not sufficient identity.
+
+Current `motif-model/v2` identities bind `relative_pwm_attainment_v2`. For each
+position the conventional probability consensus chooses the highest supplied
+probability, while the score-maximizing reference chooses the highest
+log-likelihood ratio against the declared background. These references can
+differ. The attainable minimum and maximum raw LLR are the sums of the
+position-wise minimum and maximum log odds.
+
+Explicit `motif-model/v1` records retain their original
+`normalized_llr_v1` digest and null-mean/consensus-relative interpretation so
+existing receipts and bundles remain verifiable. They are dispatched as v1;
+they are never converted to v2 or emitted as new v2 evidence.
 
 Motif Balance does not fetch, choose, or curate model collections. The caller
 supplies a content-bound model and owns the source-selection and conversion
@@ -58,7 +70,7 @@ weight, not a count-space pseudocount.
 
 The probability-matrix conversion uses the same declared mixture equation but
 requires a positive prior weight and an explicit source motif identity. Motif
-Balance validates that provenance when reading a canonical `motif-model/v1`;
+Balance validates that provenance when reading a canonical motif model;
 it does not fetch the source or choose the prior.
 
 A converted file embeds the original source digest/name, conversion method, and

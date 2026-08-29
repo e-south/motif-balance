@@ -12,7 +12,7 @@ from motif_balance.errors import IncompatibleDesign, InvalidSequence
 from motif_balance.scoring import evaluate
 
 
-def test_normalized_llr_is_one_at_consensus_and_zero_below_null_mean() -> None:
+def test_relative_pwm_attainment_uses_attainable_score_extrema() -> None:
     motif = MotifModel(
         motif_id="single",
         probabilities=((0.7, 0.1, 0.1, 0.1),),
@@ -28,8 +28,79 @@ def test_normalized_llr_is_one_at_consensus_and_zero_below_null_mean() -> None:
     )
     problem = compile_design(spec)
 
+    compiled = problem.motifs[0]
+
+    assert compiled.score_min == pytest.approx(math.log2(0.1 / 0.25))
+    assert compiled.score_max == pytest.approx(math.log2(0.7 / 0.25))
+    assert compiled.probability_consensus == "A"
+    assert compiled.score_maximizing_sequence == "A"
     assert evaluate("A", problem).matches[0].normalized_score == pytest.approx(1.0)
-    assert evaluate("C", problem).matches[0].normalized_score == 0.0
+    assert evaluate("C", problem).matches[0].normalized_score == pytest.approx(0.0)
+
+
+def test_probability_consensus_is_distinct_from_score_maximizing_reference() -> None:
+    motif = MotifModel(
+        motif_id="background_sensitive",
+        probabilities=((0.45, 0.40, 0.10, 0.05),),
+        background=(0.80, 0.10, 0.05, 0.05),
+    )
+    spec = DesignSpec(
+        motifs=(motif,),
+        length=1,
+        count=1,
+        strands="forward",
+        evaluations=4,
+        seed=1,
+    )
+    compiled = compile_design(spec).motifs[0]
+
+    assert compiled.probability_consensus == "A"
+    assert compiled.score_maximizing_sequence == "C"
+    assert evaluate("C", compile_design(spec)).matches[0].normalized_score == pytest.approx(1.0)
+
+
+def test_v2_relative_attainment_fails_closed_outside_tolerance() -> None:
+    motif = MotifModel(
+        motif_id="bounded",
+        probabilities=((0.7, 0.1, 0.1, 0.1),),
+        background=(0.25, 0.25, 0.25, 0.25),
+    )
+    problem = compile_design(
+        DesignSpec(
+            motifs=(motif,),
+            length=1,
+            count=1,
+            strands="forward",
+            evaluations=4,
+            seed=1,
+        )
+    )
+    forged = problem.motifs[0]
+    object.__setattr__(forged, "score_max", forged.score_max - 1.0)
+
+    with pytest.raises(ValueError, match="outside the attainable range"):
+        evaluate("A", problem)
+
+
+def test_explicit_v1_scoring_remains_readable_without_v2_reinterpretation() -> None:
+    motif = MotifModel(
+        schema_version="motif-model/v1",
+        motif_id="legacy",
+        probabilities=((0.7, 0.1, 0.1, 0.1),),
+        background=(0.25, 0.25, 0.25, 0.25),
+    )
+    spec = DesignSpec(
+        schema_version="design-spec/v1",
+        motifs=(motif,),
+        length=1,
+        count=1,
+        strands="forward",
+        evaluations=4,
+        seed=1,
+        scoring_semantics="normalized_llr_v1",
+    )
+
+    assert evaluate("C", compile_design(spec)).matches[0].normalized_score == 0.0
 
 
 def test_best_match_ties_are_leftmost_then_plus() -> None:

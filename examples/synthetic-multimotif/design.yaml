@@ -1,4 +1,4 @@
-schema_version: design-spec/v1
+schema_version: design-spec/v2
 motifs:
   motif_a: motifs/motif-a.yaml
   motif_c: motifs/motif-c.yaml

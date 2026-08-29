@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from motif_balance.constants import (
     DNA_ALPHABET,
+    LEGACY_SCORING_SEMANTICS,
     MAX_BUNDLE_ROWS,
     MAX_CANDIDATE_COUNT,
     MAX_DISTANCE_BASE_COMPARISONS,
@@ -84,7 +85,7 @@ class MotifConversion(FrozenModel):
 
 
 class MotifModel(FrozenModel):
-    schema_version: Literal["motif-model/v1"] = "motif-model/v1"
+    schema_version: Literal["motif-model/v1", "motif-model/v2"] = "motif-model/v2"
     motif_id: str = Field(min_length=1, pattern=r"^[A-Za-z][A-Za-z0-9_.-]*$")
     alphabet: tuple[Literal["A", "C", "G", "T"], ...] = DNA_ALPHABET
     probabilities: tuple[
@@ -168,19 +169,24 @@ class MotifModel(FrozenModel):
 
     @property
     def model_digest(self) -> str:
+        scoring_semantics = (
+            LEGACY_SCORING_SEMANTICS
+            if self.schema_version == "motif-model/v1"
+            else SCORING_SEMANTICS
+        )
         return _sha256(
             {
                 "schema_version": self.schema_version,
                 "alphabet": self.alphabet,
                 "probabilities": self.probabilities,
                 "background": self.background,
-                "scoring_semantics": SCORING_SEMANTICS,
+                "scoring_semantics": scoring_semantics,
             }
         )
 
 
 class DesignSpec(FrozenModel):
-    schema_version: Literal["design-spec/v1"] = "design-spec/v1"
+    schema_version: Literal["design-spec/v1", "design-spec/v2"] = "design-spec/v2"
     motifs: tuple[MotifModel, ...]
     length: Annotated[int, Field(strict=True, gt=0, le=MAX_SEQUENCE_LENGTH)]
     count: Annotated[int, Field(strict=True, gt=0, le=MAX_CANDIDATE_COUNT)]
@@ -188,7 +194,9 @@ class DesignSpec(FrozenModel):
     evaluations: Annotated[int, Field(strict=True, gt=0, le=MAX_EVALUATIONS)]
     seed: Annotated[int, Field(strict=True, ge=0)]
     min_distance: Annotated[float, Field(strict=True, ge=0.0, le=1.0)] | None = None
-    scoring_semantics: Literal["normalized_llr_v1"] = SCORING_SEMANTICS
+    scoring_semantics: Literal["normalized_llr_v1", "relative_pwm_attainment_v2"] = (
+        SCORING_SEMANTICS
+    )
     objective_semantics: Literal["weakest_score_v1"] = OBJECTIVE_SEMANTICS
     tie_break_semantics: Literal["leftmost_plus_first_v1"] = TIE_BREAK_SEMANTICS
 
@@ -234,6 +242,22 @@ class DesignSpec(FrozenModel):
 
     @model_validator(mode="after")
     def validate_budget(self) -> Self:
+        expected_scoring = (
+            LEGACY_SCORING_SEMANTICS
+            if self.schema_version == "design-spec/v1"
+            else SCORING_SEMANTICS
+        )
+        expected_motif_schema = (
+            "motif-model/v1" if self.schema_version == "design-spec/v1" else "motif-model/v2"
+        )
+        if self.scoring_semantics != expected_scoring:
+            raise ValueError(
+                f"{self.schema_version} requires scoring_semantics '{expected_scoring}'"
+            )
+        if any(motif.schema_version != expected_motif_schema for motif in self.motifs):
+            raise ValueError(
+                f"{self.schema_version} requires motifs using '{expected_motif_schema}'"
+            )
         if self.count > self.evaluations:
             raise ValueError("evaluations must be at least count")
         if self.count * len(self.motifs) > MAX_BUNDLE_ROWS:
@@ -459,9 +483,9 @@ class ExecutionWorkspace(FrozenModel):
 
 
 class RunManifest(FrozenModel):
-    schema_version: Literal["run-manifest/v2", "run-manifest/v3", "run-manifest/v4"] = (
-        "run-manifest/v4"
-    )
+    schema_version: Literal[
+        "run-manifest/v2", "run-manifest/v3", "run-manifest/v4", "run-manifest/v5"
+    ] = "run-manifest/v5"
     package_version: str
     runtime_contract: str
     build_lock_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -485,9 +509,11 @@ class RunManifest(FrozenModel):
             raise ValueError("unique_evaluations cannot exceed evaluation_count")
         if self.search_diagnostics.checkpoints[-1].evaluations != self.evaluation_count:
             raise ValueError("final search checkpoint must equal evaluation_count")
-        if self.schema_version == "run-manifest/v4":
+        if self.schema_version in {"run-manifest/v4", "run-manifest/v5"}:
             if self.best_observed is None:
-                raise ValueError("run-manifest/v4 requires the complete best observed evaluation")
+                raise ValueError(
+                    "run-manifest/v4 and v5 require the complete best observed evaluation"
+                )
             if not math.isclose(
                 self.best_observed.balance_score,
                 self.search_diagnostics.best_score,

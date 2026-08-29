@@ -1,7 +1,7 @@
 ---
 doc_id: motif-balance-design-spec
 title: Design specification reference
-intent: Define every design-spec/v1 field, input rule, and resource bound.
+intent: Define every design-spec/v2 field, input rule, and resource bound.
 audience:
   - API consumers
   - CLI users
@@ -20,7 +20,7 @@ such as `length: "20"` or `min_distance: "0.2"` are rejected.
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `schema_version` | `design-spec/v1` | no | Defaults to `design-spec/v1`. |
+| `schema_version` | `design-spec/v2` | no | Defaults to `design-spec/v2`. |
 | `motifs` | nonempty mapping | yes | Key is the motif ID; value is an inline model or contained relative path. |
 | `length` | integer, 1–10,000 | yes | Exact candidate length in bases. |
 | `count` | integer, 1–100,000 | yes | Exact number of distinct candidates to return. |
@@ -28,14 +28,14 @@ such as `length: "20"` or `min_distance: "0.2"` are rejected.
 | `evaluations` | integer, 1–100,000 | yes | Authoritative evaluator-call budget; must be at least `count`. |
 | `seed` | nonnegative integer | yes | Seed for deterministic search. |
 | `min_distance` | number, 0–1 or null | no | Minimum normalized Hamming distance; null and zero are unconstrained. |
-| `scoring_semantics` | `normalized_llr_v1` | no | Fixed scoring authority. |
+| `scoring_semantics` | `relative_pwm_attainment_v2` | no | Fixed scoring authority. |
 | `objective_semantics` | `weakest_score_v1` | no | Fixed hard-min public objective. |
 | `tie_break_semantics` | `leftmost_plus_first_v1` | no | Fixed best-match total order. |
 
 Minimal serialized form:
 
 ```yaml
-schema_version: design-spec/v1
+schema_version: design-spec/v2
 motifs:
   motif_a: motifs/motif-a.yaml
   motif_b: motifs/motif-b.yaml

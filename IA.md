@@ -24,17 +24,17 @@ verify, or inspect that operation.
 
 | Question | Authority | Versioned identity |
 | --- | --- | --- |
-| What is being requested? | `DesignSpec` | `design-spec/v1` |
-| What does a motif mean? | `MotifModel` | `motif-model/v1` |
+| What is being requested? | `DesignSpec` | `design-spec/v2` |
+| What does a motif mean? | `MotifModel` | `motif-model/v2` |
 | How did source values become positive probabilities? | `MotifConversion` | `motif-conversion/v1` |
-| How is a sequence scored? | compile and scoring | `normalized_llr_v1` |
+| How is a sequence scored? | compile and scoring | `relative_pwm_attainment_v2` |
 | Which match wins? | scoring | `leftmost_plus_first_v1` |
 | What is the joint score? | scoring | `weakest_score_v1` |
 | How are sequences proposed? | `SearchEngine` | engine name and version |
 | Which evaluated sequences ship? | selection | exact count and declared distance |
-| What crosses a repository boundary? | canonical bundle | `run-manifest/v4` |
+| What crosses a repository boundary? | canonical bundle | `run-manifest/v5` |
 | Which released bytes performed a run? | execution workspace | `motif-balance.execution-workspace/v1` |
-| How is one result explained without mutation? | `ResultInspection` | `motif-balance.result-inspection/v3` |
+| How is one result explained without mutation? | `ResultInspection` | `motif-balance.result-inspection/v4` |
 
 ## Ontology
 
@@ -75,8 +75,12 @@ fixed-length candidates or the operation fails.
 Each motif is a positive position-by-base probability matrix with an explicit
 background. Compilation derives log-odds scores. Evaluation scans every valid
 offset and declared strand, selects one match per motif with a deterministic
-total order, normalizes that match against the motif's null mean and consensus
-score, and reports the lowest normalized motif score as `balance_score`.
+total order, and reports its relative attainment between the motif's attainable
+minimum and maximum raw log-likelihood-ratio scores. The conventional
+probability consensus is recorded separately from the score-maximizing reference
+because they can differ under a nonuniform background. The lowest relative
+attainment is `balance_score`; v2 never clips scores and fails closed if a value
+falls outside `[0, 1]` beyond numerical tolerance.
 
 The smooth minimum exists only inside search. It is never serialized as a
 candidate score or treated as accepted study support.

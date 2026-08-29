@@ -97,12 +97,16 @@ def _motif_model(
     parts = [
         f'<g class="motif-model" data-motif-id="{model_name}" '
         f'data-model-digest="{motif.model_digest}" data-match-start="{match.start}" '
-        f'data-match-end="{match.end}" data-match-strand="{match.strand}">',
+        f'data-match-end="{match.end}" data-match-strand="{match.strand}" '
+        f'data-probability-consensus="{motif.probability_consensus}" '
+        f'data-score-maximizing-sequence="{motif.score_maximizing_sequence}" '
+        f'data-score-min="{motif.score_min:.17g}" data-score-max="{motif.score_max:.17g}">',
         text(20, top + 18, model_name, size=12, weight=650),
         text(
             20,
             top + 38,
-            f"width {motif.width} · best [{match.start}, {match.end}) {match.strand}",
+            f"width {motif.width} · attainment {match.normalized_score:.4g} · "
+            f"best [{match.start}, {match.end}) {match.strand}",
             size=10,
             fill=MUTED,
         ),

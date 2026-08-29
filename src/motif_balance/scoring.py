@@ -10,6 +10,7 @@ from motif_balance.model import Evaluation, MotifMatch
 
 _BASE_INDEX: dict[str, int] = {base: index for index, base in enumerate(DNA_ALPHABET)}
 _TIE_EPSILON = 1.0e-12
+_ATTAINMENT_TOLERANCE = 1.0e-12
 
 
 def reverse_complement(sequence: str) -> str:
@@ -49,10 +50,23 @@ def _best_match(sequence: str, motif: CompiledMotif, *, both_strands: bool) -> M
     if best is None:  # compile_design prevents this path
         raise ValueError(f"Sequence is shorter than motif '{motif.model.motif_id}'.")
     raw_score, start, _, strand, motif_oriented = best
-    normalized = max(
-        0.0,
-        (raw_score - motif.null_mean) / motif.normalization_denominator,
-    )
+    if motif.model.schema_version == "motif-model/v1":
+        normalized = max(
+            0.0,
+            (raw_score - motif.null_mean) / motif.normalization_denominator,
+        )
+    else:
+        normalized = (raw_score - motif.score_min) / (motif.score_max - motif.score_min)
+        if normalized < -_ATTAINMENT_TOLERANCE or normalized > 1.0 + _ATTAINMENT_TOLERANCE:
+            raise ValueError(
+                f"relative PWM attainment for motif '{motif.model.motif_id}' is outside "
+                "the attainable range"
+            )
+        if normalized < 0.0 or normalized > 1.0:
+            raise ValueError(
+                f"relative PWM attainment for motif '{motif.model.motif_id}' crossed "
+                "an endpoint within numerical tolerance"
+            )
     return MotifMatch(
         motif_id=motif.model.motif_id,
         start=start,

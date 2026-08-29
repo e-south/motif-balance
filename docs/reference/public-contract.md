@@ -94,7 +94,8 @@ distance-constrained selected portfolio. It does not rerun search. Text, inspect
 JSON, SVG, and HTML are regenerable projections outside the bundle.
 
 Version `0.3` reads `run-manifest/v2`, `run-manifest/v3`, `run-manifest/v4`,
-and `motif-balance.result-inspection/v3`. New results write v4. Unknown schemas
+and `run-manifest/v5`; new projections use
+`motif-balance.result-inspection/v4`. New results write v5. Unknown schemas
 fail closed. A workflow
 that needs exact runtime identity retains the complete
 `motif-balance.execution-workspace/v1` with its wheel and external trust

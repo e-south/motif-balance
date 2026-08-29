@@ -4,8 +4,8 @@ Design DNA against several motif models at once. Motif Balance lets researchers
 declare which motif preferences should coexist within a finite sequence, then
 returns an exact-size ranked portfolio without requiring the sequence, motif
 variant, placement, strand, or shared-coordinate pattern to be prescribed in
-advance. Under `normalized_llr_v1`, it maximizes the weakest normalized motif
-score; an optional minimum-distance constraint can keep the returned sequences
+advance. Under `relative_pwm_attainment_v2`, it maximizes the weakest relative
+PWM attainment; an optional minimum-distance constraint can keep the returned sequences
 distinct.
 
 This repository is a public prerelease and is not approved for PyPI publication.

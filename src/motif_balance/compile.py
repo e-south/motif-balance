@@ -7,7 +7,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from motif_balance.constants import OBJECTIVE_SEMANTICS, SCORING_SEMANTICS, TIE_BREAK_SEMANTICS
 from motif_balance.errors import IncompatibleDesign
 from motif_balance.model import DesignSpec, MotifModel
 
@@ -20,10 +19,16 @@ class CompiledMotif:
     log_odds: np.ndarray
     null_mean: float
     consensus_score: float
+    score_min: float
+    score_max: float
+    probability_consensus: str
+    score_maximizing_sequence: str
 
     @property
     def normalization_denominator(self) -> float:
-        return self.consensus_score - self.null_mean
+        if self.model.schema_version == "motif-model/v1":
+            return self.consensus_score - self.null_mean
+        return self.score_max - self.score_min
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,12 +111,22 @@ def _compile_motif(model: MotifModel) -> CompiledMotif:
         )
     log_odds.setflags(write=False)
     consensus_score = float(np.max(log_odds, axis=1).sum())
+    score_min = math.fsum(float(np.min(row)) for row in log_odds)
+    score_max = math.fsum(float(np.max(row)) for row in log_odds)
+    probability_consensus = "".join(
+        "ACGT"[int(index)] for index in np.argmax(probabilities, axis=1)
+    )
+    score_maximizing_sequence = "".join("ACGT"[int(index)] for index in np.argmax(log_odds, axis=1))
     null_mean = _null_mean(log_odds, background)
     compiled = CompiledMotif(
         model=model,
         log_odds=log_odds,
         null_mean=null_mean,
         consensus_score=consensus_score,
+        score_min=score_min,
+        score_max=score_max,
+        probability_consensus=probability_consensus,
+        score_maximizing_sequence=score_maximizing_sequence,
     )
     if not math.isfinite(compiled.normalization_denominator) or (
         compiled.normalization_denominator <= 0.0
@@ -119,7 +134,7 @@ def _compile_motif(model: MotifModel) -> CompiledMotif:
         raise IncompatibleDesign(
             f"Motif '{model.motif_id}' has a nonpositive normalization denominator.",
             motif_id=model.motif_id,
-            hint="Use an informative motif whose consensus differs from its null expectation.",
+            hint="Use an informative motif whose attainable raw LLR range is positive.",
         )
     return compiled
 
@@ -132,9 +147,9 @@ def _problem_id(spec: DesignSpec) -> str:
         ],
         "length": spec.length,
         "strands": spec.strands,
-        "scoring_semantics": SCORING_SEMANTICS,
-        "objective_semantics": OBJECTIVE_SEMANTICS,
-        "tie_break_semantics": TIE_BREAK_SEMANTICS,
+        "scoring_semantics": spec.scoring_semantics,
+        "objective_semantics": spec.objective_semantics,
+        "tie_break_semantics": spec.tie_break_semantics,
     }
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
