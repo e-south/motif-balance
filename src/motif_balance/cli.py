@@ -46,7 +46,7 @@ def _validation_error(exc: ValidationError, *, domain: str) -> MotifBalanceError
     location = ".".join(str(part) for part in error.get("loc", ())) or None
     if domain == "design" and error.get("type") == "extra_forbidden":
         message = f"Unknown field '{location}'."
-        hint = "Remove the field or use a documented design-spec/v1 field."
+        hint = "Remove the field or use a documented design-spec/v2 field."
     else:
         message = f"Invalid {domain} value{f' for {location}' if location else ''}: {error['msg']}."
         hint = f"Correct the {domain} input and retry the operation."
@@ -155,7 +155,8 @@ def design_command(
         if check:
             typer.echo(f"valid {problem_id}")
             typer.echo(
-                f"motifs={len(spec.motifs)} length={spec.length} count={spec.count} "
+                f"motifs={len(spec.motifs)} avoiders={len(spec.avoiders)} "
+                f"length={spec.length} count={spec.count} "
                 f"strands={spec.strands} evaluations={spec.evaluations} "
                 f"min_distance={spec.min_distance} search={planned_search_kind(spec)}"
             )
@@ -184,6 +185,11 @@ def design_command(
             typer.echo(f"Best selected balance score: {best.balance_score:.6g}.")
         if spec.min_distance is not None and spec.min_distance > 0.0:
             typer.echo(f"Requested minimum distance: {spec.min_distance:.6g}.")
+        if spec.avoiders:
+            ceilings = ", ".join(
+                f"{item.motif.motif_id}<={item.score_ceiling:.6g}" for item in spec.avoiders
+            )
+            typer.echo(f"Hard avoidance satisfied: {ceilings}.")
         if portfolio.manifest.completion_status == "exhaustive":
             typer.echo(
                 "Search completed after exhausting all "
@@ -214,19 +220,35 @@ def score_command(
     """Score one sequence under an explicit DesignSpec."""
 
     try:
-        evaluation = score(sequence, load_design_spec(specification))
+        spec = load_design_spec(specification)
+        evaluation = score(sequence, spec)
         if format_name == "json":
             payload = (evaluation.model_dump_json(indent=2) + "\n").encode()
         else:
-            matches = "\n".join(
+            target_matches = "\n".join(
                 f"{match.motif_id}: normalized={match.normalized_score:.17g} "
                 f"raw={match.raw_score:.17g} strand={match.strand} "
                 f"coordinates=[{match.start}, {match.end})"
                 for match in evaluation.matches
             )
+            ceilings = {item.motif.motif_id: item.score_ceiling for item in spec.avoiders}
+            avoidance_matches = "\n".join(
+                f"{match.motif_id}: avoidance normalized={match.normalized_score:.17g} "
+                f"ceiling={ceilings[match.motif_id]:.17g} raw={match.raw_score:.17g} "
+                f"strand={match.strand} coordinates=[{match.start}, {match.end})"
+                for match in evaluation.avoidance_matches
+            )
+            constraint = (
+                f"constraint_status={evaluation.constraint_status}\n"
+                f"max_avoidance_excess={evaluation.max_avoidance_excess:.17g}\n"
+                f"total_avoidance_excess={evaluation.total_avoidance_excess:.17g}\n"
+                if spec.avoiders
+                else ""
+            )
             payload = (
                 f"balance_score={evaluation.balance_score:.17g}\n"
-                f"sequence={evaluation.sequence}\n{matches}\n"
+                f"sequence={evaluation.sequence}\n{constraint}{target_matches}\n"
+                + (f"{avoidance_matches}\n" if avoidance_matches else "")
             ).encode()
         _publish_or_emit(payload, out)
     except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:

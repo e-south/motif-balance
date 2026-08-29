@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from motif_balance import DesignSpec, MotifModel
+from motif_balance import DesignSpec, MotifModel, design
 from motif_balance.compile import compile_design, sequence_space_at_most
 from motif_balance.constants import (
     MAX_CANDIDATE_COUNT,
@@ -11,7 +11,7 @@ from motif_balance.constants import (
     MAX_SEQUENCE_LENGTH,
 )
 from motif_balance.errors import IncompatibleDesign
-from motif_balance.model import MotifConversion
+from motif_balance.model import MotifConversion, PortfolioRecord
 
 
 def test_public_models_are_strict_and_frozen(motif_a: MotifModel) -> None:
@@ -25,6 +25,54 @@ def test_public_models_are_strict_and_frozen(motif_a: MotifModel) -> None:
 
     with pytest.raises(ValidationError):
         motif_a.motif_id = "changed"
+
+
+def test_model_identity_preserves_v1_receipts_and_distinguishes_v2() -> None:
+    payload = {
+        "motif_id": "identity",
+        "probabilities": ((0.7, 0.1, 0.1, 0.1),),
+        "background": (0.25, 0.25, 0.25, 0.25),
+    }
+    legacy = MotifModel(schema_version="motif-model/v1", **payload)
+    current = MotifModel(schema_version="motif-model/v2", **payload)
+
+    assert legacy.model_digest == (
+        "b18f59802cb2e905ce66b79b198f001a766f970fc5c2ec758a70ed3755093a05"
+    )
+    assert current.model_digest == (
+        "0653221b1809dbded9e936d72f0dcef5cfefb466fdbda0d9e4a399539647f144"
+    )
+    assert legacy.model_digest != current.model_digest
+
+
+def test_v1_design_is_read_only_and_cannot_publish_v5() -> None:
+    motif = MotifModel(
+        schema_version="motif-model/v1",
+        motif_id="legacy",
+        probabilities=((0.7, 0.1, 0.1, 0.1),),
+        background=(0.25, 0.25, 0.25, 0.25),
+    )
+    spec = DesignSpec(
+        schema_version="design-spec/v1",
+        motifs=(motif,),
+        length=1,
+        count=1,
+        strands="forward",
+        evaluations=4,
+        seed=1,
+        scoring_semantics="normalized_llr_v1",
+    )
+
+    with pytest.raises(IncompatibleDesign, match="read-only"):
+        design(spec)
+
+
+def test_manifest_matrix_rejects_relabelled_current_portfolio(pairwise_spec: DesignSpec) -> None:
+    payload = design(pairwise_spec).model_dump(mode="python")
+    payload["manifest"]["schema_version"] = "run-manifest/v4"
+
+    with pytest.raises(ValidationError, match="run-manifest/v4 requires search-diagnostics/v1"):
+        PortfolioRecord.model_validate(payload)
 
 
 @pytest.mark.parametrize(

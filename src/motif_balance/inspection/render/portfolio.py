@@ -55,6 +55,22 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
         if match.motif_id in motif_ids
     )
     display_max = max(1.0, observed_max)
+    is_legacy = inspection.problem.scoring_semantics == "normalized_llr_v1"
+    score_description = (
+        "normalized LLR from the clipped null-mean reference to the score maximum"
+        if is_legacy
+        else "relative PWM attainment from the attainable raw-LLR minimum to maximum"
+    )
+    reference_label = (
+        "1.0 null-mean-to-score-maximum reference"
+        if is_legacy
+        else "1.0 score-maximizing PWM reference"
+    )
+    constraint_status = (
+        "feasible"
+        if all(candidate.constraint_status == "feasible" for candidate in candidates)
+        else "mixed"
+    )
     row_height = 34
     cell_width = 104
     left = 210
@@ -74,15 +90,13 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
             '<title id="portfolio-balance-title">Portfolio balance matrix</title>',
             '<desc id="portfolio-balance-desc">Candidate rows in deterministic rank order '
             "and motif columns in canonical design order. Each cell reports the exact "
-            "normalized motif score. The consensus-relative reference at one is not a "
-            "maximum or probability.</desc>",
+            f"{score_description}; the score is not a probability.</desc>",
             f'<rect width="{width}" height="{height}" fill="{PAPER}"/>',
             text(20, 30, "Portfolio balance", size=18, weight=650),
             text(
                 20,
                 54,
-                f"display scale 0 to {display_max:.6g} · 1.0 is a "
-                "consensus-relative reference, not a maximum",
+                f"display scale 0 to {display_max:.6g} · {reference_label}",
                 size=13,
                 fill=MUTED,
             ),
@@ -105,6 +119,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
             f'<g id="score-matrix" data-score-lower="0" data-score-upper="{display_max:.17g}" '
             f'data-best-observed-score="{inspection.portfolio.best_observed_score:.17g}" '
             f'data-best-observed-selected-rank="{best_observed_rank}" '
+            f'data-constraint-status="{constraint_status}" '
             f'data-displayed-candidates="{len(candidates)}" '
             f'data-total-candidates="{len(inspection.portfolio.candidates)}" '
             f'data-displayed-motifs="{len(motifs)}" '
@@ -202,7 +217,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
             text(
                 reference_x,
                 legend_y - 8,
-                "1.0 consensus-relative reference",
+                reference_label,
                 size=10,
                 anchor="middle",
             ),

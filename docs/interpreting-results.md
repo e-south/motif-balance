@@ -7,7 +7,7 @@ audience:
   - bundle consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-29
 doc_type: explanation
 ---
 
@@ -22,10 +22,25 @@ Verify a bundle before reading it. Then use each file for one question:
 - `manifest.json`: which semantics, search provenance, diagnostics, and bytes
   form this result?
 
-The lowest per-motif normalized score is the candidate's `balance_score`.
+The lowest per-motif relative PWM attainment is the candidate's `balance_score`.
 Inspect that limiting motif instead of reading the aggregate as a probability.
-Two scores are directly comparable only when motif content, score version,
-strand rule, and normalization authority are identical.
+Zero is the motif's attainable minimum raw LLR and one is its attainable maximum
+raw LLR. The conventional probability consensus can differ from the
+score-maximizing reference under a nonuniform background. Two scores are
+directly comparable only when motif content, score version, strand rule, and
+attainment authority are identical.
+
+For constraint-bearing designs, target and avoider evidence answer different
+questions. `balance_score` remains the minimum target-motif score. Every
+avoider reports its own best normalized match and declared upper ceiling; the
+candidate is feasible only when all avoider scores satisfy those ceilings.
+Avoider scores are not subtracted from, averaged with, or otherwise folded
+into `balance_score`.
+
+An exact enumeration failure can prove that no sequence satisfies the avoider
+ceilings. A budget-limited feasibility failure does not. Portfolio
+infeasibility and the independent distance-selection traversal limit are also
+reported separately and publish no partial bundle.
 
 Best-score checkpoints describe computational progress. Restart-final scores
 describe variation among starts. Proposal summaries describe search execution.

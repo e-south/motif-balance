@@ -31,7 +31,7 @@ def test_bundle_distinguishes_best_observed_from_selected_portfolio(
     portfolio = design(spec)
     best_score = portfolio.manifest.search_diagnostics.best_score
 
-    assert portfolio.manifest.schema_version == "run-manifest/v4"
+    assert portfolio.manifest.schema_version == "run-manifest/v5"
     assert portfolio.best_observed is not None
     assert portfolio.best_observed.sequence == "ACAA"
     assert [candidate.sequence for candidate in portfolio.candidates] == ["ACAG", "ACCA"]

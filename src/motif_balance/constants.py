@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Final, Literal
 
-PACKAGE_VERSION: Final = "0.3.0a3"
+PACKAGE_VERSION: Final = "0.4.0a1"
 RUNTIME_CONTRACT: Final = "python>=3.12,<3.15"
-BUILD_LOCK_SHA256: Final = "7709b1c8fe8e917884582ed06e25deb16afd5e7c8f19dbc5a5fa1d124dc8bacf"
+BUILD_LOCK_SHA256: Final = "877625f619cd6e60741fc7dca487e45da01b86edbcf0c7b0f3580aa009ceb9a1"
 MAX_INPUT_BYTES: Final = 1_000_000
 MAX_BUNDLE_ARTIFACT_BYTES: Final = 100_000_000
 MAX_BUNDLE_ROWS: Final = 1_000_000
@@ -15,7 +15,8 @@ MAX_PORTFOLIO_BASES: Final = 10_000_000
 MAX_EVALUATED_BASES: Final = 25_000_000
 MAX_SCORE_BASE_OPERATIONS: Final = 100_000_000
 MAX_DISTANCE_BASE_COMPARISONS: Final = 10_000_000
-SCORING_SEMANTICS: Final[Literal["normalized_llr_v1"]] = "normalized_llr_v1"
+LEGACY_SCORING_SEMANTICS: Final[Literal["normalized_llr_v1"]] = "normalized_llr_v1"
+SCORING_SEMANTICS: Final[Literal["relative_pwm_attainment_v2"]] = "relative_pwm_attainment_v2"
 OBJECTIVE_SEMANTICS: Final[Literal["weakest_score_v1"]] = "weakest_score_v1"
 TIE_BREAK_SEMANTICS: Final[Literal["leftmost_plus_first_v1"]] = "leftmost_plus_first_v1"
 SEARCH_ENGINE = "annealed_multistart_v1"

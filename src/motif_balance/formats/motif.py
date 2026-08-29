@@ -68,6 +68,7 @@ def _read_meme(text: str, *, requested_id: str | None) -> dict[str, Any]:
             f"MEME motif '{motif_id}' declares width {width} but has {len(rows)} rows."
         )
     return {
+        "schema_version": "motif-model/v2",
         "motif_id": motif_id,
         "probabilities": tuple(rows),
         "background": tuple(float(value) for value in background_match.groups()),
@@ -96,6 +97,12 @@ def read_motif(path: str | Path, *, motif_id: str | None = None) -> MotifModel:
         payload = _read_meme(text, requested_id=motif_id)
     else:
         payload = _read_structured(source, raw)
+        if "schema_version" not in payload:
+            raise InvalidMotif(
+                f"Structured motif file '{source.name}' must declare schema_version explicitly; "
+                "use 'motif-model/v1' for historical scoring or 'motif-model/v2' for "
+                "relative PWM attainment."
+            )
         if motif_id is not None:
             existing = payload.get("motif_id")
             if existing is not None and existing != motif_id:

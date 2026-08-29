@@ -62,6 +62,51 @@ class SearchBudgetExhausted(MotifBalanceError):
         self.best_score = best_score
 
 
+class ConstraintFeasibilityExhausted(MotifBalanceError):
+    """A bounded search ended before enough constraint-feasible sequences were found."""
+
+    code = "constraint_feasibility_exhausted"
+
+    def __init__(
+        self,
+        *,
+        requested_count: int,
+        feasible_count: int,
+        evaluations_used: int,
+        best_max_excess: float | None,
+        best_total_excess: float | None,
+    ) -> None:
+        super().__init__(
+            f"Search used {evaluations_used} evaluator calls but found only {feasible_count} "
+            f"constraint-feasible sequences for a requested portfolio of {requested_count}. "
+            "No portfolio was published. This does not establish that the hard avoidance "
+            "constraints are infeasible in the complete DNA design space.",
+            field="avoiders",
+            hint="Increase evaluations or revise the declared hard constraints.",
+        )
+        self.requested_count = requested_count
+        self.feasible_count = feasible_count
+        self.evaluations_used = evaluations_used
+        self.best_max_excess = best_max_excess
+        self.best_total_excess = best_total_excess
+
+
+class ExactConstraintInfeasible(MotifBalanceError):
+    """Complete enumeration proved that no sequence satisfies the hard constraints."""
+
+    code = "exact_constraint_infeasible"
+
+    def __init__(self, *, sequence_space_size: int) -> None:
+        super().__init__(
+            f"Complete enumeration of all {sequence_space_size} sequences found no sequence "
+            "that satisfies every hard avoidance ceiling. No portfolio was published.",
+            field="avoiders",
+            hint="Revise the avoider ceilings or the design length.",
+        )
+        self.sequence_space_size = sequence_space_size
+        self.feasible_count = 0
+
+
 class PortfolioInfeasible(MotifBalanceError):
     """The complete evaluated candidate pool has no feasible requested subset."""
 
@@ -73,17 +118,23 @@ class PortfolioInfeasible(MotifBalanceError):
         requested_count: int,
         valid_count: int,
         candidate_pool_size: int,
-        minimum_distance: float,
+        minimum_distance: float | None,
         evaluations_used: int,
         best_score: float | None,
+        design_space_exhausted: bool = False,
     ) -> None:
-        message = (
-            f"The complete evaluated pool of {candidate_pool_size} candidates contains no "
-            f"{requested_count}-candidate subset at minimum distance {minimum_distance:.17g}; "
-            f"the largest subset found contains {valid_count}. No portfolio was published. "
-            "This establishes infeasibility only for the evaluated candidate pool, not the "
-            "complete DNA design space."
+        scope = (
+            "complete DNA design space" if design_space_exhausted else "evaluated candidate pool"
         )
+        distance = (
+            f" at minimum distance {minimum_distance:.17g}" if minimum_distance is not None else ""
+        )
+        message = (
+            f"The {scope} contains no {requested_count}-candidate portfolio{distance}; "
+            f"the largest admissible set found contains {valid_count}. No portfolio was published."
+        )
+        if not design_space_exhausted:
+            message += " This does not establish infeasibility in the complete DNA design space."
         super().__init__(
             message,
             field="min_distance",
@@ -95,6 +146,7 @@ class PortfolioInfeasible(MotifBalanceError):
         self.minimum_distance = minimum_distance
         self.evaluations_used = evaluations_used
         self.best_score = best_score
+        self.design_space_exhausted = design_space_exhausted
 
 
 class SelectionLimitReached(MotifBalanceError):

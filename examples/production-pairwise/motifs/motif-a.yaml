@@ -1,4 +1,4 @@
-schema_version: motif-model/v1
+schema_version: motif-model/v2
 motif_id: motif_a
 probabilities:
   - [0.70, 0.10, 0.10, 0.10]

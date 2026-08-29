@@ -8,7 +8,7 @@ audience:
   - downstream integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-28
+last_verified: 2026-08-29
 doc_type: reference
 journey:
   - inspect
@@ -17,7 +17,7 @@ journey:
 # Result inspection
 
 `inspect` verifies one explicit result, replays every published match and
-score, and creates one immutable `motif-balance.result-inspection/v3`
+score, and creates one immutable `motif-balance.result-inspection/v4`
 projection. Text, JSON, SVG, and HTML all render that same projection. They do
 not enter the result bundle or change its identity. Bundle members are read
 once into a descriptor-bound byte snapshot; parsing, score replay, and rendering
@@ -80,16 +80,26 @@ contributions replayed by scoring; renderers do not rescan a motif or recompute
 a score. Shared coordinates are a union of positions covered by more than one
 representative window, not evidence of simultaneous occupancy.
 
+Constraint-bearing results display avoider matches on separate lanes with
+their ceilings and feasibility state. The portfolio remains ranked by target
+`balance_score`; avoider scores are never presented as target objectives or a
+weighted penalty.
+
 The portfolio view is a candidate-by-motif matrix in deterministic rank and
-canonical motif order. Values remain numeric. The color scale begins at zero,
-preserves values above one, and labels `1.0` as a consensus-relative reference,
-not a maximum or probability.
+canonical motif order. Values remain numeric. Under
+`relative_pwm_attainment_v2`, the color scale spans zero to one: the attainable
+raw-LLR minimum and score-maximizing reference. Neither endpoint is a
+probability. Explicitly versioned historical results retain their original
+scoring interpretation.
 
 The search view is a closed diagnostic in HTML and remains directly exportable
 as SVG. It is the running maximum of recorded published hard-minimum scores
 against evaluator calls. It is not accepted-state history, literal hill
 climbing, chain dynamics, convergence evidence, or a global-optimality claim.
-It is omitted when a result has no checkpoints.
+It is omitted when a result has no checkpoints. Current diagnostics retain a
+feasible/infeasible status beside every restart-final target score so a target
+score from a constraint-violating endpoint cannot be mistaken for an
+admissible result.
 
 ## Trust and bounds
 

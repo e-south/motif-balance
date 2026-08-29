@@ -2,33 +2,34 @@
   "expected": {
     "best_score": 1.0,
     "candidates": [
-      {"balance_score": "1", "candidate_id": "candidate-4d4087e5bea4b68f", "length": "12", "rank": "1", "sequence": "AACGTAGGATCC"},
-      {"balance_score": "1", "candidate_id": "candidate-c1f66dc5a60ce3a4", "length": "12", "rank": "2", "sequence": "AACGTATGGATC"},
-      {"balance_score": "1", "candidate_id": "candidate-9ef9ca88fa59fe6a", "length": "12", "rank": "3", "sequence": "AACGTGGATCTT"},
-      {"balance_score": "1", "candidate_id": "candidate-1f7376c10f70840e", "length": "12", "rank": "4", "sequence": "ACATACGTGATC"},
-      {"balance_score": "1", "candidate_id": "candidate-4e17e34c77ac1c37", "length": "12", "rank": "5", "sequence": "ACGTAGAAGATC"},
-      {"balance_score": "1", "candidate_id": "candidate-76c8b8a8ad5ddaf8", "length": "12", "rank": "6", "sequence": "ACGTATCGGATC"},
-      {"balance_score": "1", "candidate_id": "candidate-09c6dbcb1ecc9968", "length": "12", "rank": "7", "sequence": "ACGTCCGGGATC"},
-      {"balance_score": "1", "candidate_id": "candidate-bf927d46098a3056", "length": "12", "rank": "8", "sequence": "ACGTCGATCTAC"}
+      {"balance_score": "1", "candidate_id": "candidate-110f844c13faf611", "length": "12", "rank": "1", "sequence": "AAACGTCGATCC"},
+      {"balance_score": "1", "candidate_id": "candidate-6c1efe16fc9c36cf", "length": "12", "rank": "2", "sequence": "AATCGATCACGT"},
+      {"balance_score": "1", "candidate_id": "candidate-aa45db9a75c76c8f", "length": "12", "rank": "3", "sequence": "ACACGTGATCAA"},
+      {"balance_score": "1", "candidate_id": "candidate-66a9d55c689b4a79", "length": "12", "rank": "4", "sequence": "ACGACGTGATCG"},
+      {"balance_score": "1", "candidate_id": "candidate-4566ad7221dcc9aa", "length": "12", "rank": "5", "sequence": "ACGTCCATGATC"},
+      {"balance_score": "1", "candidate_id": "candidate-6b854b29c90c0490", "length": "12", "rank": "6", "sequence": "ACGTCGATCCAA"},
+      {"balance_score": "1", "candidate_id": "candidate-dc8571ca5d94e3d4", "length": "12", "rank": "7", "sequence": "ACGTCGCGATCA"},
+      {"balance_score": "1", "candidate_id": "candidate-8eaa029069d9ca17", "length": "12", "rank": "8", "sequence": "ACGTCGGATCAC"}
     ],
     "evaluation_count": 4096,
-    "problem_id": "problem-e33abe9d393188b48b9fa1cb",
+    "problem_id": "problem-6fc3c572c560a7948d1d4bdd",
     "proposal_summaries": [
-      {"accepted": 884, "attempted": 884, "move": "single"},
-      {"accepted": 183, "attempted": 247, "move": "block"},
-      {"accepted": 135, "attempted": 156, "move": "multi"},
-      {"accepted": 132, "attempted": 149, "move": "insertion"}
+      {"accepted": 882, "attempted": 882, "move": "single"},
+      {"accepted": 223, "attempted": 255, "move": "block"},
+      {"accepted": 131, "attempted": 151, "move": "multi"},
+      {"accepted": 135, "attempted": 154, "move": "insertion"}
     ],
-    "restart_final_scores": [0.6666557091577637, 0.6666557091577637, 0.6666557091577637, 1.0, 1.0, 0.6666557091577637, 0.6666557091577637, 0.6666557091577637],
+    "restart_final_scores": [1.0, 0.7500000000000001, 0.7500000000000001, 0.7500000000000001, 0.5, 0.7500000000000001, 0.7500000000000001, 0.7500000000000001],
+    "restart_final_constraint_statuses": ["feasible", "feasible", "feasible", "feasible", "feasible", "feasible", "feasible", "feasible"],
     "search_engine": "annealed_multistart_v1",
     "search_engine_version": "1",
-    "unique_evaluations": 2793
+    "unique_evaluations": 2913
   },
   "fixture": "examples/production-pairwise/design.yaml",
   "schema_version": "annealed-search-regression/v1",
   "semantics": {
     "objective": "weakest_score_v1",
-    "scoring": "normalized_llr_v1",
+    "scoring": "relative_pwm_attainment_v2",
     "selection": "exact_count_distance_no_relaxation",
     "tie_break": "leftmost_plus_first_v1"
   }

@@ -15,6 +15,7 @@ from motif_balance.model import (
     DesignSpec,
     ExecutionReceipt,
     ExecutionWorkspace,
+    MotifMatch,
     MotifModel,
     candidate_id_for_sequence,
 )
@@ -27,6 +28,7 @@ from .model import (
     DistanceInspection,
     ExecutionInspection,
     InspectionArtifact,
+    InspectionAvoider,
     InspectionCandidate,
     InspectionMatch,
     InspectionMotif,
@@ -44,8 +46,7 @@ from .verify import VerifiedResultSource
 _BASE_INDEX = {base: index for index, base in enumerate("ACGT")}
 
 
-def _support(motif: MotifModel, candidate: Candidate, match_index: int) -> InspectionMatch:
-    match = candidate.matches[match_index]
+def _support(motif: MotifModel, candidate: Candidate, match: MotifMatch) -> InspectionMatch:
     rows: list[PositionSupport] = []
     for motif_position, observed_base in enumerate(match.matched_sequence):
         base_index = _BASE_INDEX[observed_base]
@@ -91,11 +92,15 @@ def _project_candidate(
         raise ArtifactError(f"inspection score replay failed for '{candidate.candidate_id}'")
     motifs = {motif.motif_id: motif for motif in spec.motifs}
     matches = tuple(
-        _support(motifs[match.motif_id], candidate, index)
-        for index, match in enumerate(candidate.matches)
+        _support(motifs[match.motif_id], candidate, match) for match in candidate.matches
+    )
+    avoider_models = {item.motif.motif_id: item.motif for item in spec.avoiders}
+    avoidance_matches = tuple(
+        _support(avoider_models[match.motif_id], candidate, match)
+        for match in candidate.avoidance_matches
     )
     coverage = [0] * len(candidate.sequence)
-    for match in matches:
+    for match in (*matches, *avoidance_matches):
         for position in range(match.start, match.end):
             coverage[position] += 1
     limiting = tuple(
@@ -115,13 +120,18 @@ def _project_candidate(
         shared_coordinates=tuple(index for index, count in enumerate(coverage) if count > 1),
         nearest_neighbor_distance=nearest_neighbor_distance,
         matches=matches,
+        avoidance_matches=avoidance_matches,
+        constraint_status=candidate.constraint_status,
+        max_avoidance_excess=candidate.max_avoidance_excess,
     )
 
 
 def project_candidate(spec: DesignSpec, candidate: Candidate) -> InspectionCandidate:
     """Replay and project one candidate into renderer-ready computational score support."""
 
-    support_rows = sum(motif.width for motif in spec.motifs)
+    support_rows = sum(motif.width for motif in spec.motifs) + sum(
+        item.motif.width for item in spec.avoiders
+    )
     if support_rows > MAX_INSPECTION_SUPPORT_ROWS:
         raise ArtifactError(
             "inspection position-support rows exceed the projection limit; "
@@ -208,8 +218,9 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
         and portfolio.manifest.best_observed.sequence not in selected_sequences
         else 0
     )
-    support_rows = (len(portfolio.candidates) + extra_best) * sum(
-        motif.width for motif in portfolio.spec.motifs
+    support_rows = (len(portfolio.candidates) + extra_best) * (
+        sum(motif.width for motif in portfolio.spec.motifs)
+        + sum(item.motif.width for item in portfolio.spec.avoiders)
     )
     if support_rows > MAX_INSPECTION_SUPPORT_ROWS:
         raise ArtifactError(
@@ -266,6 +277,10 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
                 sequence=manifest.best_observed.sequence,
                 balance_score=manifest.best_observed.balance_score,
                 matches=manifest.best_observed.matches,
+                avoidance_matches=manifest.best_observed.avoidance_matches,
+                constraint_status=manifest.best_observed.constraint_status,
+                max_avoidance_excess=manifest.best_observed.max_avoidance_excess,
+                total_avoidance_excess=manifest.best_observed.total_avoidance_excess,
             ),
             problem,
         )
@@ -278,6 +293,9 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
             shared_coordinates=projected.shared_coordinates,
             selected_rank=selected_rank,
             matches=projected.matches,
+            avoidance_matches=projected.avoidance_matches,
+            constraint_status=projected.constraint_status,
+            max_avoidance_excess=projected.max_avoidance_excess,
         )
     return ResultInspection(
         subject_kind=source.subject_kind,
@@ -295,13 +313,51 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
                     model_digest=motif.model_digest,
                     probabilities=motif.probabilities,
                     background=motif.background,
+                    score_min=(
+                        compiled.null_mean
+                        if spec.scoring_semantics == "normalized_llr_v1"
+                        else compiled.score_min
+                    ),
+                    score_max=(
+                        compiled.consensus_score
+                        if spec.scoring_semantics == "normalized_llr_v1"
+                        else compiled.score_max
+                    ),
+                    score_reference_semantics=(
+                        "null_mean_to_score_max_v1"
+                        if spec.scoring_semantics == "normalized_llr_v1"
+                        else "attainable_min_max_v2"
+                    ),
+                    probability_consensus=compiled.probability_consensus,
+                    score_maximizing_sequence=compiled.score_maximizing_sequence,
                     source_name=motif.source_name,
                     source_digest=motif.source_digest,
                     canonical_file_name=motif.canonical_file_name,
                     canonical_file_digest=motif.canonical_file_digest,
                     conversion=motif.conversion,
                 )
-                for motif in spec.motifs
+                for motif, compiled in zip(spec.motifs, problem.motifs, strict=True)
+            ),
+            avoiders=tuple(
+                InspectionAvoider(
+                    motif_id=item.motif.motif_id,
+                    width=item.motif.width,
+                    model_digest=item.motif.model_digest,
+                    probabilities=item.motif.probabilities,
+                    background=item.motif.background,
+                    score_min=compiled.motif.score_min,
+                    score_max=compiled.motif.score_max,
+                    score_reference_semantics="attainable_min_max_v2",
+                    probability_consensus=compiled.motif.probability_consensus,
+                    score_maximizing_sequence=compiled.motif.score_maximizing_sequence,
+                    source_name=item.motif.source_name,
+                    source_digest=item.motif.source_digest,
+                    canonical_file_name=item.motif.canonical_file_name,
+                    canonical_file_digest=item.motif.canonical_file_digest,
+                    conversion=item.motif.conversion,
+                    score_ceiling=item.score_ceiling,
+                )
+                for item, compiled in zip(spec.avoiders, problem.avoiders, strict=True)
             ),
             length=spec.length,
             strands=spec.strands,
@@ -340,6 +396,11 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
             checkpoints=manifest.search_diagnostics.checkpoints,
             restarts=manifest.search_diagnostics.restarts,
             restart_final_scores=manifest.search_diagnostics.restart_final_scores,
+            restart_final_constraint_statuses=(
+                manifest.search_diagnostics.restart_final_constraint_statuses
+                if manifest.search_diagnostics.schema_version == "search-diagnostics/v2"
+                else tuple("feasible" for _ in range(manifest.search_diagnostics.restarts))
+            ),
             proposals=manifest.search_diagnostics.proposals,
         ),
         portfolio=InspectionPortfolio(

@@ -26,6 +26,7 @@ _FALLBACK_IGNORED_PARTS = {
 }
 
 KNOWN_LAYERS = {
+    "admissibility",
     "api",
     "artifacts",
     "cli",
@@ -36,6 +37,7 @@ KNOWN_LAYERS = {
     "formats",
     "inspection",
     "model",
+    "observation",
     "receipt",
     "scoring",
     "search",
@@ -48,11 +50,13 @@ ALLOWED_IMPORTS = {
     "formats": {"constants", "errors", "model"},
     "compile": {"constants", "errors", "model"},
     "scoring": {"compile", "constants", "errors", "model"},
-    "search": {"compile", "constants", "errors", "model", "scoring"},
+    "admissibility": {"compile", "model"},
+    "search": {"admissibility", "compile", "constants", "errors", "model", "scoring"},
     "selection": {"constants", "errors", "model", "scoring"},
     "artifacts": {"compile", "constants", "errors", "model", "scoring", "selection"},
     "receipt": {"constants", "errors", "model"},
     "api": {
+        "admissibility",
         "artifacts",
         "compile",
         "constants",
@@ -62,6 +66,7 @@ ALLOWED_IMPORTS = {
         "search",
         "selection",
     },
+    "observation": {"compile", "constants", "errors", "model", "scoring", "search"},
     "execution": {"api", "artifacts", "constants", "errors", "formats", "model", "receipt"},
     "inspection": {
         "artifacts",

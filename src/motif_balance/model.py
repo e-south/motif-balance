@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from motif_balance.constants import (
     DNA_ALPHABET,
+    LEGACY_SCORING_SEMANTICS,
     MAX_BUNDLE_ROWS,
     MAX_CANDIDATE_COUNT,
     MAX_DISTANCE_BASE_COMPARISONS,
@@ -84,7 +85,7 @@ class MotifConversion(FrozenModel):
 
 
 class MotifModel(FrozenModel):
-    schema_version: Literal["motif-model/v1"] = "motif-model/v1"
+    schema_version: Literal["motif-model/v1", "motif-model/v2"] = "motif-model/v2"
     motif_id: str = Field(min_length=1, pattern=r"^[A-Za-z][A-Za-z0-9_.-]*$")
     alphabet: tuple[Literal["A", "C", "G", "T"], ...] = DNA_ALPHABET
     probabilities: tuple[
@@ -168,27 +169,42 @@ class MotifModel(FrozenModel):
 
     @property
     def model_digest(self) -> str:
+        scoring_semantics = (
+            LEGACY_SCORING_SEMANTICS
+            if self.schema_version == "motif-model/v1"
+            else SCORING_SEMANTICS
+        )
         return _sha256(
             {
                 "schema_version": self.schema_version,
                 "alphabet": self.alphabet,
                 "probabilities": self.probabilities,
                 "background": self.background,
-                "scoring_semantics": SCORING_SEMANTICS,
+                "scoring_semantics": scoring_semantics,
             }
         )
 
 
+class AvoidanceConstraint(FrozenModel):
+    """One hard upper bound on the best normalized score of an avoider motif."""
+
+    motif: MotifModel
+    score_ceiling: Annotated[float, Field(strict=True, ge=0.0, le=1.0, allow_inf_nan=False)]
+
+
 class DesignSpec(FrozenModel):
-    schema_version: Literal["design-spec/v1"] = "design-spec/v1"
+    schema_version: Literal["design-spec/v1", "design-spec/v2"] = "design-spec/v2"
     motifs: tuple[MotifModel, ...]
+    avoiders: tuple[AvoidanceConstraint, ...] = ()
     length: Annotated[int, Field(strict=True, gt=0, le=MAX_SEQUENCE_LENGTH)]
     count: Annotated[int, Field(strict=True, gt=0, le=MAX_CANDIDATE_COUNT)]
     strands: Literal["forward", "both"] = "both"
     evaluations: Annotated[int, Field(strict=True, gt=0, le=MAX_EVALUATIONS)]
     seed: Annotated[int, Field(strict=True, ge=0)]
     min_distance: Annotated[float, Field(strict=True, ge=0.0, le=1.0)] | None = None
-    scoring_semantics: Literal["normalized_llr_v1"] = SCORING_SEMANTICS
+    scoring_semantics: Literal["normalized_llr_v1", "relative_pwm_attainment_v2"] = (
+        SCORING_SEMANTICS
+    )
     objective_semantics: Literal["weakest_score_v1"] = OBJECTIVE_SEMANTICS
     tie_break_semantics: Literal["leftmost_plus_first_v1"] = TIE_BREAK_SEMANTICS
 
@@ -198,6 +214,8 @@ class DesignSpec(FrozenModel):
         if not isinstance(value, Mapping):
             return value
         result = dict(value)
+        if "schema_version" not in result and result.get("avoiders"):
+            result["schema_version"] = "design-spec/v2"
         motifs = result.get("motifs")
         if isinstance(motifs, Mapping):
             canonical: list[object] = []
@@ -219,6 +237,30 @@ class DesignSpec(FrozenModel):
                     )
                 canonical.append(motif)
             result["motifs"] = tuple(canonical)
+        avoiders = result.get("avoiders")
+        if isinstance(avoiders, Mapping):
+            canonical_avoiders: list[object] = []
+            for key in sorted(avoiders):
+                if not isinstance(key, str):
+                    raise ValueError("avoider keys must be strings")
+                constraint = avoiders[key]
+                if not isinstance(constraint, Mapping):
+                    raise ValueError(f"avoider '{key}' must be a constraint mapping")
+                motif = constraint.get("motif")
+                avoider_motif_id: str | None
+                if isinstance(motif, MotifModel):
+                    avoider_motif_id = motif.motif_id
+                elif isinstance(motif, Mapping):
+                    raw_motif_id = motif.get("motif_id")
+                    avoider_motif_id = raw_motif_id if isinstance(raw_motif_id, str) else None
+                else:
+                    avoider_motif_id = None
+                if avoider_motif_id != key:
+                    raise ValueError(
+                        f"avoider key '{key}' does not match model motif_id '{avoider_motif_id}'"
+                    )
+                canonical_avoiders.append(constraint)
+            result["avoiders"] = tuple(canonical_avoiders)
         return result
 
     @field_validator("motifs")
@@ -232,18 +274,54 @@ class DesignSpec(FrozenModel):
             raise ValueError("motif identifiers must be unique")
         return ordered
 
+    @field_validator("avoiders")
+    @classmethod
+    def validate_avoiders(
+        cls, value: tuple[AvoidanceConstraint, ...]
+    ) -> tuple[AvoidanceConstraint, ...]:
+        ordered = tuple(sorted(value, key=lambda item: item.motif.motif_id))
+        ids = [item.motif.motif_id for item in ordered]
+        if len(ids) != len(set(ids)):
+            raise ValueError("avoider motif identifiers must be unique")
+        return ordered
+
     @model_validator(mode="after")
     def validate_budget(self) -> Self:
+        if self.schema_version == "design-spec/v1" and self.avoiders:
+            raise ValueError("design-spec/v1 cannot declare avoiders")
+        expected_scoring = (
+            LEGACY_SCORING_SEMANTICS
+            if self.schema_version == "design-spec/v1"
+            else SCORING_SEMANTICS
+        )
+        expected_motif_schema = (
+            "motif-model/v1" if self.schema_version == "design-spec/v1" else "motif-model/v2"
+        )
+        if self.scoring_semantics != expected_scoring:
+            raise ValueError(
+                f"{self.schema_version} requires scoring_semantics '{expected_scoring}'"
+            )
+        all_motifs = (*self.motifs, *(item.motif for item in self.avoiders))
+        if any(motif.schema_version != expected_motif_schema for motif in all_motifs):
+            raise ValueError(
+                f"{self.schema_version} requires motifs using '{expected_motif_schema}'"
+            )
+        target_ids = {motif.motif_id for motif in self.motifs}
+        avoider_ids = {item.motif.motif_id for item in self.avoiders}
+        if target_ids & avoider_ids:
+            raise ValueError("target and avoider motif identifiers must be disjoint")
         if self.count > self.evaluations:
             raise ValueError("evaluations must be at least count")
-        if self.count * len(self.motifs) > MAX_BUNDLE_ROWS:
+        motif_count = len(self.motifs) + len(self.avoiders)
+        if self.count * motif_count > MAX_BUNDLE_ROWS:
             raise ValueError("count times motif count exceeds the canonical match-row limit")
         if self.count * self.length > MAX_PORTFOLIO_BASES:
             raise ValueError("count times length exceeds the canonical portfolio-base limit")
         strand_factor = 2 if self.strands == "both" else 1
+        scored_motifs = (*self.motifs, *(item.motif for item in self.avoiders))
         score_operations = self.evaluations * sum(
             (self.length - motif.width + 1) * motif.width * strand_factor
-            for motif in self.motifs
+            for motif in scored_motifs
             if motif.width <= self.length
         )
         if score_operations > MAX_SCORE_BASE_OPERATIONS:
@@ -283,6 +361,10 @@ class Evaluation(FrozenModel):
     sequence: str
     balance_score: Annotated[float, Field(strict=True, ge=0.0)]
     matches: tuple[MotifMatch, ...]
+    avoidance_matches: tuple[MotifMatch, ...] = ()
+    constraint_status: Literal["feasible", "infeasible"] = "feasible"
+    max_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
+    total_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
 
     @model_validator(mode="after")
     def validate_balance(self) -> Self:
@@ -293,7 +375,23 @@ class Evaluation(FrozenModel):
         weakest = min(match.normalized_score for match in self.matches)
         if not math.isclose(self.balance_score, weakest, abs_tol=1.0e-12):
             raise ValueError("balance_score must equal the weakest normalized motif score")
+        target_ids = {match.motif_id for match in self.matches}
+        avoider_ids = {match.motif_id for match in self.avoidance_matches}
+        if len(target_ids) != len(self.matches) or len(avoider_ids) != len(self.avoidance_matches):
+            raise ValueError("evaluation contains duplicate motif match identifiers")
+        if target_ids & avoider_ids:
+            raise ValueError("target and avoider matches must be disjoint")
+        if not self.avoidance_matches and (
+            self.constraint_status != "feasible"
+            or self.max_avoidance_excess != 0.0
+            or self.total_avoidance_excess != 0.0
+        ):
+            raise ValueError("an evaluation without avoiders must be constraint feasible")
         return self
+
+    @property
+    def constraint_feasible(self) -> bool:
+        return self.constraint_status == "feasible"
 
 
 class Candidate(FrozenModel):
@@ -302,6 +400,10 @@ class Candidate(FrozenModel):
     sequence: str
     balance_score: Annotated[float, Field(strict=True, ge=0.0)]
     matches: tuple[MotifMatch, ...]
+    avoidance_matches: tuple[MotifMatch, ...] = ()
+    constraint_status: Literal["feasible", "infeasible"] = "feasible"
+    max_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
+    total_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
 
     @model_validator(mode="after")
     def validate_candidate(self) -> Self:
@@ -309,8 +411,16 @@ class Candidate(FrozenModel):
             sequence=self.sequence,
             balance_score=self.balance_score,
             matches=self.matches,
+            avoidance_matches=self.avoidance_matches,
+            constraint_status=self.constraint_status,
+            max_avoidance_excess=self.max_avoidance_excess,
+            total_avoidance_excess=self.total_avoidance_excess,
         )
         return self
+
+    @property
+    def constraint_feasible(self) -> bool:
+        return self.constraint_status == "feasible"
 
 
 class ArtifactDigest(FrozenModel):
@@ -337,11 +447,14 @@ class ProposalSummary(FrozenModel):
 
 
 class SearchDiagnostics(FrozenModel):
-    schema_version: Literal["search-diagnostics/v1"] = "search-diagnostics/v1"
+    schema_version: Literal["search-diagnostics/v1", "search-diagnostics/v2"] = (
+        "search-diagnostics/v2"
+    )
     restarts: Annotated[int, Field(gt=0)]
     best_score: Annotated[float, Field(ge=0.0)]
     checkpoints: tuple[SearchCheckpoint, ...]
     restart_final_scores: tuple[Annotated[float, Field(ge=0.0)], ...]
+    restart_final_constraint_statuses: tuple[Literal["feasible", "infeasible"], ...] = ()
     proposals: tuple[ProposalSummary, ...]
 
     @model_validator(mode="after")
@@ -350,6 +463,13 @@ class SearchDiagnostics(FrozenModel):
             raise ValueError("search diagnostics must contain at least one checkpoint")
         if len(self.restart_final_scores) != self.restarts:
             raise ValueError("restart_final_scores must contain one score per restart")
+        if self.schema_version == "search-diagnostics/v1":
+            if self.restart_final_constraint_statuses:
+                raise ValueError("search-diagnostics/v1 cannot contain constraint statuses")
+        elif len(self.restart_final_constraint_statuses) != self.restarts:
+            raise ValueError(
+                "restart_final_constraint_statuses must contain one status per restart"
+            )
         previous_evaluations = 0
         previous_best = -math.inf
         for checkpoint in self.checkpoints:
@@ -459,9 +579,9 @@ class ExecutionWorkspace(FrozenModel):
 
 
 class RunManifest(FrozenModel):
-    schema_version: Literal["run-manifest/v2", "run-manifest/v3", "run-manifest/v4"] = (
-        "run-manifest/v4"
-    )
+    schema_version: Literal[
+        "run-manifest/v2", "run-manifest/v3", "run-manifest/v4", "run-manifest/v5"
+    ] = "run-manifest/v5"
     package_version: str
     runtime_contract: str
     build_lock_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -485,9 +605,22 @@ class RunManifest(FrozenModel):
             raise ValueError("unique_evaluations cannot exceed evaluation_count")
         if self.search_diagnostics.checkpoints[-1].evaluations != self.evaluation_count:
             raise ValueError("final search checkpoint must equal evaluation_count")
-        if self.schema_version == "run-manifest/v4":
+        expected_diagnostics = (
+            "search-diagnostics/v2"
+            if self.schema_version == "run-manifest/v5"
+            else "search-diagnostics/v1"
+        )
+        if self.search_diagnostics.schema_version != expected_diagnostics:
+            raise ValueError(f"{self.schema_version} requires {expected_diagnostics}")
+        if self.completion_status == "exhaustive" and (
+            self.unique_evaluations != self.evaluation_count
+        ):
+            raise ValueError("exhaustive manifests require one unique row per evaluation")
+        if self.schema_version in {"run-manifest/v4", "run-manifest/v5"}:
             if self.best_observed is None:
-                raise ValueError("run-manifest/v4 requires the complete best observed evaluation")
+                raise ValueError(
+                    "run-manifest/v4 and v5 require the complete best observed evaluation"
+                )
             if not math.isclose(
                 self.best_observed.balance_score,
                 self.search_diagnostics.best_score,
@@ -514,11 +647,25 @@ class PortfolioRecord(FrozenModel):
 
     @model_validator(mode="after")
     def validate_portfolio(self) -> Self:
+        current_contract = (
+            self.manifest.schema_version == "run-manifest/v5"
+            and self.spec.schema_version == "design-spec/v2"
+            and self.spec.scoring_semantics == SCORING_SEMANTICS
+        )
+        legacy_contract = (
+            self.manifest.schema_version
+            in {"run-manifest/v2", "run-manifest/v3", "run-manifest/v4"}
+            and self.spec.schema_version == "design-spec/v1"
+            and self.spec.scoring_semantics == LEGACY_SCORING_SEMANTICS
+        )
+        if not (current_contract or legacy_contract):
+            raise ValueError("portfolio violates the manifest/design scoring version matrix")
         if self.problem_id != self.manifest.problem_id or self.run_id != self.manifest.run_id:
             raise ValueError("portfolio and manifest identities must agree")
         if len(self.candidates) != self.spec.count:
             raise ValueError("portfolio must contain exactly spec.count candidates")
         expected_ids = {motif.motif_id for motif in self.spec.motifs}
+        expected_avoider_ids = {item.motif.motif_id for item in self.spec.avoiders}
         best_observed = self.manifest.best_observed
         if best_observed is not None:
             if len(best_observed.sequence) != self.spec.length:
@@ -529,6 +676,16 @@ class PortfolioRecord(FrozenModel):
                 )
             if len(best_observed.matches) != len(expected_ids):
                 raise ValueError("best observed evaluation contains duplicate motif matches")
+            if {
+                match.motif_id for match in best_observed.avoidance_matches
+            } != expected_avoider_ids or len(best_observed.avoidance_matches) != len(
+                expected_avoider_ids
+            ):
+                raise ValueError(
+                    "best observed evaluation must contain exactly one match per avoider"
+                )
+            if not best_observed.constraint_feasible:
+                raise ValueError("best observed published evaluation must satisfy hard constraints")
         seen_candidate_ids: set[str] = set()
         seen_sequences: set[str] = set()
         previous_key: tuple[float, str] | None = None
@@ -541,6 +698,12 @@ class PortfolioRecord(FrozenModel):
                 raise ValueError("candidate must contain exactly one match per motif")
             if len(candidate.matches) != len(expected_ids):
                 raise ValueError("candidate contains duplicate motif matches")
+            if {match.motif_id for match in candidate.avoidance_matches} != expected_avoider_ids:
+                raise ValueError("candidate must contain exactly one match per avoider")
+            if len(candidate.avoidance_matches) != len(expected_avoider_ids):
+                raise ValueError("candidate contains duplicate avoider matches")
+            if not candidate.constraint_feasible:
+                raise ValueError("published candidate must satisfy hard constraints")
             if candidate.sequence in seen_sequences:
                 raise ValueError("candidate sequences must be unique")
             if candidate.candidate_id in seen_candidate_ids:
@@ -551,7 +714,7 @@ class PortfolioRecord(FrozenModel):
             if previous_key is not None and key < previous_key:
                 raise ValueError("candidates must be sorted by score then sequence")
             previous_key = key
-            for match in candidate.matches:
+            for match in (*candidate.matches, *candidate.avoidance_matches):
                 if match.end > self.spec.length:
                     raise ValueError("match coordinates exceed candidate sequence")
             if best_observed is not None:
@@ -562,6 +725,7 @@ class PortfolioRecord(FrozenModel):
                 if candidate.sequence == best_observed.sequence and (
                     candidate.balance_score != best_observed.balance_score
                     or candidate.matches != best_observed.matches
+                    or candidate.avoidance_matches != best_observed.avoidance_matches
                 ):
                     raise ValueError("selected and best observed records disagree for one sequence")
         if self.spec.min_distance is not None and self.spec.min_distance > 0.0:
@@ -585,3 +749,9 @@ class PortfolioRecord(FrozenModel):
     @property
     def matches(self) -> tuple[MotifMatch, ...]:
         return tuple(match for candidate in self.candidates for match in candidate.matches)
+
+    @property
+    def avoidance_matches(self) -> tuple[MotifMatch, ...]:
+        return tuple(
+            match for candidate in self.candidates for match in candidate.avoidance_matches
+        )

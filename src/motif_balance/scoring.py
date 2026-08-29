@@ -10,6 +10,7 @@ from motif_balance.model import Evaluation, MotifMatch
 
 _BASE_INDEX: dict[str, int] = {base: index for index, base in enumerate(DNA_ALPHABET)}
 _TIE_EPSILON = 1.0e-12
+_ATTAINMENT_TOLERANCE = 1.0e-12
 
 
 def reverse_complement(sequence: str) -> str:
@@ -49,10 +50,22 @@ def _best_match(sequence: str, motif: CompiledMotif, *, both_strands: bool) -> M
     if best is None:  # compile_design prevents this path
         raise ValueError(f"Sequence is shorter than motif '{motif.model.motif_id}'.")
     raw_score, start, _, strand, motif_oriented = best
-    normalized = max(
-        0.0,
-        (raw_score - motif.null_mean) / motif.normalization_denominator,
-    )
+    if motif.model.schema_version == "motif-model/v1":
+        normalized = max(
+            0.0,
+            (raw_score - motif.null_mean) / motif.normalization_denominator,
+        )
+    else:
+        normalized = (raw_score - motif.score_min) / (motif.score_max - motif.score_min)
+        if normalized < -_ATTAINMENT_TOLERANCE or normalized > 1.0 + _ATTAINMENT_TOLERANCE:
+            raise ValueError(
+                f"relative PWM attainment for motif '{motif.model.motif_id}' is outside "
+                "the attainable range"
+            )
+        if normalized < 0.0:
+            normalized = 0.0
+        elif normalized > 1.0:
+            normalized = 1.0
     return MotifMatch(
         motif_id=motif.model.motif_id,
         start=start,
@@ -84,7 +97,29 @@ def evaluate(sequence: str, problem: CompiledProblem) -> Evaluation:
         )
         for motif in problem.motifs
     )
+    avoidance_matches = tuple(
+        _best_match(
+            normalized,
+            item.motif,
+            both_strands=problem.spec.strands == "both",
+        )
+        for item in problem.avoiders
+    )
     balance_score = min(match.normalized_score for match in matches)
     if not math.isfinite(balance_score):
         raise ValueError("evaluation produced a nonfinite balance score")
-    return Evaluation(sequence=normalized, balance_score=balance_score, matches=matches)
+    excesses = tuple(
+        max(0.0, match.normalized_score - item.score_ceiling)
+        for match, item in zip(avoidance_matches, problem.avoiders, strict=True)
+    )
+    max_excess = max(excesses, default=0.0)
+    total_excess = math.fsum(excesses)
+    return Evaluation(
+        sequence=normalized,
+        balance_score=balance_score,
+        matches=matches,
+        avoidance_matches=avoidance_matches,
+        constraint_status="feasible" if max_excess <= 1.0e-12 else "infeasible",
+        max_avoidance_excess=max_excess,
+        total_avoidance_excess=total_excess,
+    )

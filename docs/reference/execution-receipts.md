@@ -25,7 +25,7 @@ Create the workspace in the same operation that performs the design:
 
 ```bash
 motif-balance orchestration execute design.yaml \
-  --release-artifact dist/motif_balance-0.3.0a3-py3-none-any.whl \
+  --release-artifact dist/motif_balance-0.4.0a1-py3-none-any.whl \
   --producer-revision <40-character-commit> \
   --out execution-workspace
 ```
@@ -116,8 +116,8 @@ or the canonical bundle.
 
 ## Supported schemas
 
-Motif Balance `0.3` verifies `run-manifest/v2`, `run-manifest/v3`, and
-`run-manifest/v4`, execution
+Motif Balance `0.3` verifies `run-manifest/v2` through `run-manifest/v4`.
+Motif Balance `0.4` additionally verifies `run-manifest/v5`, execution
 receipt v1, and execution workspace v1. It rejects earlier or unknown schemas. Retain the exact
 wheel because scientific replay is exact-build replay; a package version alone
 is not enough. Future compatibility must be implemented as an explicit schema

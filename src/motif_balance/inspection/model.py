@@ -27,6 +27,11 @@ class InspectionMotif(FrozenModel):
     model_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     probabilities: tuple[tuple[float, float, float, float], ...]
     background: tuple[float, float, float, float]
+    score_min: float = Field(allow_inf_nan=False)
+    score_max: float = Field(allow_inf_nan=False)
+    score_reference_semantics: Literal["null_mean_to_score_max_v1", "attainable_min_max_v2"]
+    probability_consensus: str
+    score_maximizing_sequence: str
     source_name: str | None = None
     source_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     canonical_file_name: str | None = None
@@ -37,12 +42,24 @@ class InspectionMotif(FrozenModel):
     def validate_width(self) -> Self:
         if self.width != len(self.probabilities):
             raise ValueError("motif width must equal the probability-matrix length")
+        if self.score_max <= self.score_min:
+            raise ValueError("motif score maximum must exceed its score minimum")
+        if (
+            len(self.probability_consensus) != self.width
+            or len(self.score_maximizing_sequence) != self.width
+        ):
+            raise ValueError("motif reference sequences must equal the motif width")
         return self
+
+
+class InspectionAvoider(InspectionMotif):
+    score_ceiling: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
 
 
 class InspectionProblem(FrozenModel):
     problem_id: str = Field(pattern=r"^problem-[0-9a-f]{24}$")
     motifs: tuple[InspectionMotif, ...]
+    avoiders: tuple[InspectionAvoider, ...] = ()
     length: Annotated[int, Field(gt=0)]
     strands: Literal["forward", "both"]
     scoring_semantics: str
@@ -54,6 +71,21 @@ class InspectionProblem(FrozenModel):
         ids = tuple(motif.motif_id for motif in self.motifs)
         if not ids or ids != tuple(sorted(ids)) or len(ids) != len(set(ids)):
             raise ValueError("inspection motifs must be nonempty, unique, and canonical")
+        expected_reference = (
+            "null_mean_to_score_max_v1"
+            if self.scoring_semantics == "normalized_llr_v1"
+            else "attainable_min_max_v2"
+        )
+        avoider_ids = tuple(motif.motif_id for motif in self.avoiders)
+        if avoider_ids != tuple(sorted(avoider_ids)) or len(avoider_ids) != len(set(avoider_ids)):
+            raise ValueError("inspection avoiders must be unique and canonical")
+        if set(ids) & set(avoider_ids):
+            raise ValueError("inspection target and avoider identifiers must be disjoint")
+        if any(
+            motif.score_reference_semantics != expected_reference
+            for motif in (*self.motifs, *self.avoiders)
+        ):
+            raise ValueError("inspection score references do not match scoring semantics")
         return self
 
 
@@ -93,6 +125,7 @@ class SearchInspection(FrozenModel):
     checkpoints: tuple[SearchCheckpoint, ...]
     restarts: Annotated[int, Field(gt=0)]
     restart_final_scores: tuple[Annotated[float, Field(ge=0.0)], ...]
+    restart_final_constraint_statuses: tuple[Literal["feasible", "infeasible"], ...]
     proposals: tuple[ProposalSummary, ...]
 
     @model_validator(mode="after")
@@ -110,6 +143,8 @@ class SearchInspection(FrozenModel):
             raise ValueError("search checkpoints must end at evaluator_calls")
         if len(self.restart_final_scores) != self.restarts:
             raise ValueError("restart scores must contain one value per restart")
+        if len(self.restart_final_constraint_statuses) != self.restarts:
+            raise ValueError("restart statuses must contain one value per restart")
         return self
 
 
@@ -198,6 +233,9 @@ class InspectionCandidate(FrozenModel):
     shared_coordinates: tuple[Annotated[int, Field(ge=0)], ...]
     nearest_neighbor_distance: Annotated[float, Field(ge=0.0, le=1.0)] | None = None
     matches: tuple[InspectionMatch, ...]
+    avoidance_matches: tuple[InspectionMatch, ...] = ()
+    constraint_status: Literal["feasible", "infeasible"] = "feasible"
+    max_avoidance_excess: Annotated[float, Field(ge=0.0, allow_inf_nan=False)] = 0.0
 
     @model_validator(mode="after")
     def validate_candidate(self) -> Self:
@@ -220,8 +258,12 @@ class InspectionCandidate(FrozenModel):
         )
         if self.limiting_motif_ids != limiting:
             raise ValueError("limiting motif identities do not match the hard minimum")
+        if not self.avoidance_matches and (
+            self.constraint_status != "feasible" or self.max_avoidance_excess != 0.0
+        ):
+            raise ValueError("candidate without avoiders must be constraint feasible")
         coverage = [0] * len(self.sequence)
-        for match in self.matches:
+        for match in (*self.matches, *self.avoidance_matches):
             if match.end > len(self.sequence):
                 raise ValueError("match coordinates exceed the candidate sequence")
             for position in range(match.start, match.end):
@@ -241,6 +283,9 @@ class BestObservedInspection(FrozenModel):
     shared_coordinates: tuple[Annotated[int, Field(ge=0)], ...]
     selected_rank: Annotated[int, Field(gt=0)] | None = None
     matches: tuple[InspectionMatch, ...]
+    avoidance_matches: tuple[InspectionMatch, ...] = ()
+    constraint_status: Literal["feasible", "infeasible"] = "feasible"
+    max_avoidance_excess: Annotated[float, Field(ge=0.0, allow_inf_nan=False)] = 0.0
 
     @model_validator(mode="after")
     def validate_best_observed(self) -> Self:
@@ -253,6 +298,9 @@ class BestObservedInspection(FrozenModel):
             limiting_motif_ids=self.limiting_motif_ids,
             shared_coordinates=self.shared_coordinates,
             matches=self.matches,
+            avoidance_matches=self.avoidance_matches,
+            constraint_status=self.constraint_status,
+            max_avoidance_excess=self.max_avoidance_excess,
         )
         if candidate.nearest_neighbor_distance is not None:  # pragma: no cover - construction
             raise ValueError("best observed projection cannot carry portfolio distance")
@@ -360,8 +408,8 @@ class ExecutionInspection(FrozenModel):
 
 
 class ResultInspection(FrozenModel):
-    schema_version: Literal["motif-balance.result-inspection/v3"] = (
-        "motif-balance.result-inspection/v3"
+    schema_version: Literal["motif-balance.result-inspection/v4"] = (
+        "motif-balance.result-inspection/v4"
     )
     subject_kind: Literal["bundle", "execution"]
     integrity: IntegrityInspection

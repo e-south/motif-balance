@@ -26,7 +26,7 @@ def _write_design(path: Path, spec: DesignSpec) -> None:
         for motif in spec.motifs
     )
     path.write_text(
-        "schema_version: design-spec/v1\n"
+        "schema_version: design-spec/v2\n"
         f"motifs:\n{motifs}\n"
         f"length: {spec.length}\ncount: {spec.count}\nstrands: {spec.strands}\n"
         f"evaluations: {spec.evaluations}\nseed: {spec.seed}\n"
@@ -112,7 +112,9 @@ def test_load_spec_refuses_symbolic_links_and_nonstring_motif_keys(tmp_path: Pat
         load_design_spec(link)
 
     invalid = tmp_path / "invalid.yaml"
-    invalid.write_text("motifs:\n  1: {}\nlength: 1\ncount: 1\nevaluations: 1\n")
+    invalid.write_text(
+        "schema_version: design-spec/v2\nmotifs:\n  1: {}\nlength: 1\ncount: 1\nevaluations: 1\n"
+    )
     with pytest.raises(InvalidDesign, match="keys must be strings"):
         load_design_spec(invalid)
 
@@ -137,7 +139,7 @@ def test_execute_rejects_invalid_wheel_artifacts_before_design(
 ) -> None:
     specification = tmp_path / "design.yaml"
     _write_design(specification, pairwise_spec)
-    release = tmp_path / "motif_balance-0.3.0a3-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a1-py3-none-any.whl"
     if kind == "not_zip":
         release.write_bytes(b"not a zip archive")
     elif kind == "no_metadata":
@@ -145,18 +147,18 @@ def test_execute_rejects_invalid_wheel_artifacts_before_design(
     elif kind == "wrong_identity":
         _wheel(
             release,
-            metadata="Metadata-Version: 2.4\nName: other\nVersion: 0.3.0a3\n",
+            metadata="Metadata-Version: 2.4\nName: other\nVersion: 0.4.0a1\n",
             include_package=True,
         )
     elif kind == "no_package":
         _wheel(
             release,
-            metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a3\n",
+            metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a1\n",
         )
     else:
         _wheel(
             release,
-            metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a3\n",
+            metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a1\n",
             include_package=True,
             corrupt_record="malformed" if kind == "bad_record" else None,
             bad_entry_point=kind == "bad_entry",
@@ -164,7 +166,7 @@ def test_execute_rejects_invalid_wheel_artifacts_before_design(
         if kind == "record_digest":
             _wheel(
                 release,
-                metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a3\n",
+                metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a1\n",
                 include_package=True,
                 corrupt_record="digest",
             )

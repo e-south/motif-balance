@@ -7,7 +7,7 @@ audience:
   - bundle consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
+last_verified: 2026-08-29
 doc_type: reference
 ---
 
@@ -44,6 +44,12 @@ completed execution workspace. Workflows measuring failure rates must record
 their trial outcome separately. The requested output count and diversity
 constraints are hard postconditions.
 
+Hard avoider ceilings are feasibility constraints, not score penalties.
+Complete enumeration may report an exact infeasibility proof. A heuristic run
+that finds too few feasible sequences reports budget exhaustion without
+generalizing beyond its evaluated pool. Portfolio infeasibility and the
+distance-selection node limit remain separate outcomes.
+
 The public specification also caps sequence length, candidate count, evaluator
 calls, total portfolio bases, and canonical match rows. Sequence-space
 classification stops once the declared bound is exceeded; it never computes
@@ -68,7 +74,7 @@ systems may register their locations and digests without changing the software
 artifact identity.
 
 Result inspections are derived after verification and are never inserted into
-`run-manifest/v2`, `run-manifest/v3`, or `run-manifest/v4`. Inspection accepts one explicit result;
+`run-manifest/v2`, `run-manifest/v3`, `run-manifest/v4`, or `run-manifest/v5`. Inspection accepts one explicit result;
 cross-result joining remains a caller responsibility. Exact
 pairwise distance inspection has an explicit base-comparison limit and reports
 `not_computed_limit` instead of entering unbounded quadratic work. HTML and SVG
@@ -77,6 +83,11 @@ preserving exact displayed and total counts. Wide SVGs keep explicit dimensions
 and are horizontally scrollable rather than illegibly compressed. Print output
 uses a bounded print-only copy of progressively disclosed tables because
 Chromium does not print descendants of closed `details` elements.
+
+Evaluated-pool observations are separate bounded JSON exports. They contain at
+most 10,000 unique evaluations and 64 MiB, refuse overwrite, use a
+descriptor-bound no-symlink reader, bind their content identity, and replay
+every score before publication and after reading.
 
 ## Degraded behavior
 

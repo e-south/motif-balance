@@ -7,7 +7,7 @@ audience:
   - API consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-28
+last_verified: 2026-08-29
 doc_type: explanation
 ---
 
@@ -36,8 +36,10 @@ may select output or validation behavior but cannot revise that specification.
   operations, distance comparisons, portfolio bases, and canonical match rows
   have explicit public upper bounds. Feasibility checks do not materialize or
   exponentiate beyond those bounds.
-- Each motif contributes exactly one best match per candidate under declared
-  strand and deterministic tie-breaking rules.
+- Each target motif contributes exactly one best match per candidate under
+  declared strand and deterministic tie-breaking rules. Versioned hard
+  avoidance constraints separately cap the best normalized match of each
+  avoider motif; avoider scores never enter the target hard minimum.
 - One scoring implementation is authoritative. The public balance score is the
   hard minimum of per-motif normalized scores; any smooth surrogate is search-
   internal and is never reported as the public score.
@@ -69,8 +71,9 @@ Malformed models, unsafe paths, impossible lengths, unknown fields, invalid
 normalization domains, non-deterministic ties, insufficient feasible
 candidates, and artifact-integrity failures raise explicit typed errors.
 Scientific infeasibility is not converted to an empty successful portfolio.
-Evaluator exhaustion, evaluated-pool infeasibility, and the bounded selection
-traversal limit are distinct typed failures.
+Search-budget exhaustion, unresolved constraint feasibility, exhaustive proof
+of constraint infeasibility, portfolio infeasibility, and the bounded
+selection traversal limit are distinct typed failures.
 
 ## Change discipline
 
@@ -79,10 +82,13 @@ meaning change requires an architecture decision, compatibility statement,
 negative tests, and reference-document updates. Optimizer improvements must not
 change scoring or selection semantics accidentally.
 
-Version `0.3` reads strict `run-manifest/v2`, `run-manifest/v3`, and
-`run-manifest/v4` inventories and writes only v4. V4 adds the complete best
-observed evaluation without changing the selected-candidate tables. Exact
-score replay pins the declared scoring, search, and selection semantics.
+Version `0.3` reads strict `run-manifest/v2` through `run-manifest/v4` and
+writes only v4. Version `0.4` additionally reads v5 and writes only v5. V4 adds
+the complete best observed evaluation without changing the selected-candidate
+tables. Exact score replay pins the declared scoring, search, and selection
+semantics. V5 binds the `relative_pwm_attainment_v2` scoring contract, v2 input
+schemas, explicit target and avoider match roles, and avoider ceilings without
+changing the target hard-minimum score. New v1 publication is prohibited.
 Earlier schemas require an explicit compatibility dispatcher; they are never
 accepted through loosened validation.
 
@@ -98,3 +104,15 @@ counts rather than raw optimizer-state traces.
 That engine is production software, not evidence that it outperforms a
 baseline. Comparative performance and repeated-seed robustness require a
 separately frozen workflow over released package artifacts.
+
+Hard avoidance is feasibility-first. Search prefers feasible states before
+optimizing target balance; among infeasible states it reduces the largest
+ceiling excess. This is a lexicographic admission rule, not a weighted penalty.
+Complete enumeration can prove constraint infeasibility. A bounded heuristic
+run can report only that it exhausted its budget without finding enough
+feasible sequences.
+
+The advanced `motif_balance.observation` module can produce one bounded,
+immutable, path-free record of the complete unique evaluated pool. It exists
+for explicit downstream analysis, is replay-verified, and is not part of
+`Portfolio`, the canonical bundle, or the top-level scientific facade.

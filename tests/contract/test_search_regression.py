@@ -32,6 +32,10 @@ def test_annealed_search_snapshot_is_stable_under_current_semantics() -> None:
     assert portfolio.manifest.unique_evaluations == expected["unique_evaluations"]
     assert diagnostics.best_score == expected["best_score"]
     assert list(diagnostics.restart_final_scores) == expected["restart_final_scores"]
+    assert (
+        list(diagnostics.restart_final_constraint_statuses)
+        == expected["restart_final_constraint_statuses"]
+    )
     assert [item.model_dump(mode="json") for item in diagnostics.proposals] == expected[
         "proposal_summaries"
     ]
