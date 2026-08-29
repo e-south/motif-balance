@@ -185,6 +185,8 @@ h3 { margin-top:1.6rem; }
 .contract { font-weight:650; letter-spacing:.01em; overflow-wrap:anywhere; }
 .status-line { color:var(--muted); margin:1rem 0 2rem; }
 .status-line span { white-space:nowrap; }
+.best-observed-record { max-width:100%; overflow-x:auto; padding-bottom:.2rem; }
+.best-observed-record .sequence { white-space:nowrap; }
 .figure-scroll {
   overflow-x:auto; inline-size:100%; max-width:100%; min-width:0; border:1px solid var(--line);
   padding:.5rem; background:var(--paper);
@@ -322,6 +324,22 @@ def _status_line(inspection: ResultInspection) -> str:
     )
 
 
+def _best_observed_record(inspection: ResultInspection) -> str:
+    best = inspection.portfolio.best_observed
+    if best is None:
+        return ""
+    selection = (
+        "not selected under the portfolio constraint"
+        if best.selected_rank is None
+        else f"selected at rank {best.selected_rank}"
+    )
+    return (
+        '<p class="best-observed-record"><strong>Best observed candidate</strong> '
+        f'<code class="sequence">{escape(best.sequence)}</code> · '
+        f"{escape(selection)}</p>"
+    )
+
+
 def render_html(
     inspection: ResultInspection,
     *,
@@ -332,11 +350,20 @@ def render_html(
     selected = _selected_candidate(inspection, candidate_rank)
     candidate_svg = render_candidate_svg(inspection, candidate_rank=candidate_rank).decode()
     portfolio_svg = render_portfolio_svg(inspection).decode()
+    best_observed = inspection.portfolio.best_observed
+    best_observed_state = (
+        "Its sequence is unavailable in the source bundle schema."
+        if best_observed is None
+        else "It was not selected under the portfolio constraint."
+        if best_observed.selected_rank is None
+        else f"It is selected at portfolio rank {best_observed.selected_rank}."
+    )
     lede = (
         f"Returned {inspection.delivery.delivered_count} of "
-        f"{inspection.delivery.requested_count} requested sequences. The selected rank "
-        f"{selected.rank} candidate balances {len(inspection.problem.motifs)} motif models "
-        f"at {selected.balance_score:.6g}."
+        f"{inspection.delivery.requested_count} requested sequences. Best observed "
+        f"balance_score was {inspection.portfolio.best_observed_score:.6g}. "
+        f"{best_observed_state} The selected rank {selected.rank} candidate balances "
+        f"{len(inspection.problem.motifs)} motif models at {selected.balance_score:.6g}."
     )
     scope = " ".join(inspection.claim_scope)
     distance = (
@@ -353,6 +380,7 @@ def render_html(
         (
             "<h1>Motif Balance result review</h1>",
             f'<h2>Result</h2><p class="lede">{escape(lede)}</p>',
+            _best_observed_record(inspection),
             _status_line(inspection),
             f'<h2>Design contract</h2><p class="contract">{escape(contract)}</p>',
             "<h2>Portfolio balance</h2>",

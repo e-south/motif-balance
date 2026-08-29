@@ -8,7 +8,7 @@ audience:
   - downstream integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
+last_verified: 2026-08-28
 doc_type: reference
 ---
 
@@ -32,9 +32,9 @@ verify, or inspect that operation.
 | What is the joint score? | scoring | `weakest_score_v1` |
 | How are sequences proposed? | `SearchEngine` | engine name and version |
 | Which evaluated sequences ship? | selection | exact count and declared distance |
-| What crosses a repository boundary? | canonical bundle | `run-manifest/v3` |
+| What crosses a repository boundary? | canonical bundle | `run-manifest/v4` |
 | Which released bytes performed a run? | execution workspace | `motif-balance.execution-workspace/v1` |
-| How is one result explained without mutation? | `ResultInspection` | `motif-balance.result-inspection/v2` |
+| How is one result explained without mutation? | `ResultInspection` | `motif-balance.result-inspection/v3` |
 
 ## Ontology
 
@@ -105,6 +105,13 @@ the exact requested count or raises a typed `SearchBudgetExhausted`,
 the bounded subset traversal did not resolve feasibility; it is not proof that
 no feasible portfolio exists.
 
+The best observed evaluation and the selected portfolio are distinct records.
+The manifest retains the complete score-ranked best evaluation even when a
+distance constraint excludes that sequence from the exact selected set.
+`candidates.tsv`, `matches.tsv`, and FASTA contain only selected portfolio
+members. Older readable manifests may expose only the best observed score
+because they did not retain the corresponding sequence and matches.
+
 ## Artifact contract
 
 The canonical bundle contains:
@@ -119,9 +126,9 @@ manifest.json
 
 `candidates.fasta` is a derived, verified bundle member. Every member except
 the manifest is bound by relative path, byte count, and SHA-256 digest.
-The bundle identity binds scientific inputs, search provenance, bounded
-diagnostics, and artifact records. Publication is atomic and refuses an
-existing destination.
+The bundle identity binds scientific inputs, the complete best observed
+evaluation, search provenance, bounded diagnostics, and artifact records.
+Publication is atomic and refuses an existing destination.
 
 An attested execution wraps the resolved specification, exact wheel,
 canonical bundle, runtime receipt, and content index in one independently

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Final, Literal
 
-PACKAGE_VERSION: Final = "0.3.0a2"
+PACKAGE_VERSION: Final = "0.3.0a3"
 RUNTIME_CONTRACT: Final = "python>=3.12,<3.15"
-BUILD_LOCK_SHA256: Final = "b807ed2a0dec5beec3622b9499bc01a13628db73843aa471c84964f983df1f0c"
+BUILD_LOCK_SHA256: Final = "7709b1c8fe8e917884582ed06e25deb16afd5e7c8f19dbc5a5fa1d124dc8bacf"
 MAX_INPUT_BYTES: Final = 1_000_000
 MAX_BUNDLE_ARTIFACT_BYTES: Final = 100_000_000
 MAX_BUNDLE_ROWS: Final = 1_000_000

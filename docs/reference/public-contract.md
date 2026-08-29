@@ -7,7 +7,7 @@ audience:
   - integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
+last_verified: 2026-08-28
 doc_type: reference
 journey:
   - integrate
@@ -88,11 +88,14 @@ candidates.fasta  # derived, manifest-bound
 
 The manifest binds every other member by relative path, size, and SHA-256.
 Verification recompiles the problem and replays each published candidate's
-matches and hard-minimum score. It does not rerun search. Text, inspection
+matches and hard-minimum score. Current manifests additionally bind and replay
+the complete best observed evaluation even when it is excluded from the
+distance-constrained selected portfolio. It does not rerun search. Text, inspection
 JSON, SVG, and HTML are regenerable projections outside the bundle.
 
-Version `0.3` reads `run-manifest/v2`, `run-manifest/v3`, and
-`motif-balance.result-inspection/v2`. Unknown schemas fail closed. A workflow
+Version `0.3` reads `run-manifest/v2`, `run-manifest/v3`, `run-manifest/v4`,
+and `motif-balance.result-inspection/v3`. New results write v4. Unknown schemas
+fail closed. A workflow
 that needs exact runtime identity retains the complete
 `motif-balance.execution-workspace/v1` with its wheel and external trust
 anchors.

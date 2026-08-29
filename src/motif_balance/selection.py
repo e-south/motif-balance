@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import hashlib
-
 from motif_balance.errors import (
     ArtifactError,
     PortfolioInfeasible,
     SearchBudgetExhausted,
     SelectionLimitReached,
 )
-from motif_balance.model import Candidate, Evaluation
+from motif_balance.model import Candidate, Evaluation, candidate_id_for_sequence
 
 SELECTION_NODE_LIMIT = 1_000_000
 
@@ -22,11 +20,7 @@ def normalized_hamming_distance(left: str, right: str) -> float:
 
 
 def _candidate_id(sequence: str) -> str:
-    return f"candidate-{hashlib.sha256(sequence.encode()).hexdigest()[:16]}"
-
-
-def candidate_id_for_sequence(sequence: str) -> str:
-    return _candidate_id(sequence)
+    return candidate_id_for_sequence(sequence)
 
 
 def _exact_distance_subset(

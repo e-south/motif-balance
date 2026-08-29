@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from motif_balance import DesignSpec, Portfolio, design
 from motif_balance.artifacts import (
@@ -77,6 +78,26 @@ def test_resealed_scientific_scores_fail_authoritative_scoring_replay(
         verify_bundle(output)
 
 
+def test_resealed_best_observed_sequence_fails_authoritative_scoring_replay(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+) -> None:
+    portfolio = design(pairwise_spec)
+    output = tmp_path / "result"
+    portfolio.write(output)
+    payload = json.loads((output / "manifest.json").read_bytes())
+    payload["best_observed"]["sequence"] = "T" * pairwise_spec.length
+    artifacts = tuple(
+        ArtifactDigest(path=path, **record) for path, record in sorted(payload["artifacts"].items())
+    )
+    provisional = RunManifest.model_validate({**payload, "artifacts": artifacts})
+    sealed = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
+    (output / "manifest.json").write_bytes(manifest_bytes(sealed))
+
+    with pytest.raises(ArtifactError, match="best observed candidate"):
+        verify_bundle(output)
+
+
 def test_publication_rejects_caller_forged_scientific_state(
     pairwise_spec: DesignSpec,
     tmp_path: Path,
@@ -97,17 +118,16 @@ def test_publication_rejects_caller_forged_scientific_state(
     payloads = base_artifact_payloads(pairwise_spec, forged_candidates)
     provisional = portfolio.manifest.model_copy(update={"artifacts": artifact_records(payloads)})
     forged_manifest = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
-    forged = Portfolio.model_validate(
-        {
-            **portfolio.model_dump(mode="python"),
-            "candidates": forged_candidates,
-            "manifest": forged_manifest,
-        }
-    )
     output = tmp_path / "forged"
 
-    with pytest.raises(ArtifactError, match="scientific replay"):
-        forged.write(output)
+    with pytest.raises(ValidationError, match="cannot exceed the best observed score"):
+        Portfolio.model_validate(
+            {
+                **portfolio.model_dump(mode="python"),
+                "candidates": forged_candidates,
+                "manifest": forged_manifest,
+            }
+        )
     assert not output.exists()
 
 

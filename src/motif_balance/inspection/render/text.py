@@ -11,13 +11,32 @@ def render_text(inspection: ResultInspection) -> str:
     """Render the ordinary one-result terminal review."""
 
     best = inspection.portfolio.candidates[0]
+    best_observed = inspection.portfolio.best_observed
     motif_count = len(inspection.problem.motifs)
+    if best_observed is None:
+        observed_lede = (
+            f"The selected rank-one candidate balances {motif_count} motif "
+            f"{'model' if motif_count == 1 else 'models'} at "
+            f"{best.balance_score:.6g}; the source bundle records only the "
+            "best-observed score."
+        )
+    elif best_observed.selected_rank is None:
+        observed_lede = (
+            f"The best observed balance_score was "
+            f"{best_observed.balance_score:.6g}; that sequence was not selected "
+            "under the portfolio constraint."
+        )
+    else:
+        observed_lede = (
+            f"The best observed balance_score was "
+            f"{best_observed.balance_score:.6g}; that sequence was selected at "
+            f"rank {best_observed.selected_rank}."
+        )
     lines = [
         (
             f"Returned {inspection.delivery.delivered_count} of "
             f"{inspection.delivery.requested_count} requested sequences. "
-            f"The top-ranked candidate balances {motif_count} motif "
-            f"{'model' if motif_count == 1 else 'models'} at {best.balance_score:.6g}."
+            f"{observed_lede}"
         ),
         "",
         (
@@ -33,6 +52,7 @@ def render_text(inspection: ResultInspection) -> str:
         f"Length: {inspection.problem.length} nt",
         f"Evaluator calls: {inspection.search.evaluator_calls}",
         f"Stop reason: {_words(inspection.search.stop_reason)}",
+        f"Best observed balance_score: {inspection.portfolio.best_observed_score:.17g}",
         f"Top candidate: rank {best.rank}, {best.candidate_id}",
         f"Top balance_score: {best.balance_score:.17g}",
         f"Limiting motif: {', '.join(best.limiting_motif_ids)}",
@@ -40,6 +60,23 @@ def render_text(inspection: ResultInspection) -> str:
         "Use --format svg --view candidate|portfolio|search for a figure, or",
         "--format html --out FILE for the self-contained shareable review.",
     ]
+    if best_observed is None:
+        lines.insert(
+            13,
+            "Best observed sequence: unavailable in the source bundle schema.",
+        )
+    elif best_observed.selected_rank is None:
+        lines.insert(
+            13,
+            f"Best observed sequence: {best_observed.sequence}; "
+            "not selected under the portfolio constraint.",
+        )
+    else:
+        lines.insert(
+            13,
+            f"Best observed sequence: {best_observed.sequence}; "
+            f"selected at rank {best_observed.selected_rank}.",
+        )
     if inspection.execution is not None:
         lines[6:6] = [
             f"Workspace: {inspection.execution.workspace_id}",

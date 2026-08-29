@@ -33,6 +33,12 @@ def _sha256(value: object) -> str:
     return hashlib.sha256(_canonical_json(value)).hexdigest()
 
 
+def candidate_id_for_sequence(sequence: str) -> str:
+    """Return the compact deterministic join identity for one candidate sequence."""
+
+    return f"candidate-{hashlib.sha256(sequence.encode()).hexdigest()[:16]}"
+
+
 def _contains_boolean(value: object) -> bool:
     if isinstance(value, bool):
         return True
@@ -453,7 +459,9 @@ class ExecutionWorkspace(FrozenModel):
 
 
 class RunManifest(FrozenModel):
-    schema_version: Literal["run-manifest/v2", "run-manifest/v3"] = "run-manifest/v3"
+    schema_version: Literal["run-manifest/v2", "run-manifest/v3", "run-manifest/v4"] = (
+        "run-manifest/v4"
+    )
     package_version: str
     runtime_contract: str
     build_lock_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
@@ -468,6 +476,7 @@ class RunManifest(FrozenModel):
     completion_status: Literal["exhaustive", "budget_exhausted"]
     search_validation_status: Literal["not_applicable", "contract_tested"]
     search_diagnostics: SearchDiagnostics
+    best_observed: Evaluation | None = None
     artifacts: tuple[ArtifactDigest, ...]
 
     @model_validator(mode="after")
@@ -476,6 +485,17 @@ class RunManifest(FrozenModel):
             raise ValueError("unique_evaluations cannot exceed evaluation_count")
         if self.search_diagnostics.checkpoints[-1].evaluations != self.evaluation_count:
             raise ValueError("final search checkpoint must equal evaluation_count")
+        if self.schema_version == "run-manifest/v4":
+            if self.best_observed is None:
+                raise ValueError("run-manifest/v4 requires the complete best observed evaluation")
+            if not math.isclose(
+                self.best_observed.balance_score,
+                self.search_diagnostics.best_score,
+                abs_tol=1.0e-12,
+            ):
+                raise ValueError("best observed evaluation must match search diagnostics")
+        elif self.best_observed is not None:
+            raise ValueError("run-manifest/v2 and v3 cannot contain a best observed evaluation")
         return self
 
 
@@ -499,6 +519,16 @@ class PortfolioRecord(FrozenModel):
         if len(self.candidates) != self.spec.count:
             raise ValueError("portfolio must contain exactly spec.count candidates")
         expected_ids = {motif.motif_id for motif in self.spec.motifs}
+        best_observed = self.manifest.best_observed
+        if best_observed is not None:
+            if len(best_observed.sequence) != self.spec.length:
+                raise ValueError("best observed sequence length must equal spec.length")
+            if {match.motif_id for match in best_observed.matches} != expected_ids:
+                raise ValueError(
+                    "best observed evaluation must contain exactly one match per motif"
+                )
+            if len(best_observed.matches) != len(expected_ids):
+                raise ValueError("best observed evaluation contains duplicate motif matches")
         seen_candidate_ids: set[str] = set()
         seen_sequences: set[str] = set()
         previous_key: tuple[float, str] | None = None
@@ -524,6 +554,16 @@ class PortfolioRecord(FrozenModel):
             for match in candidate.matches:
                 if match.end > self.spec.length:
                     raise ValueError("match coordinates exceed candidate sequence")
+            if best_observed is not None:
+                if candidate.balance_score > best_observed.balance_score + 1.0e-12:
+                    raise ValueError(
+                        "selected candidate score cannot exceed the best observed score"
+                    )
+                if candidate.sequence == best_observed.sequence and (
+                    candidate.balance_score != best_observed.balance_score
+                    or candidate.matches != best_observed.matches
+                ):
+                    raise ValueError("selected and best observed records disagree for one sequence")
         if self.spec.min_distance is not None and self.spec.min_distance > 0.0:
             for index, left in enumerate(self.candidates):
                 for right in self.candidates[index + 1 :]:
@@ -537,6 +577,10 @@ class PortfolioRecord(FrozenModel):
     @property
     def best(self) -> Candidate:
         return self.candidates[0]
+
+    @property
+    def best_observed(self) -> Evaluation | None:
+        return self.manifest.best_observed
 
     @property
     def matches(self) -> tuple[MotifMatch, ...]:

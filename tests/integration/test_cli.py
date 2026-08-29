@@ -42,9 +42,9 @@ def _write_runtime_equivalent_wheel(path: Path) -> None:
         entries[f"motif_balance/{source.relative_to(package_root).as_posix()}"] = (
             source.read_bytes()
         )
-    dist_info = "motif_balance-0.3.0a2.dist-info/"
+    dist_info = "motif_balance-0.3.0a3.dist-info/"
     entries[f"{dist_info}METADATA"] = (
-        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a2\n"
+        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a3\n"
     )
     entries[f"{dist_info}WHEEL"] = b"Wheel-Version: 1.0\n"
     entries[f"{dist_info}entry_points.txt"] = (
@@ -406,7 +406,7 @@ def test_cli_convert_motif_sanitizes_an_unwritable_destination(tmp_path: Path) -
 def test_cli_executes_and_verifies_an_atomic_execution_workspace(tmp_path: Path) -> None:
     spec = tmp_path / "design.yaml"
     workspace = tmp_path / "execution"
-    release = tmp_path / "motif_balance-0.3.0a2-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.3.0a3-py3-none-any.whl"
     spec.write_text(_DESIGN)
     _write_runtime_equivalent_wheel(release)
 
@@ -465,7 +465,7 @@ def test_cli_rejects_a_wheel_with_a_corrupt_member_without_a_traceback(
 ) -> None:
     spec = tmp_path / "design.yaml"
     workspace = tmp_path / "execution"
-    release = tmp_path / "motif_balance-0.3.0a2-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.3.0a3-py3-none-any.whl"
     spec.write_text(_DESIGN)
     _write_runtime_equivalent_wheel(release)
     _corrupt_stored_wheel_member(release, "motif_balance/__init__.py")

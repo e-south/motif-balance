@@ -16,11 +16,13 @@ from motif_balance.model import (
     ExecutionReceipt,
     ExecutionWorkspace,
     MotifModel,
+    candidate_id_for_sequence,
 )
 from motif_balance.scoring import evaluate
 
 from .limits import MAX_INSPECTION_SUPPORT_ROWS
 from .model import (
+    BestObservedInspection,
     DeliveryInspection,
     DistanceInspection,
     ExecutionInspection,
@@ -199,7 +201,16 @@ def _artifact(
 
 def project_result(source: VerifiedResultSource) -> ResultInspection:
     portfolio = source.portfolio
-    support_rows = len(portfolio.candidates) * sum(motif.width for motif in portfolio.spec.motifs)
+    selected_sequences = {candidate.sequence for candidate in portfolio.candidates}
+    extra_best = (
+        1
+        if portfolio.manifest.best_observed is not None
+        and portfolio.manifest.best_observed.sequence not in selected_sequences
+        else 0
+    )
+    support_rows = (len(portfolio.candidates) + extra_best) * sum(
+        motif.width for motif in portfolio.spec.motifs
+    )
     if support_rows > MAX_INSPECTION_SUPPORT_ROWS:
         raise ArtifactError(
             "inspection position-support rows exceed the projection limit; "
@@ -237,6 +248,37 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
     spec = portfolio.spec
     manifest = portfolio.manifest
     completion = manifest.completion_status
+    best_observed: BestObservedInspection | None = None
+    if manifest.best_observed is not None:
+        selected_rank = next(
+            (
+                candidate.rank
+                for candidate in candidates
+                if candidate.sequence == manifest.best_observed.sequence
+            ),
+            None,
+        )
+        projected = _project_candidate(
+            portfolio.spec,
+            Candidate(
+                candidate_id=candidate_id_for_sequence(manifest.best_observed.sequence),
+                rank=selected_rank or 1,
+                sequence=manifest.best_observed.sequence,
+                balance_score=manifest.best_observed.balance_score,
+                matches=manifest.best_observed.matches,
+            ),
+            problem,
+        )
+        best_observed = BestObservedInspection(
+            candidate_id=projected.candidate_id,
+            sequence=projected.sequence,
+            complement_sequence=projected.complement_sequence,
+            balance_score=projected.balance_score,
+            limiting_motif_ids=projected.limiting_motif_ids,
+            shared_coordinates=projected.shared_coordinates,
+            selected_rank=selected_rank,
+            matches=projected.matches,
+        )
     return ResultInspection(
         subject_kind=source.subject_kind,
         integrity=IntegrityInspection(
@@ -301,6 +343,8 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
             proposals=manifest.search_diagnostics.proposals,
         ),
         portfolio=InspectionPortfolio(
+            best_observed_score=manifest.search_diagnostics.best_score,
+            best_observed=best_observed,
             score_min=min(candidate.balance_score for candidate in candidates),
             score_max=max(candidate.balance_score for candidate in candidates),
             distance=distance,

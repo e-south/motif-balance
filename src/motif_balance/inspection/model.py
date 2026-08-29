@@ -232,6 +232,33 @@ class InspectionCandidate(FrozenModel):
         return self
 
 
+class BestObservedInspection(FrozenModel):
+    candidate_id: str = Field(pattern=r"^candidate-[0-9a-f]{16}$")
+    sequence: str
+    complement_sequence: str
+    balance_score: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
+    limiting_motif_ids: tuple[str, ...]
+    shared_coordinates: tuple[Annotated[int, Field(ge=0)], ...]
+    selected_rank: Annotated[int, Field(gt=0)] | None = None
+    matches: tuple[InspectionMatch, ...]
+
+    @model_validator(mode="after")
+    def validate_best_observed(self) -> Self:
+        candidate = InspectionCandidate(
+            candidate_id=self.candidate_id,
+            rank=self.selected_rank or 1,
+            sequence=self.sequence,
+            complement_sequence=self.complement_sequence,
+            balance_score=self.balance_score,
+            limiting_motif_ids=self.limiting_motif_ids,
+            shared_coordinates=self.shared_coordinates,
+            matches=self.matches,
+        )
+        if candidate.nearest_neighbor_distance is not None:  # pragma: no cover - construction
+            raise ValueError("best observed projection cannot carry portfolio distance")
+        return self
+
+
 class LimitingMotifCount(FrozenModel):
     motif_id: str
     candidates: Annotated[int, Field(gt=0)]
@@ -259,6 +286,8 @@ class DistanceInspection(FrozenModel):
 
 
 class InspectionPortfolio(FrozenModel):
+    best_observed_score: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
+    best_observed: BestObservedInspection | None = None
     score_min: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
     score_max: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
     distance: DistanceInspection
@@ -274,6 +303,33 @@ class InspectionPortfolio(FrozenModel):
             raise ValueError("score_min does not match the candidate portfolio")
         if not math.isclose(self.score_max, max(scores), abs_tol=1.0e-12):
             raise ValueError("score_max does not match the candidate portfolio")
+        if self.score_max > self.best_observed_score + 1.0e-12:
+            raise ValueError("selected portfolio score cannot exceed the best observed score")
+        if self.best_observed is not None:
+            if not math.isclose(
+                self.best_observed.balance_score,
+                self.best_observed_score,
+                abs_tol=1.0e-12,
+            ):
+                raise ValueError("best observed projection does not match its score")
+            if self.best_observed.selected_rank is not None:
+                selected = next(
+                    (
+                        candidate
+                        for candidate in self.candidates
+                        if candidate.rank == self.best_observed.selected_rank
+                    ),
+                    None,
+                )
+                if selected is None or (
+                    selected.candidate_id != self.best_observed.candidate_id
+                    or selected.sequence != self.best_observed.sequence
+                    or selected.balance_score != self.best_observed.balance_score
+                    or selected.matches != self.best_observed.matches
+                ):
+                    raise ValueError(
+                        "best observed selected rank does not identify the same candidate"
+                    )
         return self
 
 
@@ -304,8 +360,8 @@ class ExecutionInspection(FrozenModel):
 
 
 class ResultInspection(FrozenModel):
-    schema_version: Literal["motif-balance.result-inspection/v2"] = (
-        "motif-balance.result-inspection/v2"
+    schema_version: Literal["motif-balance.result-inspection/v3"] = (
+        "motif-balance.result-inspection/v3"
     )
     subject_kind: Literal["bundle", "execution"]
     integrity: IntegrityInspection

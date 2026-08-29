@@ -137,7 +137,7 @@ def test_execute_rejects_invalid_wheel_artifacts_before_design(
 ) -> None:
     specification = tmp_path / "design.yaml"
     _write_design(specification, pairwise_spec)
-    release = tmp_path / "motif_balance-0.3.0a2-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.3.0a3-py3-none-any.whl"
     if kind == "not_zip":
         release.write_bytes(b"not a zip archive")
     elif kind == "no_metadata":
@@ -145,18 +145,18 @@ def test_execute_rejects_invalid_wheel_artifacts_before_design(
     elif kind == "wrong_identity":
         _wheel(
             release,
-            metadata="Metadata-Version: 2.4\nName: other\nVersion: 0.3.0a2\n",
+            metadata="Metadata-Version: 2.4\nName: other\nVersion: 0.3.0a3\n",
             include_package=True,
         )
     elif kind == "no_package":
         _wheel(
             release,
-            metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a2\n",
+            metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a3\n",
         )
     else:
         _wheel(
             release,
-            metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a2\n",
+            metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a3\n",
             include_package=True,
             corrupt_record="malformed" if kind == "bad_record" else None,
             bad_entry_point=kind == "bad_entry",
@@ -164,7 +164,7 @@ def test_execute_rejects_invalid_wheel_artifacts_before_design(
         if kind == "record_digest":
             _wheel(
                 release,
-                metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a2\n",
+                metadata="Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.3.0a3\n",
                 include_package=True,
                 corrupt_record="digest",
             )
