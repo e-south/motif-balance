@@ -45,7 +45,8 @@ letter-probability matrix: alength= 4 w= 2 nsites= 4 E= 0
 def test_read_motif_refuses_zero_probability_without_explicit_conversion(tmp_path: Path) -> None:
     source = tmp_path / "invalid.yaml"
     source.write_text(
-        """motif_id: invalid
+        """schema_version: motif-model/v2
+motif_id: invalid
 probabilities:
   - [0.7, 0.1, 0.2, 0.0]
 background: [0.25, 0.25, 0.25, 0.25]
@@ -159,7 +160,8 @@ def test_read_meme_rejects_invalid_utf8(tmp_path: Path) -> None:
 def test_read_motif_rejects_a_conflicting_requested_identity(tmp_path: Path) -> None:
     source = tmp_path / "motif.yaml"
     source.write_text(
-        "motif_id: first\nprobabilities: [[0.25, 0.25, 0.25, 0.25]]\n"
+        "schema_version: motif-model/v2\nmotif_id: first\n"
+        "probabilities: [[0.25, 0.25, 0.25, 0.25]]\n"
         "background: [0.25, 0.25, 0.25, 0.25]\n"
     )
 
@@ -221,7 +223,8 @@ def test_jaspar_conversion_rejects_invalid_parameters_and_encoding(tmp_path: Pat
 def test_motif_readers_refuse_symbolic_links(tmp_path: Path) -> None:
     target = tmp_path / "target.yaml"
     target.write_text(
-        "motif_id: motif\nprobabilities: [[0.25, 0.25, 0.25, 0.25]]\n"
+        "schema_version: motif-model/v2\nmotif_id: motif\n"
+        "probabilities: [[0.25, 0.25, 0.25, 0.25]]\n"
         "background: [0.25, 0.25, 0.25, 0.25]\n"
     )
     link = tmp_path / "link.yaml"

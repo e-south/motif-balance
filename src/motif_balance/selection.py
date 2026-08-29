@@ -65,6 +65,7 @@ def select_candidates(
     count: int,
     min_distance: float | None,
     evaluations_used: int,
+    design_space_exhausted: bool = False,
 ) -> tuple[Candidate, ...]:
     unique: dict[str, Evaluation] = {}
     for evaluation in evaluations:
@@ -102,6 +103,7 @@ def select_candidates(
                 minimum_distance=min_distance,
                 evaluations_used=evaluations_used,
                 best_score=best_score,
+                design_space_exhausted=design_space_exhausted,
             )
         raise SearchBudgetExhausted(
             requested_count=count,
@@ -119,6 +121,7 @@ def select_candidates(
             avoidance_matches=evaluation.avoidance_matches,
             constraint_status=evaluation.constraint_status,
             max_avoidance_excess=evaluation.max_avoidance_excess,
+            total_avoidance_excess=evaluation.total_avoidance_excess,
         )
         for rank, evaluation in enumerate(selected, start=1)
     )

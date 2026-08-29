@@ -280,6 +280,7 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
                 avoidance_matches=manifest.best_observed.avoidance_matches,
                 constraint_status=manifest.best_observed.constraint_status,
                 max_avoidance_excess=manifest.best_observed.max_avoidance_excess,
+                total_avoidance_excess=manifest.best_observed.total_avoidance_excess,
             ),
             problem,
         )
@@ -395,6 +396,11 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
             checkpoints=manifest.search_diagnostics.checkpoints,
             restarts=manifest.search_diagnostics.restarts,
             restart_final_scores=manifest.search_diagnostics.restart_final_scores,
+            restart_final_constraint_statuses=(
+                manifest.search_diagnostics.restart_final_constraint_statuses
+                if manifest.search_diagnostics.schema_version == "search-diagnostics/v2"
+                else tuple("feasible" for _ in range(manifest.search_diagnostics.restarts))
+            ),
             proposals=manifest.search_diagnostics.proposals,
         ),
         portfolio=InspectionPortfolio(

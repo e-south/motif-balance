@@ -364,6 +364,7 @@ class Evaluation(FrozenModel):
     avoidance_matches: tuple[MotifMatch, ...] = ()
     constraint_status: Literal["feasible", "infeasible"] = "feasible"
     max_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
+    total_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
 
     @model_validator(mode="after")
     def validate_balance(self) -> Self:
@@ -381,7 +382,9 @@ class Evaluation(FrozenModel):
         if target_ids & avoider_ids:
             raise ValueError("target and avoider matches must be disjoint")
         if not self.avoidance_matches and (
-            self.constraint_status != "feasible" or self.max_avoidance_excess != 0.0
+            self.constraint_status != "feasible"
+            or self.max_avoidance_excess != 0.0
+            or self.total_avoidance_excess != 0.0
         ):
             raise ValueError("an evaluation without avoiders must be constraint feasible")
         return self
@@ -400,6 +403,7 @@ class Candidate(FrozenModel):
     avoidance_matches: tuple[MotifMatch, ...] = ()
     constraint_status: Literal["feasible", "infeasible"] = "feasible"
     max_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
+    total_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
 
     @model_validator(mode="after")
     def validate_candidate(self) -> Self:
@@ -410,6 +414,7 @@ class Candidate(FrozenModel):
             avoidance_matches=self.avoidance_matches,
             constraint_status=self.constraint_status,
             max_avoidance_excess=self.max_avoidance_excess,
+            total_avoidance_excess=self.total_avoidance_excess,
         )
         return self
 
@@ -442,11 +447,14 @@ class ProposalSummary(FrozenModel):
 
 
 class SearchDiagnostics(FrozenModel):
-    schema_version: Literal["search-diagnostics/v1"] = "search-diagnostics/v1"
+    schema_version: Literal["search-diagnostics/v1", "search-diagnostics/v2"] = (
+        "search-diagnostics/v2"
+    )
     restarts: Annotated[int, Field(gt=0)]
     best_score: Annotated[float, Field(ge=0.0)]
     checkpoints: tuple[SearchCheckpoint, ...]
     restart_final_scores: tuple[Annotated[float, Field(ge=0.0)], ...]
+    restart_final_constraint_statuses: tuple[Literal["feasible", "infeasible"], ...] = ()
     proposals: tuple[ProposalSummary, ...]
 
     @model_validator(mode="after")
@@ -455,6 +463,13 @@ class SearchDiagnostics(FrozenModel):
             raise ValueError("search diagnostics must contain at least one checkpoint")
         if len(self.restart_final_scores) != self.restarts:
             raise ValueError("restart_final_scores must contain one score per restart")
+        if self.schema_version == "search-diagnostics/v1":
+            if self.restart_final_constraint_statuses:
+                raise ValueError("search-diagnostics/v1 cannot contain constraint statuses")
+        elif len(self.restart_final_constraint_statuses) != self.restarts:
+            raise ValueError(
+                "restart_final_constraint_statuses must contain one status per restart"
+            )
         previous_evaluations = 0
         previous_best = -math.inf
         for checkpoint in self.checkpoints:
@@ -590,6 +605,17 @@ class RunManifest(FrozenModel):
             raise ValueError("unique_evaluations cannot exceed evaluation_count")
         if self.search_diagnostics.checkpoints[-1].evaluations != self.evaluation_count:
             raise ValueError("final search checkpoint must equal evaluation_count")
+        expected_diagnostics = (
+            "search-diagnostics/v2"
+            if self.schema_version == "run-manifest/v5"
+            else "search-diagnostics/v1"
+        )
+        if self.search_diagnostics.schema_version != expected_diagnostics:
+            raise ValueError(f"{self.schema_version} requires {expected_diagnostics}")
+        if self.completion_status == "exhaustive" and (
+            self.unique_evaluations != self.evaluation_count
+        ):
+            raise ValueError("exhaustive manifests require one unique row per evaluation")
         if self.schema_version in {"run-manifest/v4", "run-manifest/v5"}:
             if self.best_observed is None:
                 raise ValueError(

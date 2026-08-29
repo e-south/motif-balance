@@ -113,6 +113,7 @@ def evaluate(sequence: str, problem: CompiledProblem) -> Evaluation:
         for match, item in zip(avoidance_matches, problem.avoiders, strict=True)
     )
     max_excess = max(excesses, default=0.0)
+    total_excess = math.fsum(excesses)
     return Evaluation(
         sequence=normalized,
         balance_score=balance_score,
@@ -120,4 +121,5 @@ def evaluate(sequence: str, problem: CompiledProblem) -> Evaluation:
         avoidance_matches=avoidance_matches,
         constraint_status="feasible" if max_excess <= 1.0e-12 else "infeasible",
         max_avoidance_excess=max_excess,
+        total_avoidance_excess=total_excess,
     )

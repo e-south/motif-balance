@@ -35,6 +35,12 @@ log-likelihood ratio against the declared background. These references can
 differ. The attainable minimum and maximum raw LLR are the sums of the
 position-wise minimum and maximum log odds.
 
+Structured YAML and JSON motif files must declare `schema_version` explicitly.
+This prevents a previously valid unversioned v1 file from being reinterpreted
+under v2 scoring. The MEME and explicit JASPAR readers are named format
+adapters and therefore construct v2 models explicitly; direct Python
+construction also defaults to v2.
+
 Explicit `motif-model/v1` records retain their original
 `normalized_llr_v1` digest and null-mean/consensus-relative interpretation so
 existing receipts and bundles remain verifiable. They are dispatched as v1;

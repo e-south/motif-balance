@@ -154,9 +154,12 @@ references, mutable cache, discovery behavior, or interpretation authority.
 Text, inspection JSON, SVG, and HTML are on-demand review projections and
 never enter the bundle.
 
-A separately requested `evaluated-pool-observation/v1` can carry the complete
+A separately requested `evaluated-pool-observation/v2` can carry the complete
 unique evaluated pool to an analysis owner. It is bounded, immutable,
-identity-checked, scientifically replayed, and path-free. It is not a bundle
+identity-checked, scientifically replayed, and path-free. Each unique row
+records its first authoritative evaluator-call index, and verification reruns
+the deterministic search to establish row coverage, discovery order, counts,
+checkpoints, and diagnostics. It is not a bundle
 member, public `Portfolio` field, ordinary CLI journey, or top-level noun.
 
 Inspection is one immutable typed projection over a verified bundle or

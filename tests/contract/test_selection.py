@@ -60,9 +60,11 @@ def test_selection_enforces_observable_distance_and_exact_count() -> None:
             count=3,
             min_distance=0.5,
             evaluations_used=3,
+            design_space_exhausted=True,
         )
     assert raised.value.requested_count == 3
     assert raised.value.valid_count == 2
+    assert raised.value.design_space_exhausted is True
 
 
 def test_search_budget_exhausted_is_a_stable_error_contract() -> None:

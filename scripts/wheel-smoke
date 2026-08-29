@@ -142,6 +142,12 @@ spec = DesignSpec(
 )
 problem = compile_design(spec)
 result = search(problem)
+legacy_diagnostics = result.diagnostics.model_copy(
+    update={
+        "schema_version": "search-diagnostics/v1",
+        "restart_final_constraint_statuses": (),
+    }
+)
 candidates = select_candidates(
     result.evaluations,
     count=spec.count,
@@ -173,7 +179,7 @@ provisional = RunManifest(
     unique_evaluations=result.unique_evaluations,
     completion_status=result.completion_status,
     search_validation_status=result.search_validation_status,
-    search_diagnostics=result.diagnostics,
+    search_diagnostics=legacy_diagnostics,
     artifacts=artifact_records(payloads),
 )
 sealed = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})

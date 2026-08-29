@@ -41,6 +41,10 @@ def _resolve_motif(
         except InvalidMotif as exc:
             raise InvalidDesign(str(exc), motif_id=motif_id, hint=exc.hint) from exc
     if isinstance(payload, dict):
+        if "schema_version" not in payload:
+            raise InvalidDesign(
+                f"Inline motif '{motif_id}' must declare schema_version explicitly."
+            )
         return MotifModel.model_validate({**payload, "motif_id": payload.get("motif_id", motif_id)})
     raise InvalidDesign(f"Motif '{motif_id}' must be a path or model mapping.")
 
@@ -62,6 +66,12 @@ def load_design_spec(path: str | Path) -> DesignSpec:
         raise InvalidDesign(f"Unable to read design specification: {exc}") from exc
     if not isinstance(payload, dict):
         raise InvalidDesign("Design specification must contain one mapping.")
+    if "schema_version" not in payload:
+        raise InvalidDesign(
+            "Serialized design specifications must declare schema_version explicitly; "
+            "use 'design-spec/v1' for historical scoring or 'design-spec/v2' for "
+            "relative PWM attainment."
+        )
     motifs = payload.get("motifs")
     if not isinstance(motifs, dict):
         raise InvalidDesign("Design specification motifs must be a name-to-model mapping.")

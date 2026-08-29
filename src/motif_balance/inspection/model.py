@@ -125,6 +125,7 @@ class SearchInspection(FrozenModel):
     checkpoints: tuple[SearchCheckpoint, ...]
     restarts: Annotated[int, Field(gt=0)]
     restart_final_scores: tuple[Annotated[float, Field(ge=0.0)], ...]
+    restart_final_constraint_statuses: tuple[Literal["feasible", "infeasible"], ...]
     proposals: tuple[ProposalSummary, ...]
 
     @model_validator(mode="after")
@@ -142,6 +143,8 @@ class SearchInspection(FrozenModel):
             raise ValueError("search checkpoints must end at evaluator_calls")
         if len(self.restart_final_scores) != self.restarts:
             raise ValueError("restart scores must contain one value per restart")
+        if len(self.restart_final_constraint_statuses) != self.restarts:
+            raise ValueError("restart statuses must contain one value per restart")
         return self
 
 

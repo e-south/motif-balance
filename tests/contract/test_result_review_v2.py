@@ -91,6 +91,12 @@ def _write_legacy_bundle(
     )
     problem = compile_design(spec)
     result = search(problem)
+    legacy_diagnostics = result.diagnostics.model_copy(
+        update={
+            "schema_version": "search-diagnostics/v1",
+            "restart_final_constraint_statuses": (),
+        }
+    )
     package_version = "0.2.0a3" if schema == "run-manifest/v2" else "0.3.0a3"
     candidates = select_candidates(
         result.evaluations,
@@ -127,7 +133,7 @@ def _write_legacy_bundle(
         unique_evaluations=result.unique_evaluations,
         completion_status=result.completion_status,
         search_validation_status=result.search_validation_status,
-        search_diagnostics=result.diagnostics,
+        search_diagnostics=legacy_diagnostics,
         best_observed=best_observed if schema == "run-manifest/v4" else None,
         artifacts=artifact_records(payloads),
     )
@@ -206,12 +212,8 @@ def test_readback_rejects_v2_result_relabelled_as_v5(
     artifacts = tuple(
         ArtifactDigest(path=path, **record) for path, record in sorted(payload["artifacts"].items())
     )
-    provisional = RunManifest.model_validate({**payload, "artifacts": artifacts})
-    sealed = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
-    (bundle / "manifest.json").write_bytes(manifest_bytes(sealed))
-
-    with pytest.raises(ArtifactError, match="internally inconsistent"):
-        inspect_result(bundle, kind="bundle", expected_bundle_id=sealed.bundle_id)
+    with pytest.raises(ValidationError, match="search-diagnostics/v2"):
+        RunManifest.model_validate({**payload, "artifacts": artifacts})
 
 
 def test_released_v3_remains_readable_without_inventing_best_observed_sequence(
@@ -499,6 +501,14 @@ def test_inspection_contracts_reject_internally_inconsistent_projection_rows(
             SearchInspection,
             {**inspection.search.model_dump(mode="python"), "restart_final_scores": ()},
             "restart scores",
+        ),
+        (
+            SearchInspection,
+            {
+                **inspection.search.model_dump(mode="python"),
+                "restart_final_constraint_statuses": (),
+            },
+            "restart statuses",
         ),
         (
             IntegrityInspection,

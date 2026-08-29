@@ -74,6 +74,7 @@ class ConstraintFeasibilityExhausted(MotifBalanceError):
         feasible_count: int,
         evaluations_used: int,
         best_max_excess: float | None,
+        best_total_excess: float | None,
     ) -> None:
         super().__init__(
             f"Search used {evaluations_used} evaluator calls but found only {feasible_count} "
@@ -87,6 +88,7 @@ class ConstraintFeasibilityExhausted(MotifBalanceError):
         self.feasible_count = feasible_count
         self.evaluations_used = evaluations_used
         self.best_max_excess = best_max_excess
+        self.best_total_excess = best_total_excess
 
 
 class ExactConstraintInfeasible(MotifBalanceError):

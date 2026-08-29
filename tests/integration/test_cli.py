@@ -17,10 +17,12 @@ runner = CliRunner()
 _DESIGN = """schema_version: design-spec/v2
 motifs:
   motif_a:
+    schema_version: motif-model/v2
     probabilities:
       - [0.7, 0.1, 0.1, 0.1]
     background: [0.25, 0.25, 0.25, 0.25]
   motif_b:
+    schema_version: motif-model/v2
     probabilities:
       - [0.1, 0.1, 0.7, 0.1]
     background: [0.25, 0.25, 0.25, 0.25]

@@ -20,7 +20,7 @@ from motif_balance.constants import (
 from motif_balance.errors import ArtifactError
 from motif_balance.model import DesignSpec, Evaluation, FrozenModel, SearchDiagnostics
 from motif_balance.scoring import evaluate
-from motif_balance.search import search
+from motif_balance.search import SearchResult, search
 
 MAX_EVALUATED_POOL_RECORDS = 10_000
 MAX_EVALUATED_POOL_BYTES = 64 * 1024 * 1024
@@ -30,10 +30,16 @@ def _canonical_payload(value: object) -> bytes:
     return (json.dumps(value, indent=2, sort_keys=True, ensure_ascii=True) + "\n").encode()
 
 
+class ObservedEvaluation(Evaluation):
+    """One unique evaluation with its first authoritative evaluator-call index."""
+
+    first_evaluation_index: Annotated[int, Field(strict=True, gt=0)]
+
+
 class EvaluatedPoolObservation(FrozenModel):
     """Complete immutable evaluated pool from one bounded search operation."""
 
-    schema_version: Literal["evaluated-pool-observation/v1"] = "evaluated-pool-observation/v1"
+    schema_version: Literal["evaluated-pool-observation/v2"] = "evaluated-pool-observation/v2"
     observation_id: str = Field(pattern=r"^pool-[0-9a-f]{24}$")
     package_version: str
     problem_id: str = Field(pattern=r"^problem-[0-9a-f]{24}$")
@@ -46,7 +52,7 @@ class EvaluatedPoolObservation(FrozenModel):
     evaluation_count: Annotated[int, Field(strict=True, gt=0)]
     unique_evaluations: Annotated[int, Field(strict=True, gt=0)]
     diagnostics: SearchDiagnostics
-    evaluations: tuple[Evaluation, ...]
+    evaluations: tuple[ObservedEvaluation, ...]
 
     @model_validator(mode="after")
     def validate_pool(self) -> Self:
@@ -54,12 +60,46 @@ class EvaluatedPoolObservation(FrozenModel):
             raise ValueError("unique_evaluations must equal the complete observation rows")
         if self.unique_evaluations > self.evaluation_count:
             raise ValueError("unique_evaluations cannot exceed evaluator calls")
+        if self.diagnostics.checkpoints[-1].evaluations != self.evaluation_count:
+            raise ValueError("final search checkpoint must equal evaluator calls")
+        if self.completion_status == "exhaustive":
+            sequence_space = 4**self.spec.length
+            if self.evaluation_count != sequence_space or self.unique_evaluations != sequence_space:
+                raise ValueError(
+                    "exhaustive observations require the complete sequence-space row set"
+                )
         sequences = tuple(item.sequence for item in self.evaluations)
         if sequences != tuple(sorted(sequences)) or len(sequences) != len(set(sequences)):
             raise ValueError("evaluated-pool rows must be unique and sorted by sequence")
         if len(self.evaluations) > MAX_EVALUATED_POOL_RECORDS:
             raise ValueError("evaluated-pool observation exceeds its record limit")
+        indices = tuple(item.first_evaluation_index for item in self.evaluations)
+        if len(indices) != len(set(indices)) or any(
+            index > self.evaluation_count for index in indices
+        ):
+            raise ValueError("first-evaluation indices must be unique evaluator-call positions")
+        if self.completion_status == "exhaustive" and set(indices) != set(
+            range(1, self.evaluation_count + 1)
+        ):
+            raise ValueError(
+                "exhaustive observations require every evaluator-call position exactly once"
+            )
         return self
+
+
+def _observed_rows(result: SearchResult) -> tuple[ObservedEvaluation, ...]:
+    rows = (
+        ObservedEvaluation(
+            **evaluation.model_dump(mode="python"),
+            first_evaluation_index=first_index,
+        )
+        for evaluation, first_index in zip(
+            result.evaluations,
+            result.first_evaluation_indices,
+            strict=True,
+        )
+    )
+    return tuple(sorted(rows, key=lambda item: item.sequence))
 
 
 def _observation_payload(observation: EvaluatedPoolObservation) -> dict[str, object]:
@@ -117,7 +157,11 @@ def verify_evaluated_pool(observation: EvaluatedPoolObservation) -> None:
     if actual_metadata != expected_metadata:
         raise ArtifactError("evaluated-pool search metadata is inconsistent")
     for row in observation.evaluations:
-        if evaluate(row.sequence, problem) != row:
+        authoritative = evaluate(row.sequence, problem)
+        recorded = Evaluation.model_validate(
+            row.model_dump(mode="python", exclude={"first_evaluation_index"})
+        )
+        if authoritative != recorded:
             raise ArtifactError("evaluated-pool scientific replay found scoring drift")
     best_feasible = max(
         (row.balance_score for row in observation.evaluations if row.constraint_feasible),
@@ -125,6 +169,18 @@ def verify_evaluated_pool(observation: EvaluatedPoolObservation) -> None:
     )
     if observation.diagnostics.best_score != best_feasible:
         raise ArtifactError("evaluated-pool diagnostics do not match the feasible pool")
+    replay = search(problem)
+    if (
+        replay.engine != observation.search_engine
+        or replay.engine_version != observation.search_engine_version
+        or replay.rng != observation.rng
+        or replay.completion_status != observation.completion_status
+        or replay.evaluations_used != observation.evaluation_count
+        or replay.unique_evaluations != observation.unique_evaluations
+        or replay.diagnostics != observation.diagnostics
+        or _observed_rows(replay) != observation.evaluations
+    ):
+        raise ArtifactError("evaluated-pool search replay does not match the complete observation")
     if observation.observation_id != _observation_id(_observation_payload(observation)):
         raise ArtifactError("evaluated-pool observation identity does not match its content")
 
@@ -147,7 +203,7 @@ def observe_evaluated_pool(spec: DesignSpec) -> EvaluatedPoolObservation:
         package_version=PACKAGE_VERSION,
     )
     payload: dict[str, object] = {
-        "schema_version": "evaluated-pool-observation/v1",
+        "schema_version": "evaluated-pool-observation/v2",
         "package_version": PACKAGE_VERSION,
         "problem_id": problem.problem_id,
         "run_id": run_id,
@@ -159,7 +215,7 @@ def observe_evaluated_pool(spec: DesignSpec) -> EvaluatedPoolObservation:
         "evaluation_count": result.evaluations_used,
         "unique_evaluations": result.unique_evaluations,
         "diagnostics": result.diagnostics,
-        "evaluations": tuple(sorted(result.evaluations, key=lambda item: item.sequence)),
+        "evaluations": _observed_rows(result),
     }
     identity_payload = EvaluatedPoolObservation.model_validate(
         {**payload, "observation_id": "pool-" + "0" * 24}

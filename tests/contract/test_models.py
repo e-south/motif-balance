@@ -71,7 +71,7 @@ def test_manifest_matrix_rejects_relabelled_current_portfolio(pairwise_spec: Des
     payload = design(pairwise_spec).model_dump(mode="python")
     payload["manifest"]["schema_version"] = "run-manifest/v4"
 
-    with pytest.raises(ValidationError, match="manifest/design scoring version matrix"):
+    with pytest.raises(ValidationError, match="run-manifest/v4 requires search-diagnostics/v1"):
         PortfolioRecord.model_validate(payload)
 
 

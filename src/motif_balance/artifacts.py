@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import json
+import math
 import os
 import shutil
 import stat
@@ -404,6 +405,10 @@ def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candi
                 ),
                 default=0.0,
             )
+            total_excess = math.fsum(
+                max(0.0, match.normalized_score - ceilings[match.motif_id])
+                for match in avoider_matches
+            )
             candidates.append(
                 Candidate(
                     candidate_id=candidate_id,
@@ -419,6 +424,7 @@ def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candi
                     avoidance_matches=avoider_matches,
                     constraint_status="feasible" if max_excess <= 1.0e-12 else "infeasible",
                     max_avoidance_excess=max_excess,
+                    total_avoidance_excess=total_excess,
                 )
             )
     except (UnicodeDecodeError, csv.Error, KeyError, TypeError, ValueError) as exc:
@@ -664,6 +670,7 @@ def verify_portfolio_record(portfolio: PortfolioRecord) -> None:
             or candidate.avoidance_matches != authoritative.avoidance_matches
             or candidate.constraint_status != authoritative.constraint_status
             or candidate.max_avoidance_excess != authoritative.max_avoidance_excess
+            or candidate.total_avoidance_excess != authoritative.total_avoidance_excess
         ):
             raise ArtifactError(
                 f"scientific replay found scoring drift for '{candidate.candidate_id}'"

@@ -107,9 +107,11 @@ def test_score_reports_target_and_avoider_evidence_without_changing_target_score
     assert infeasible.balance_score == 1.0
     assert infeasible.constraint_feasible is False
     assert infeasible.max_avoidance_excess == pytest.approx(1.0)
+    assert infeasible.total_avoidance_excess == pytest.approx(1.0)
     assert tuple(match.motif_id for match in infeasible.avoidance_matches) == ("avoid_a",)
     assert feasible.constraint_feasible is True
     assert feasible.max_avoidance_excess == 0.0
+    assert feasible.total_avoidance_excess == 0.0
 
     unconstrained = DesignSpec(
         motifs={"target_a": _base_motif("target_a", "A")},
@@ -125,12 +127,37 @@ def test_score_reports_target_and_avoider_evidence_without_changing_target_score
     assert is_preferred(feasible, None) is True
 
 
+def test_infeasible_preference_uses_total_violation_before_target_score() -> None:
+    base = score("A", _spec())
+    lower_total = base.model_copy(
+        update={
+            "max_avoidance_excess": 0.5,
+            "total_avoidance_excess": 0.5,
+            "balance_score": 0.0,
+        }
+    )
+    higher_total = base.model_copy(
+        update={
+            "max_avoidance_excess": 0.5,
+            "total_avoidance_excess": 0.75,
+            "balance_score": 1.0,
+        }
+    )
+
+    assert is_preferred(lower_total, higher_total) is True
+    assert is_preferred(higher_total, lower_total) is False
+
+
 def test_avoidance_status_is_replayed_against_declared_ceilings() -> None:
     spec = _spec()
     problem = compile_design(spec)
     evaluation = score("A", spec)
     forged = evaluation.model_copy(
-        update={"constraint_status": "feasible", "max_avoidance_excess": 0.0}
+        update={
+            "constraint_status": "feasible",
+            "max_avoidance_excess": 0.0,
+            "total_avoidance_excess": 0.0,
+        }
     )
 
     with pytest.raises(ValueError, match="avoidance status"):

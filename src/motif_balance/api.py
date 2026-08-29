@@ -77,6 +77,16 @@ def design(spec: DesignSpec) -> Portfolio:
     problem = compile_design(spec)
     result = search(problem)
     feasible = tuple(item for item in result.evaluations if item.constraint_feasible)
+    best_infeasible = min(
+        (item for item in result.evaluations if not item.constraint_feasible),
+        key=lambda item: (
+            item.max_avoidance_excess,
+            item.total_avoidance_excess,
+            -item.balance_score,
+            item.sequence,
+        ),
+        default=None,
+    )
     if spec.avoiders and not feasible:
         if result.completion_status == "exhaustive":
             raise ExactConstraintInfeasible(sequence_space_size=result.evaluations_used)
@@ -84,8 +94,11 @@ def design(spec: DesignSpec) -> Portfolio:
             requested_count=spec.count,
             feasible_count=0,
             evaluations_used=result.evaluations_used,
-            best_max_excess=min(
-                (item.max_avoidance_excess for item in result.evaluations), default=None
+            best_max_excess=(
+                None if best_infeasible is None else best_infeasible.max_avoidance_excess
+            ),
+            best_total_excess=(
+                None if best_infeasible is None else best_infeasible.total_avoidance_excess
             ),
         )
     if spec.avoiders and len(feasible) < spec.count:
@@ -103,8 +116,11 @@ def design(spec: DesignSpec) -> Portfolio:
             requested_count=spec.count,
             feasible_count=len(feasible),
             evaluations_used=result.evaluations_used,
-            best_max_excess=min(
-                (item.max_avoidance_excess for item in result.evaluations), default=None
+            best_max_excess=(
+                None if best_infeasible is None else best_infeasible.max_avoidance_excess
+            ),
+            best_total_excess=(
+                None if best_infeasible is None else best_infeasible.total_avoidance_excess
             ),
         )
     candidate_pool = feasible if spec.avoiders else result.evaluations
@@ -117,6 +133,7 @@ def design(spec: DesignSpec) -> Portfolio:
         count=spec.count,
         min_distance=spec.min_distance,
         evaluations_used=result.evaluations_used,
+        design_space_exhausted=result.completion_status == "exhaustive",
     )
     run_id = build_run_id(
         spec,

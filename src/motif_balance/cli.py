@@ -241,6 +241,7 @@ def score_command(
             constraint = (
                 f"constraint_status={evaluation.constraint_status}\n"
                 f"max_avoidance_excess={evaluation.max_avoidance_excess:.17g}\n"
+                f"total_avoidance_excess={evaluation.total_avoidance_excess:.17g}\n"
                 if spec.avoiders
                 else ""
             )

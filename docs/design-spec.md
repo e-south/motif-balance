@@ -20,7 +20,7 @@ such as `length: "20"` or `min_distance: "0.2"` are rejected.
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `schema_version` | `design-spec/v2` | no | Defaults to `design-spec/v2`. |
+| `schema_version` | `design-spec/v2` | yes in serialized input | Selects the scoring contract without inference. Direct Python construction defaults to v2. |
 | `motifs` | nonempty mapping | yes | Key is the motif ID; value is an inline model or contained relative path. |
 | `avoiders` | mapping | no | Key is an avoider motif ID; value supplies `motif` and a `score_ceiling` from 0 to 1. |
 | `length` | integer, 1–10,000 | yes | Exact candidate length in bases. |
@@ -51,6 +51,9 @@ min_distance: 0.2
 Relative motif references must stay inside the specification directory and may
 not traverse symlinks. Mapping keys must equal each resolved model's
 `motif_id`. Inline models follow the [motif-model contract](motif-models.md).
+Serialized YAML and JSON must declare `schema_version` for both the design and
+every structured motif. An omitted version is rejected rather than silently
+interpreted under either the historical v1 score or the current v2 score.
 
 ## Hard avoidance constraints
 

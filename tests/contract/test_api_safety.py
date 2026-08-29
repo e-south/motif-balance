@@ -112,7 +112,9 @@ def test_load_spec_refuses_symbolic_links_and_nonstring_motif_keys(tmp_path: Pat
         load_design_spec(link)
 
     invalid = tmp_path / "invalid.yaml"
-    invalid.write_text("motifs:\n  1: {}\nlength: 1\ncount: 1\nevaluations: 1\n")
+    invalid.write_text(
+        "schema_version: design-spec/v2\nmotifs:\n  1: {}\nlength: 1\ncount: 1\nevaluations: 1\n"
+    )
     with pytest.raises(InvalidDesign, match="keys must be strings"):
         load_design_spec(invalid)
 

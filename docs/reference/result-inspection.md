@@ -96,7 +96,10 @@ The search view is a closed diagnostic in HTML and remains directly exportable
 as SVG. It is the running maximum of recorded published hard-minimum scores
 against evaluator calls. It is not accepted-state history, literal hill
 climbing, chain dynamics, convergence evidence, or a global-optimality claim.
-It is omitted when a result has no checkpoints.
+It is omitted when a result has no checkpoints. Current diagnostics retain a
+feasible/infeasible status beside every restart-final target score so a target
+score from a constraint-violating endpoint cannot be mistaken for an
+admissible result.
 
 ## Trust and bounds
 

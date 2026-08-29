@@ -8,7 +8,7 @@ from typing import Literal, Protocol, cast
 import numpy as np
 from numpy.typing import NDArray
 
-from motif_balance.admissibility import is_preferred
+from motif_balance.admissibility import is_preferred, preference_key
 from motif_balance.compile import CompiledMotif, CompiledProblem, sequence_space_at_most
 from motif_balance.constants import DNA_ALPHABET, RNG_NAME, SEARCH_ENGINE, SEARCH_ENGINE_VERSION
 from motif_balance.model import (
@@ -26,6 +26,7 @@ MoveName = Literal["single", "block", "multi", "insertion"]
 @dataclass(frozen=True, slots=True)
 class SearchResult:
     evaluations: tuple[Evaluation, ...]
+    first_evaluation_indices: tuple[int, ...]
     evaluations_used: int
     unique_evaluations: int
     completion_status: Literal["exhaustive", "budget_exhausted"]
@@ -34,6 +35,14 @@ class SearchResult:
     engine: str = SEARCH_ENGINE
     engine_version: str = SEARCH_ENGINE_VERSION
     rng: str = RNG_NAME
+
+    def __post_init__(self) -> None:
+        if len(self.evaluations) != len(self.first_evaluation_indices):
+            raise ValueError("search evaluation rows and first-evaluation indices must align")
+        if self.first_evaluation_indices != tuple(sorted(self.first_evaluation_indices)):
+            raise ValueError("first-evaluation indices must follow unique discovery order")
+        if len(set(self.first_evaluation_indices)) != len(self.first_evaluation_indices):
+            raise ValueError("first-evaluation indices must be unique")
 
 
 class SearchEngine(Protocol):
@@ -46,6 +55,7 @@ class SearchEngine(Protocol):
 class _SearchLedger:
     budget: int
     evaluations: dict[str, Evaluation] = field(default_factory=dict)
+    first_evaluation_indices: dict[str, int] = field(default_factory=dict)
     checkpoints: list[SearchCheckpoint] = field(default_factory=list)
     evaluations_used: int = 0
     best_evaluation: Evaluation | None = None
@@ -55,7 +65,9 @@ class _SearchLedger:
         if self.evaluations_used >= self.budget:
             raise RuntimeError("search engine exceeded the public evaluation budget")
         self.evaluations_used += 1
-        self.evaluations.setdefault(result.sequence, result)
+        if result.sequence not in self.evaluations:
+            self.evaluations[result.sequence] = result
+            self.first_evaluation_indices[result.sequence] = self.evaluations_used
         if is_preferred(result, self.best_evaluation):
             self.best_evaluation = result
         if result.constraint_feasible:
@@ -109,11 +121,15 @@ def _worst_match(result: Evaluation) -> MotifMatch:
     return min(result.matches, key=lambda item: (item.normalized_score, item.motif_id))
 
 
-def _target_bounds(result: Evaluation, *, length: int) -> tuple[int, int]:
+def _target_bounds(result: Evaluation, problem: CompiledProblem, *, length: int) -> tuple[int, int]:
+    ceilings = {item.motif.model.motif_id: item.score_ceiling for item in problem.avoiders}
     match = (
         max(
             result.avoidance_matches,
-            key=lambda item: (item.normalized_score, item.motif_id),
+            key=lambda item: (
+                item.normalized_score - ceilings[item.motif_id],
+                item.motif_id,
+            ),
         )
         if not result.constraint_feasible and result.avoidance_matches
         else _worst_match(result)
@@ -158,10 +174,16 @@ class ExhaustiveSearchEngine:
             best_score=ledger.best_feasible_score,
             checkpoints=tuple(ledger.checkpoints),
             restart_final_scores=(ledger.best_feasible_score,),
+            restart_final_constraint_statuses=(
+                "feasible"
+                if any(item.constraint_feasible for item in ledger.evaluations.values())
+                else "infeasible",
+            ),
             proposals=(),
         )
         return SearchResult(
             evaluations=tuple(ledger.evaluations.values()),
+            first_evaluation_indices=tuple(ledger.first_evaluation_indices.values()),
             evaluations_used=ledger.evaluations_used,
             unique_evaluations=len(ledger.evaluations),
             completion_status="exhaustive",
@@ -227,7 +249,11 @@ class AnnealedSearchEngine:
         ledger: _SearchLedger,
         progress: float,
     ) -> tuple[np.ndarray, Evaluation, bool]:
-        bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
+        bounds = (
+            _target_bounds(current, problem, length=problem.spec.length)
+            if rng.random() < 0.5
+            else None
+        )
         position = (
             int(rng.integers(problem.spec.length))
             if bounds is None
@@ -242,24 +268,18 @@ class AnnealedSearchEngine:
             candidates.append((proposal, result))
         soft_beta = 0.5 + 11.5 * progress
         has_feasible = any(result.constraint_feasible for _, result in candidates)
-        scores = np.asarray(
-            [
-                (
-                    _soft_min(result, beta=soft_beta)
-                    if result.constraint_feasible
-                    else -result.max_avoidance_excess
-                )
-                for _, result in candidates
-            ]
-        )
-        logits = _mcmc_beta(progress) * scores
         if has_feasible:
-            logits = np.asarray(
+            scores = np.asarray(
                 [
-                    value if result.constraint_feasible else -math.inf
-                    for value, (_, result) in zip(logits, candidates, strict=True)
+                    _soft_min(result, beta=soft_beta) if result.constraint_feasible else -math.inf
+                    for _, result in candidates
                 ]
             )
+        else:
+            keys = tuple(preference_key(result) for _, result in candidates)
+            ranks = {key: rank for rank, key in enumerate(sorted(set(keys)))}
+            scores = np.asarray([float(ranks[key]) for key in keys])
+        logits = _mcmc_beta(progress) * scores
         logits -= logits.max()
         probabilities = np.exp(logits)
         probabilities /= probabilities.sum()
@@ -282,7 +302,11 @@ class AnnealedSearchEngine:
         ledger: _SearchLedger,
     ) -> tuple[np.ndarray, Evaluation]:
         block_length = int(rng.integers(2, min(5, problem.spec.length) + 1))
-        bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
+        bounds = (
+            _target_bounds(current, problem, length=problem.spec.length)
+            if rng.random() < 0.5
+            else None
+        )
         start = _targeted_start(
             sequence_length=problem.spec.length,
             block_length=block_length,
@@ -307,7 +331,11 @@ class AnnealedSearchEngine:
         ledger: _SearchLedger,
     ) -> tuple[np.ndarray, Evaluation]:
         count = int(rng.integers(1, min(2, problem.spec.length) + 1))
-        bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
+        bounds = (
+            _target_bounds(current, problem, length=problem.spec.length)
+            if rng.random() < 0.5
+            else None
+        )
         population = (
             np.arange(bounds[0], bounds[1])
             if bounds is not None and bounds[1] - bounds[0] >= count
@@ -342,7 +370,11 @@ class AnnealedSearchEngine:
             )
         if problem.spec.strands == "both" and rng.random() < 0.5:
             inserted = reverse_complement(inserted)
-        bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
+        bounds = (
+            _target_bounds(current, problem, length=problem.spec.length)
+            if rng.random() < 0.5
+            else None
+        )
         start = _targeted_start(
             sequence_length=problem.spec.length,
             block_length=len(inserted),
@@ -425,6 +457,7 @@ class AnnealedSearchEngine:
             best_score=ledger.best_feasible_score,
             checkpoints=tuple(ledger.checkpoints),
             restart_final_scores=tuple(result.balance_score for result in current),
+            restart_final_constraint_statuses=tuple(result.constraint_status for result in current),
             proposals=tuple(
                 ProposalSummary(move=move, attempted=attempted[move], accepted=accepted[move])
                 for move in move_names
@@ -432,6 +465,7 @@ class AnnealedSearchEngine:
         )
         return SearchResult(
             evaluations=tuple(ledger.evaluations.values()),
+            first_evaluation_indices=tuple(ledger.first_evaluation_indices.values()),
             evaluations_used=ledger.evaluations_used,
             unique_evaluations=len(ledger.evaluations),
             completion_status="budget_exhausted",
@@ -450,11 +484,22 @@ class AnnealedSearchEngine:
         if current.constraint_feasible != proposed.constraint_feasible:
             return proposed.constraint_feasible
         soft_beta = 0.5 + 11.5 * progress
-        delta = (
-            _soft_min(proposed, beta=soft_beta) - _soft_min(current, beta=soft_beta)
-            if proposed.constraint_feasible
-            else current.max_avoidance_excess - proposed.max_avoidance_excess
-        )
+        if proposed.constraint_feasible:
+            delta = _soft_min(proposed, beta=soft_beta) - _soft_min(current, beta=soft_beta)
+        elif not math.isclose(
+            current.max_avoidance_excess,
+            proposed.max_avoidance_excess,
+            abs_tol=1.0e-12,
+        ):
+            delta = current.max_avoidance_excess - proposed.max_avoidance_excess
+        elif not math.isclose(
+            current.total_avoidance_excess,
+            proposed.total_avoidance_excess,
+            abs_tol=1.0e-12,
+        ):
+            delta = current.total_avoidance_excess - proposed.total_avoidance_excess
+        else:
+            delta = proposed.balance_score - current.balance_score
         return delta >= 0.0 or math.log(max(float(rng.random()), 1.0e-300)) < (
             _mcmc_beta(progress) * delta
         )

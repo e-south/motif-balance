@@ -11,7 +11,8 @@ from motif_balance.formats.design import load_design_spec
 
 def test_load_spec_resolves_relative_motif_file(tmp_path: Path) -> None:
     (tmp_path / "motif.yaml").write_text(
-        """motif_id: fixture
+        """schema_version: motif-model/v2
+motif_id: fixture
 probabilities:
   - [0.7, 0.1, 0.1, 0.1]
 background: [0.25, 0.25, 0.25, 0.25]
@@ -19,7 +20,8 @@ background: [0.25, 0.25, 0.25, 0.25]
     )
     design_path = tmp_path / "design.yaml"
     design_path.write_text(
-        """motifs:
+        """schema_version: design-spec/v2
+motifs:
   fixture: motif.yaml
 length: 1
 count: 1
@@ -38,7 +40,7 @@ def test_load_spec_resolves_contained_avoider_file_and_ceiling(tmp_path: Path) -
         ("avoider.yaml", "avoider", "[0.1, 0.7, 0.1, 0.1]"),
     ):
         (tmp_path / name).write_text(
-            f"motif_id: {motif_id}\nprobabilities:\n  - {row}\n"
+            f"schema_version: motif-model/v2\nmotif_id: {motif_id}\nprobabilities:\n  - {row}\n"
             "background: [0.25, 0.25, 0.25, 0.25]\n"
         )
     design_path = tmp_path / "design.yaml"
@@ -63,12 +65,14 @@ def test_load_spec_applies_the_same_containment_boundary_to_avoiders(tmp_path: P
     root.mkdir()
     private = tmp_path / "private.yaml"
     private.write_text(
-        "motif_id: avoider\nprobabilities:\n  - [0.7, 0.1, 0.1, 0.1]\n"
+        "schema_version: motif-model/v2\nmotif_id: avoider\n"
+        "probabilities:\n  - [0.7, 0.1, 0.1, 0.1]\n"
         "background: [0.25, 0.25, 0.25, 0.25]\n"
     )
     (root / "link.yaml").symlink_to(private)
     target = (
-        "motif_id: target\nprobabilities:\n  - [0.7, 0.1, 0.1, 0.1]\n"
+        "schema_version: motif-model/v2\nmotif_id: target\n"
+        "probabilities:\n  - [0.7, 0.1, 0.1, 0.1]\n"
         "background: [0.25, 0.25, 0.25, 0.25]\n"
     )
     (root / "target.yaml").write_text(target)
@@ -76,7 +80,7 @@ def test_load_spec_applies_the_same_containment_boundary_to_avoiders(tmp_path: P
     for index, reference in enumerate(("../private.yaml", "link.yaml")):
         design_path = root / f"avoidance-{index}.yaml"
         design_path.write_text(
-            "motifs:\n  target: target.yaml\n"
+            "schema_version: design-spec/v2\nmotifs:\n  target: target.yaml\n"
             f"avoiders:\n  avoider:\n    motif: {reference}\n    score_ceiling: 0.2\n"
             "length: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
         )
@@ -88,9 +92,13 @@ def test_load_spec_applies_the_same_containment_boundary_to_avoiders(tmp_path: P
     ("content", "message"),
     [
         ("- not\n- a\n- mapping\n", "one mapping"),
-        ("length: 2\ncount: 1\nevaluations: 1\nseed: 0\n", "name-to-model"),
         (
-            "motifs:\n  fixture: 4\nlength: 2\ncount: 1\nevaluations: 1\nseed: 0\n",
+            "schema_version: design-spec/v2\nlength: 2\ncount: 1\nevaluations: 1\nseed: 0\n",
+            "name-to-model",
+        ),
+        (
+            "schema_version: design-spec/v2\nmotifs:\n  fixture: 4\n"
+            "length: 2\ncount: 1\nevaluations: 1\nseed: 0\n",
             "path or model",
         ),
     ],
@@ -114,8 +122,10 @@ def test_load_spec_reports_missing_file(tmp_path: Path) -> None:
 def test_structured_inputs_reject_duplicate_keys(tmp_path: Path) -> None:
     design_path = tmp_path / "design.yaml"
     design_path.write_text(
+        "schema_version: design-spec/v2\n"
         "motifs:\n"
         "  fixture:\n"
+        "    schema_version: motif-model/v2\n"
         "    probabilities:\n"
         "      - [0.7, 0.1, 0.1, 0.1]\n"
         "    background: [0.25, 0.25, 0.25, 0.25]\n"
@@ -130,6 +140,7 @@ def test_structured_inputs_reject_duplicate_keys(tmp_path: Path) -> None:
 
     motif_path = tmp_path / "motif.yaml"
     motif_path.write_text(
+        "schema_version: motif-model/v2\n"
         "motif_id: fixture\n"
         "motif_id: substituted\n"
         "probabilities:\n"
@@ -141,7 +152,8 @@ def test_structured_inputs_reject_duplicate_keys(tmp_path: Path) -> None:
 
     motif_json_path = tmp_path / "motif.json"
     motif_json_path.write_text(
-        '{"motif_id":"fixture","motif_id":"substituted",'
+        '{"schema_version":"motif-model/v2","motif_id":"fixture",'
+        '"motif_id":"substituted",'
         '"probabilities":[[0.7,0.1,0.1,0.1]],'
         '"background":[0.25,0.25,0.25,0.25]}'
     )
@@ -154,6 +166,7 @@ def test_load_spec_rejects_traversal_and_symlink_motif_references(tmp_path: Path
     specification_root.mkdir()
     private = tmp_path / "private.yaml"
     private.write_text(
+        "schema_version: motif-model/v2\n"
         "motif_id: leaked\n"
         "probabilities:\n  - [0.7, 0.1, 0.1, 0.1]\n"
         "background: [0.25, 0.25, 0.25, 0.25]\n"
@@ -163,7 +176,9 @@ def test_load_spec_rejects_traversal_and_symlink_motif_references(tmp_path: Path
     for index, reference in enumerate(("../private.yaml", "link.yaml")):
         design_path = specification_root / f"design-{index}.yaml"
         design_path.write_text(
-            f"motifs:\n  leaked: {reference}\nlength: 1\ncount: 1\nevaluations: 1\nseed: 0\n"
+            "schema_version: design-spec/v2\n"
+            f"motifs:\n  leaked: {reference}\nlength: 1\n"
+            "count: 1\nevaluations: 1\nseed: 0\n"
         )
         with pytest.raises(InvalidDesign, match=r"contained|symbolic"):
             load_design_spec(design_path)
@@ -179,7 +194,27 @@ def test_load_spec_and_motif_loader_enforce_byte_bounds(tmp_path: Path) -> None:
     motif_path.write_bytes(b" " * 1_000_001)
     design_path = tmp_path / "design.yaml"
     design_path.write_text(
-        "motifs:\n  fixture: oversized-motif.yaml\nlength: 1\ncount: 1\nevaluations: 1\nseed: 0\n"
+        "schema_version: design-spec/v2\nmotifs:\n  fixture: oversized-motif.yaml\n"
+        "length: 1\ncount: 1\nevaluations: 1\nseed: 0\n"
     )
     with pytest.raises(InvalidDesign, match="byte limit"):
+        load_design_spec(design_path)
+
+
+def test_serialized_design_and_motif_inputs_require_explicit_schema_versions(
+    tmp_path: Path,
+) -> None:
+    motif_path = tmp_path / "legacy-ambiguous.yaml"
+    motif_path.write_text(
+        "motif_id: fixture\nprobabilities: [[0.7, 0.1, 0.1, 0.1]]\n"
+        "background: [0.25, 0.25, 0.25, 0.25]\n"
+    )
+    with pytest.raises(InvalidMotif, match="schema_version"):
+        read_motif(motif_path)
+
+    design_path = tmp_path / "legacy-ambiguous-design.yaml"
+    design_path.write_text(
+        "motifs:\n  fixture: legacy-ambiguous.yaml\nlength: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
+    )
+    with pytest.raises(InvalidDesign, match="schema_version"):
         load_design_spec(design_path)
