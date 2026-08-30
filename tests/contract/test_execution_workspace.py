@@ -31,9 +31,9 @@ def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
         if alter_api and relative == "api.py":
             payload += b"# substituted\n"
         entries[f"motif_balance/{relative}"] = payload
-    dist_info = "motif_balance-0.4.0a3.dist-info/"
+    dist_info = "motif_balance-0.4.0a4.dist-info/"
     entries[f"{dist_info}METADATA"] = (
-        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a3\n"
+        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a4\n"
     )
     entries[f"{dist_info}WHEEL"] = b"Wheel-Version: 1.0\n"
     entries[f"{dist_info}entry_points.txt"] = (
@@ -62,7 +62,7 @@ def design_path(tmp_path: Path, pairwise_spec: DesignSpec) -> Path:
 
 
 def _execute(tmp_path: Path, specification: Path) -> tuple[Path, Path, dict[str, object]]:
-    release = tmp_path / "motif_balance-0.4.0a3-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     workspace = execute_design_workspace(
@@ -109,7 +109,7 @@ def test_execute_refuses_a_substituted_release_tree(
     tmp_path: Path,
     design_path: Path,
 ) -> None:
-    release = tmp_path / "motif_balance-0.4.0a3-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
     _write_runtime_wheel(release, alter_api=True)
 
     with pytest.raises(ArtifactError, match="does not match the running package"):
@@ -296,7 +296,7 @@ def test_execute_refuses_existing_destination(
     tmp_path: Path,
     design_path: Path,
 ) -> None:
-    release = tmp_path / "motif_balance-0.4.0a3-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     output.mkdir()

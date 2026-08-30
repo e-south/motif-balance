@@ -25,7 +25,7 @@ Create the workspace in the same operation that performs the design:
 
 ```bash
 motif-balance orchestration execute design.yaml \
-  --release-artifact dist/motif_balance-0.4.0a3-py3-none-any.whl \
+  --release-artifact dist/motif_balance-0.4.0a4-py3-none-any.whl \
   --producer-revision <40-character-commit> \
   --out execution-workspace
 ```

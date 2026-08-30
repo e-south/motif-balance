@@ -10,7 +10,17 @@ from typing import Annotated, Literal, Self
 
 from pydantic import Field, model_validator
 
-from motif_balance.compile import build_run_id, compile_design, sequence_space_at_most
+from motif_balance.api import (
+    Portfolio,
+    _portfolio_from_search_result,
+    _require_publishable_design,
+)
+from motif_balance.compile import (
+    CompiledProblem,
+    build_run_id,
+    compile_design,
+    sequence_space_at_most,
+)
 from motif_balance.constants import (
     PACKAGE_VERSION,
     RNG_NAME,
@@ -105,6 +115,14 @@ def _observed_rows(result: SearchResult) -> tuple[ObservedEvaluation, ...]:
     return tuple(sorted(rows, key=lambda item: item.sequence))
 
 
+def _require_observation_capacity(spec: DesignSpec) -> None:
+    if spec.evaluations > MAX_EVALUATED_POOL_RECORDS:
+        raise ArtifactError(
+            "evaluated-pool observation exceeds its record limit; "
+            f"requested={spec.evaluations}, limit={MAX_EVALUATED_POOL_RECORDS}"
+        )
+
+
 def _observation_payload(observation: EvaluatedPoolObservation) -> dict[str, object]:
     return observation.model_dump(mode="json", exclude={"observation_id"})
 
@@ -188,16 +206,11 @@ def verify_evaluated_pool(observation: EvaluatedPoolObservation) -> None:
         raise ArtifactError("evaluated-pool observation identity does not match its content")
 
 
-def observe_evaluated_pool(spec: DesignSpec) -> EvaluatedPoolObservation:
-    """Run one bounded search and expose its complete unique evaluation pool."""
-
-    if spec.evaluations > MAX_EVALUATED_POOL_RECORDS:
-        raise ArtifactError(
-            "evaluated-pool observation exceeds its record limit; "
-            f"requested={spec.evaluations}, limit={MAX_EVALUATED_POOL_RECORDS}"
-        )
-    problem = compile_design(spec)
-    result = search(problem)
+def _observation_from_search_result(
+    spec: DesignSpec,
+    problem: CompiledProblem,
+    result: SearchResult,
+) -> EvaluatedPoolObservation:
     run_id = build_run_id(
         spec,
         problem.problem_id,
@@ -231,6 +244,29 @@ def observe_evaluated_pool(spec: DesignSpec) -> EvaluatedPoolObservation:
     # verify_evaluated_pool; repeating it here would make observe-then-write run
     # the same bounded search three times without crossing a trust boundary.
     return observation
+
+
+def observe_evaluated_pool(spec: DesignSpec) -> EvaluatedPoolObservation:
+    """Run one bounded search and expose its complete unique evaluation pool."""
+
+    _require_observation_capacity(spec)
+    problem = compile_design(spec)
+    result = search(problem)
+    return _observation_from_search_result(spec, problem, result)
+
+
+def design_with_evaluated_pool(
+    spec: DesignSpec,
+) -> tuple[Portfolio, EvaluatedPoolObservation]:
+    """Return one portfolio and complete pool derived from the same bounded search."""
+
+    _require_publishable_design(spec)
+    _require_observation_capacity(spec)
+    problem = compile_design(spec)
+    result = search(problem)
+    portfolio = _portfolio_from_search_result(spec, problem, result)
+    observation = _observation_from_search_result(spec, problem, result)
+    return portfolio, observation
 
 
 def write_evaluated_pool(observation: EvaluatedPoolObservation, path: str | Path) -> Path:

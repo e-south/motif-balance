@@ -87,7 +87,9 @@ Chromium does not print descendants of closed `details` elements.
 Evaluated-pool observations are separate bounded JSON exports. They contain at
 most 32,768 unique evaluations and 64 MiB, refuse overwrite, use a
 descriptor-bound no-symlink reader, bind their content identity, and replay
-every score before publication and after reading.
+every score before publication and after reading. The advanced paired design
+operation performs one exploratory search; independent pool publication and
+reading continue to replay that search at their trust boundaries.
 
 ## Degraded behavior
 

@@ -162,7 +162,8 @@ unique evaluated pool to an analysis owner. It is bounded, immutable,
 identity-checked, scientifically replayed, and path-free. Each unique row
 records its first authoritative evaluator-call index, and verification reruns
 the deterministic search to establish row coverage, discovery order, counts,
-checkpoints, and diagnostics. It is not a bundle
+checkpoints, and diagnostics. The advanced paired operation can derive it and
+the ordinary portfolio from the same search result. It is not a bundle
 member, public `Portfolio` field, ordinary CLI journey, or top-level noun.
 
 Inspection is one immutable typed projection over a verified bundle or

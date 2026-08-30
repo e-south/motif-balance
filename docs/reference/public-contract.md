@@ -113,3 +113,8 @@ bounded JSON record is immutable, canonical, path-free, identity-checked, and
 scientifically replayed. The observer admits at most 32,768 evaluator calls
 and independently limits the encoded record to 64 MiB. It is not a
 `Portfolio`, canonical bundle member, CLI journey, or top-level export.
+
+An analysis that needs both outputs from one declared evaluator budget may use
+`motif_balance.observation.design_with_evaluated_pool(spec)`. It returns the
+ordinary immutable `Portfolio` and complete observation derived from the same
+search result. It adds no top-level symbol or CLI command.

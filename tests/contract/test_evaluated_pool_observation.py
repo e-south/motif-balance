@@ -9,9 +9,11 @@ from pydantic import ValidationError
 
 import motif_balance
 import motif_balance.observation as observation_module
-from motif_balance import DesignSpec
+from motif_balance import DesignSpec, design
+from motif_balance.artifacts import read_verified_portfolio
 from motif_balance.compile import CompiledProblem
-from motif_balance.errors import ArtifactError
+from motif_balance.errors import ArtifactError, PortfolioInfeasible
+from motif_balance.model import Evaluation
 from motif_balance.observation import (
     MAX_EVALUATED_POOL_RECORDS,
     EvaluatedPoolObservation,
@@ -59,6 +61,77 @@ def test_observation_runs_search_once_and_publication_replays_it(
     assert search_calls == 1
     write_evaluated_pool(observation, tmp_path / "pool.json")
     assert search_calls == 2
+
+
+def test_design_with_evaluated_pool_uses_one_search_and_one_result_authority(
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected_portfolio = design(pairwise_spec)
+    real_search = observation_module.search
+    search_calls = 0
+
+    def counted_search(problem: CompiledProblem) -> SearchResult:
+        nonlocal search_calls
+        search_calls += 1
+        return real_search(problem)
+
+    monkeypatch.setattr(observation_module, "search", counted_search)
+
+    portfolio, observation = observation_module.design_with_evaluated_pool(pairwise_spec)
+
+    best_row = min(
+        observation.evaluations,
+        key=lambda evaluation: (-evaluation.balance_score, evaluation.sequence),
+    )
+    observed_best = Evaluation.model_validate(
+        best_row.model_dump(mode="python", exclude={"first_evaluation_index"})
+    )
+    assert search_calls == 1
+    assert portfolio == expected_portfolio
+    assert portfolio.problem_id == observation.problem_id
+    assert portfolio.run_id == observation.run_id
+    assert portfolio.manifest.best_observed == observed_best
+    assert portfolio.manifest.search_diagnostics == observation.diagnostics
+    assert portfolio.manifest.evaluation_count == observation.evaluation_count
+    assert portfolio.manifest.unique_evaluations == observation.unique_evaluations
+    assert "design_with_evaluated_pool" not in motif_balance.__all__
+
+
+def test_paired_design_outputs_publish_and_read_back_independently(
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    real_search = observation_module.search
+    search_calls = 0
+
+    def counted_search(problem: CompiledProblem) -> SearchResult:
+        nonlocal search_calls
+        search_calls += 1
+        return real_search(problem)
+
+    monkeypatch.setattr(observation_module, "search", counted_search)
+    portfolio, observation = observation_module.design_with_evaluated_pool(pairwise_spec)
+    bundle = tmp_path / "result"
+    pool_path = tmp_path / "evaluated-pool.json"
+
+    portfolio.write(bundle)
+    write_evaluated_pool(observation, pool_path)
+    reread_portfolio = read_verified_portfolio(bundle)
+    reread_observation = read_evaluated_pool(pool_path)
+
+    assert reread_portfolio.model_dump(mode="python") == portfolio.model_dump(mode="python")
+    assert reread_observation == observation
+    assert search_calls == 3
+
+
+def test_paired_design_failure_returns_no_publishable_outputs(
+    pairwise_spec: DesignSpec, tmp_path: Path
+) -> None:
+    infeasible = pairwise_spec.model_copy(update={"count": 5, "min_distance": 1.0})
+
+    with pytest.raises(PortfolioInfeasible):
+        observation_module.design_with_evaluated_pool(infeasible)
+
+    assert tuple(tmp_path.iterdir()) == ()
 
 
 def test_evaluated_pool_export_is_atomic_path_free_and_refuses_overwrite(
