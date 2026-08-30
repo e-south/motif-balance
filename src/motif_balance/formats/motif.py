@@ -11,7 +11,12 @@ import yaml
 
 from motif_balance.constants import MAX_INPUT_BYTES, MAX_SEQUENCE_LENGTH
 from motif_balance.errors import InvalidMotif
-from motif_balance.formats.structured import load_json_unique, load_yaml_unique
+from motif_balance.formats.structured import (
+    BoundedInputError,
+    load_json_unique,
+    load_yaml_unique,
+    read_bounded_regular_file,
+)
 from motif_balance.model import MotifConversion, MotifModel
 
 _MAX_COUNT_TOKEN_CHARS = 64
@@ -81,18 +86,25 @@ def _read_meme(text: str, *, requested_id: str | None) -> dict[str, Any]:
 
 def read_motif(path: str | Path, *, motif_id: str | None = None) -> MotifModel:
     source = Path(path)
-    if source.is_symlink():
-        raise InvalidMotif(f"Refusing symbolic-link motif file '{source.name}'.")
     try:
-        if source.stat().st_size > MAX_INPUT_BYTES:
+        raw = read_bounded_regular_file(source)
+    except BoundedInputError as exc:
+        if exc.reason == "byte limit":
             raise InvalidMotif(
                 f"Motif file '{source.name}' exceeds the {MAX_INPUT_BYTES}-byte limit."
-            )
-        raw = source.read_bytes()
-    except OSError as exc:
+            ) from exc
+        if exc.reason == "symbolic-link input":
+            raise InvalidMotif(f"Refusing symbolic-link motif file '{source.name}'.") from exc
         raise InvalidMotif(f"Unable to read motif file '{source.name}': {exc}") from exc
-    if len(raw) > MAX_INPUT_BYTES:
-        raise InvalidMotif(f"Motif file '{source.name}' exceeds the {MAX_INPUT_BYTES}-byte limit.")
+    return _read_motif_snapshot(source, raw, motif_id=motif_id)
+
+
+def _read_motif_snapshot(
+    source: Path,
+    raw: bytes,
+    *,
+    motif_id: str | None = None,
+) -> MotifModel:
     if source.suffix.lower() in {".meme", ".txt"}:
         try:
             text = raw.decode("utf-8")
@@ -134,18 +146,16 @@ def convert_jaspar(
     """Convert one JASPAR count matrix with the declared sqrt(N) background prior."""
 
     source = Path(path)
-    if source.is_symlink():
-        raise InvalidMotif(f"Refusing symbolic-link motif file '{source.name}'.")
     try:
-        if source.stat().st_size > MAX_INPUT_BYTES:
+        raw = read_bounded_regular_file(source)
+    except BoundedInputError as exc:
+        if exc.reason == "byte limit":
             raise InvalidMotif(
                 f"Motif file '{source.name}' exceeds the {MAX_INPUT_BYTES}-byte limit."
-            )
-        raw = source.read_bytes()
-    except OSError as exc:
+            ) from exc
+        if exc.reason == "symbolic-link input":
+            raise InvalidMotif(f"Refusing symbolic-link motif file '{source.name}'.") from exc
         raise InvalidMotif(f"Unable to read motif file '{source.name}': {exc}") from exc
-    if len(raw) > MAX_INPUT_BYTES:
-        raise InvalidMotif(f"Motif file '{source.name}' exceeds the {MAX_INPUT_BYTES}-byte limit.")
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:

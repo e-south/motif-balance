@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import math
-
 from motif_balance.errors import ArtifactError
 
 from ..limits import MAX_SVG_MATCHES
@@ -90,7 +88,7 @@ def _match_lane(
         f'data-start="{match.start}" data-end="{match.end}" data-strand="{match.strand}">'
         f'<rect x="{x}" y="{y}" width="{width}" height="16" rx="3" '
         f'fill="{color}" fill-opacity=".18" stroke="{color}" stroke-width="1.5"/>'
-        f"{text(x, label_y, label, size=11, fill=INK, family='ui-monospace,monospace')}"
+        f"{text(x, label_y, label, size=12, fill=INK, family='ui-monospace,monospace')}"
         "</g>"
     )
 
@@ -103,7 +101,7 @@ def _motif_model(
     left: int,
     cell: int,
 ) -> str:
-    """Render one small information-weighted logo beside its selected match contract."""
+    """Render one fixed-glyph probability strip beside its selected match contract."""
 
     model_name = motif_id(motif.motif_id)
     score_label = (
@@ -111,9 +109,10 @@ def _motif_model(
         if motif.score_reference_semantics == "null_mean_to_score_max_v1"
         else "attainment"
     )
-    baseline = top + 58
+    matrix_top = top + 46
     parts = [
         f'<g class="motif-model" data-motif-id="{model_name}" '
+        'data-display-convention="fixed-glyph-probability-strip" '
         f'data-model-digest="{motif.model_digest}" data-match-start="{match.start}" '
         f'data-match-end="{match.end}" data-match-strand="{match.strand}" '
         f'data-probability-consensus="{motif.probability_consensus}" '
@@ -125,41 +124,43 @@ def _motif_model(
             top + 38,
             f"width {motif.width} · {score_label} {match.normalized_score:.4g} · "
             f"best [{match.start}, {match.end}) {match.strand}",
-            size=10,
+            size=12,
             fill=MUTED,
         ),
-        f'<line x1="{left}" y1="{baseline}" x2="{left + motif.width * cell}" '
-        f'y2="{baseline}" stroke="{LINE}"/>',
     ]
     for position, row in enumerate(motif.probabilities):
-        information = max(0.0, 2.0 + math.fsum(p * math.log2(p) for p in row))
-        glyphs = sorted(zip("ACGT", row, strict=True), key=lambda item: (item[1], item[0]))
-        cursor = float(baseline)
-        for base, probability in glyphs:
-            glyph_height = max(4, round(54 * probability * information / 2.0))
-            cursor -= glyph_height
-            parts.append(
-                text(
-                    left + (position + 0.5) * cell,
-                    cursor + glyph_height,
-                    base,
-                    size=glyph_height,
-                    anchor="middle",
-                    weight=700,
-                    fill=_BASE_COLORS[base],
-                    family="ui-monospace,monospace",
-                    extra=(
-                        f' data-motif-position="{position}" data-base="{base}" '
-                        f'data-probability="{probability:.17g}"'
+        x = left + position * cell
+        for base_index, (base, probability) in enumerate(zip("ACGT", row, strict=True)):
+            y = matrix_top + base_index * 14
+            parts.extend(
+                [
+                    f'<rect x="{x + 1}" y="{y - 10}" '
+                    f'width="{(cell - 2) * probability:.3f}" height="12" rx="2" '
+                    f'fill="{_BASE_COLORS[base]}" fill-opacity=".28" '
+                    f'data-motif-position="{position}" data-base="{base}" '
+                    f'data-probability="{probability:.17g}"/>',
+                    text(
+                        x + cell / 2,
+                        y,
+                        base,
+                        size=12,
+                        anchor="middle",
+                        weight=700,
+                        fill=INK,
+                        family="ui-monospace,monospace",
+                        extra=(
+                            f' data-motif-position="{position}" data-base="{base}" '
+                            f'data-probability="{probability:.17g}"'
+                        ),
                     ),
-                )
+                ]
             )
         parts.append(
             text(
                 left + (position + 0.5) * cell,
-                baseline + 13,
+                matrix_top + 59,
                 position,
-                size=8,
+                size=12,
                 anchor="middle",
                 fill=MUTED,
             )
@@ -191,11 +192,11 @@ def render_candidate_svg(
     right = 42
     width = max(960, left + len(candidate.sequence) * cell + right)
     logo_top = 88
-    logo_row_height = 82
+    logo_row_height = 128
     primary_y = logo_top + logo_row_height * len(shown) + 42 + 30 * max(1, len(forward))
     complement_y = primary_y + 44
     support_y = complement_y + 44 + 30 * max(1, len(reverse))
-    height = support_y + 34 * len(shown) + 70
+    height = support_y + 40 * len(shown) + 72
     parts = svg_start(
         width=width,
         height=height,
@@ -225,11 +226,12 @@ def render_candidate_svg(
                 size=13,
                 fill=MUTED,
             ),
-            '<g id="motif-models">',
+            f'<g id="motif-models" data-displayed-matches="{len(shown)}" '
+            f'data-total-matches="{len(candidate.matches) + len(candidate.avoidance_matches)}">',
             text(
                 20,
                 78,
-                "Supplied motif models (information-weighted logos) → selected matches",
+                "Supplied motif models (fixed-glyph probability strips) → selected matches",
                 size=12,
                 weight=650,
             ),
@@ -274,7 +276,7 @@ def render_candidate_svg(
             "</g>",
             '<g id="primary-sequence">',
             text(20, primary_y + 5, "Primary 5\u2032\u21923\u2032", size=12, weight=650),
-            text(left - 12, primary_y + 5, "5\u2032", size=11, anchor="end", fill=MUTED),
+            text(left - 12, primary_y + 5, "5\u2032", size=12, anchor="end", fill=MUTED),
         ]
     )
     for position, base in enumerate(candidate.sequence):
@@ -291,7 +293,7 @@ def render_candidate_svg(
                     family="ui-monospace,monospace",
                     extra=f' data-candidate-position="{position}"',
                 ),
-                text(base_x, primary_y + 20, position, size=8, anchor="middle", fill=MUTED),
+                text(base_x, primary_y + 23, position, size=12, anchor="middle", fill=MUTED),
             ]
         )
     parts.extend(
@@ -300,7 +302,7 @@ def render_candidate_svg(
                 left + len(candidate.sequence) * cell + 12,
                 primary_y + 5,
                 "3\u2032",
-                size=11,
+                size=12,
             ),
             "</g>",
             '<g id="complementary-sequence">',
@@ -311,7 +313,7 @@ def render_candidate_svg(
                 size=12,
                 weight=650,
             ),
-            text(left - 12, complement_y + 5, "3\u2032", size=11, anchor="end", fill=MUTED),
+            text(left - 12, complement_y + 5, "3\u2032", size=12, anchor="end", fill=MUTED),
         ]
     )
     for position, base in enumerate(candidate.complement_sequence):
@@ -334,7 +336,7 @@ def render_candidate_svg(
                 left + len(candidate.sequence) * cell + 12,
                 complement_y + 5,
                 "5\u2032",
-                size=11,
+                size=12,
             ),
             "</g>",
             '<g id="reverse-matches">',
@@ -364,13 +366,13 @@ def render_candidate_svg(
         ]
     )
     for row, match in enumerate(shown):
-        y = support_y + row * 34
+        y = support_y + row * 40
         parts.append(
             text(
                 20,
                 y + 17,
                 f"{match.motif_id} {match.strand} · raw {match.raw_score:.4g}",
-                size=11,
+                size=12,
                 family="ui-monospace,monospace",
             )
         )
@@ -393,7 +395,7 @@ def render_candidate_svg(
                         x + cell / 2,
                         y + 16,
                         support.observed_base,
-                        size=10,
+                        size=12,
                         anchor="middle",
                         weight=650,
                         fill=INK,
@@ -401,9 +403,9 @@ def render_candidate_svg(
                     ),
                     text(
                         x + cell / 2,
-                        y + 31,
+                        y + 35,
                         f"{support.llr_contribution:+.2g}",
-                        size=8,
+                        size=12,
                         anchor="middle",
                         fill=MUTED,
                         family="ui-monospace,monospace",
@@ -419,7 +421,7 @@ def render_candidate_svg(
                 height - 18,
                 f"Showing {len(shown)} of {total_matches} matches; "
                 "exact records remain in the inspection JSON.",
-                size=11,
+                size=12,
                 fill=MUTED,
             )
         )
@@ -430,7 +432,7 @@ def render_candidate_svg(
                 height - 18,
                 f"Shared-coordinate union: {len(candidate.shared_coordinates)} positions. "
                 "Overlap is not evidence of simultaneous occupancy.",
-                size=11,
+                size=12,
                 fill=MUTED,
             )
         )

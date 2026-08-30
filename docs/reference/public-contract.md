@@ -7,7 +7,7 @@ audience:
   - integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-29
+last_verified: 2026-08-30
 doc_type: reference
 journey:
   - integrate
@@ -94,13 +94,11 @@ the complete best observed evaluation even when it is excluded from the
 distance-constrained selected portfolio. It does not rerun search. Text, inspection
 JSON, SVG, and HTML are regenerable projections outside the bundle.
 
-Version `0.3` reads `run-manifest/v2` through `run-manifest/v4` and writes v4.
-Version `0.4` additionally reads and writes `run-manifest/v5`; new projections
-use `motif-balance.result-inspection/v4`. Unknown schemas
-fail closed. A workflow
-New publication in version `0.4` requires v2 inputs and v5 output; v1 remains
-readable and scoreable but cannot initiate a new design publication. A workflow
-that needs exact runtime identity retains the complete
+Version `0.4` reads `run-manifest/v2` through `run-manifest/v5` and writes v5;
+new projections use `motif-balance.result-inspection/v4`. Unknown schemas fail
+closed. New publication requires v2 inputs and v5 output; v1 remains readable
+and scoreable but cannot initiate a new design publication. A workflow that
+needs exact runtime identity retains the complete
 `motif-balance.execution-workspace/v1` with its wheel and external trust
 anchors.
 

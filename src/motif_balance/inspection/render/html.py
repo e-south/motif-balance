@@ -5,7 +5,12 @@ from itertools import islice
 
 from motif_balance.errors import ArtifactError
 
-from ..limits import MAX_HTML_CANDIDATES, MAX_HTML_CHECKPOINTS, MAX_HTML_MATCHES
+from ..limits import (
+    MAX_HTML_CANDIDATES,
+    MAX_HTML_CHECKPOINTS,
+    MAX_HTML_MATCHES,
+    MAX_HTML_MOTIF_POSITIONS,
+)
 from ..model import InspectionCandidate, ResultInspection
 from .candidate import render_candidate_svg
 from .portfolio import render_portfolio_svg
@@ -23,10 +28,11 @@ def _rows(rows: list[tuple[str, object]]) -> str:
     )
 
 
-def _table(headings: tuple[str, ...], rows: str) -> str:
-    head = "".join(f"<th>{escape(heading)}</th>" for heading in headings)
+def _table(headings: tuple[str, ...], rows: str, *, caption: str | None = None) -> str:
+    head = "".join(f'<th scope="col">{escape(heading)}</th>' for heading in headings)
+    caption_html = f"<caption>{escape(caption)}</caption>" if caption else ""
     return (
-        '<div class="table-wrap"><table><thead><tr>'
+        f'<div class="table-wrap"><table>{caption_html}<thead><tr>'
         f"{head}</tr></thead><tbody>{rows}</tbody></table></div>"
     )
 
@@ -122,6 +128,56 @@ def _checkpoint_rows(inspection: ResultInspection) -> tuple[str, str]:
         else ""
     )
     return rows, note
+
+
+def _motif_probability_table(inspection: ResultInspection) -> tuple[str, str]:
+    rows: list[str] = []
+    total = sum(motif.width for motif in (*inspection.problem.motifs, *inspection.problem.avoiders))
+    shown = 0
+    for role, motifs in (
+        ("target", inspection.problem.motifs),
+        ("avoider", inspection.problem.avoiders),
+    ):
+        for motif in motifs:
+            for position, probabilities in enumerate(motif.probabilities):
+                if shown >= MAX_HTML_MOTIF_POSITIONS:
+                    break
+                rows.append(
+                    "<tr>"
+                    f'<th scope="row">{escape(motif.motif_id)}</th>'
+                    f"<td>{role}</td><td>{position}</td>"
+                    + "".join(f"<td>{value:.17g}</td>" for value in probabilities)
+                    + f"<td>{motif.probability_consensus[position]}</td>"
+                    f"<td>{motif.score_maximizing_sequence[position]}</td>"
+                    "</tr>"
+                )
+                shown += 1
+            if shown >= MAX_HTML_MOTIF_POSITIONS:
+                break
+        if shown >= MAX_HTML_MOTIF_POSITIONS:
+            break
+    note = (
+        f"<p>Showing {shown} of {total} motif positions; the inspection JSON retains "
+        "every exact probability.</p>"
+        if shown < total
+        else ""
+    )
+    table = _table(
+        (
+            "Motif",
+            "Role",
+            "Position",
+            "Probability A",
+            "Probability C",
+            "Probability G",
+            "Probability T",
+            "Probability consensus",
+            "Score-maximizing base",
+        ),
+        "".join(rows),
+        caption="Exact motif probability matrices",
+    )
+    return table, note
 
 
 def _execution_table(inspection: ResultInspection) -> str:
@@ -221,6 +277,7 @@ def _exact_records(inspection: ResultInspection) -> str:
     candidate_rows, candidate_note = _candidate_rows(inspection)
     match_rows, match_note = _match_rows(inspection)
     checkpoint_rows, checkpoint_note = _checkpoint_rows(inspection)
+    probability_table, probability_note = _motif_probability_table(inspection)
     candidate_table = _table(
         ("Rank", "ID", "Sequence", "balance_score", "Limiting motif", "Nearest distance"),
         candidate_rows,
@@ -237,6 +294,10 @@ def _exact_records(inspection: ResultInspection) -> str:
         (
             _details("Candidate table", candidate_note + candidate_table, opened=True),
             _details("Motif match table", match_note + match_table),
+            _details(
+                "Exact motif probability matrices",
+                probability_note + probability_table,
+            ),
             _details("Recorded checkpoints", checkpoint_note + checkpoint_table),
         )
     )
@@ -244,6 +305,7 @@ def _exact_records(inspection: ResultInspection) -> str:
         (
             f"<h3>Candidate table</h3>{candidate_note}{candidate_table}",
             f"<h3>Motif match table</h3>{match_note}{match_table}",
+            f"<h3>Exact motif probability matrices</h3>{probability_note}{probability_table}",
             f"<h3>Recorded checkpoints</h3>{checkpoint_note}{checkpoint_table}",
         )
     )
@@ -313,9 +375,16 @@ def _status_line(inspection: ResultInspection) -> str:
         f"Portfolio delivery: {inspection.delivery.delivered_count}/"
         f"{inspection.delivery.requested_count} {escape(_words(inspection.delivery.status))}"
     )
+    completion_label = (
+        "full sequence space evaluated"
+        if inspection.search.completion == "exhaustive"
+        else "evaluation budget used"
+    )
     completion = (
-        f"Search completion: {escape(_words(inspection.search.completion))} at "
-        f"{inspection.search.evaluator_calls} evaluator calls"
+        f"Search completion: {completion_label} at "
+        f"{inspection.search.evaluator_calls} evaluator calls "
+        f"(<code>{escape(inspection.search.completion)}</code>; stop "
+        f"<code>{escape(inspection.search.stop_reason)}</code>)"
     )
     integrity = f"Artifact integrity: {escape(_words(inspection.integrity.state))}"
     return (
@@ -380,7 +449,8 @@ def render_html(
     lede = (
         f"Returned {inspection.delivery.delivered_count} of "
         f"{inspection.delivery.requested_count} requested sequences. Best observed "
-        f"balance_score was {inspection.portfolio.best_observed_score:.6g}. "
+        "weakest target attainment (balance_score) was "
+        f"{inspection.portfolio.best_observed_score:.6g}. "
         f"{best_observed_state} The selected rank {selected.rank} candidate balances "
         f"{len(inspection.problem.motifs)} motif models at {selected.balance_score:.6g}."
     )
@@ -405,6 +475,7 @@ def render_html(
             _avoidance_contract(inspection),
             "<h2>Portfolio balance</h2>",
             "<p>Rows retain deterministic rank order and columns retain canonical motif order. "
+            "The weakest target attainment is recorded as <code>balance_score</code>. "
             "Numeric values are authoritative; color is only a reading aid.</p>",
             '<div class="figure-scroll" aria-label="Portfolio balance figure">',
             f"{portfolio_svg}</div>",

@@ -293,6 +293,8 @@ def test_inspection_discloses_hard_avoidance_without_recasting_it_as_target_scor
     candidate_svg = render_candidate_svg(inspection).decode()
     portfolio_svg = render_portfolio_svg(inspection).decode()
     assert "Hard avoidance constraints" in html
+    assert "Exact motif probability matrices" in html
+    assert "avoider" in html
     assert 'data-role="avoider"' in candidate_svg
     assert 'data-score-ceiling="0"' in candidate_svg
     assert 'data-constraint-status="feasible"' in portfolio_svg

@@ -70,14 +70,16 @@ For current bundles the portfolio view reports whether that sequence is a
 selected member and at which rank. Older readable bundles may provide only its
 recorded hard score when the sequence was never serialized.
 
-The
-candidate view then shows each supplied motif as a compact
-information-weighted logo, maps it to its selected match, and shows the
+The candidate view shows each supplied motif as a fixed-size A/C/G/T glyph
+strip whose bar lengths encode the supplied probabilities, maps it to its
+selected match, and shows the
 supplied sequence 5′→3′ and its coordinate-aligned complement 3′→5′. Forward
 matches appear above the primary strand and reverse matches below the
 complement. Position-support cells are the observed-base log-likelihood
 contributions replayed by scoring; renderers do not rescan a motif or recompute
-a score. Shared coordinates are a union of positions covered by more than one
+a score. The linear HTML also provides the exact bounded motif-probability
+matrix as an accessible table; the glyph strip is an explanatory encoding, not
+a substitute for those numeric values. Shared coordinates are a union of positions covered by more than one
 representative window, not evidence of simultaneous occupancy.
 
 Constraint-bearing results display avoider matches on separate lanes with

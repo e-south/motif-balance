@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
+import motif_balance.artifacts as artifacts_module
 from motif_balance import DesignSpec, Portfolio, design
 from motif_balance.artifacts import (
     artifact_records,
@@ -17,6 +19,177 @@ from motif_balance.artifacts import (
 )
 from motif_balance.errors import ArtifactError
 from motif_balance.model import ArtifactDigest, RunManifest
+
+
+class _SwappingRename:
+    def __init__(self, source: Path, trusted: Path) -> None:
+        self.source = source
+        self.trusted = trusted
+        self.argtypes: object = None
+        self.restype: object = None
+
+    def __call__(
+        self,
+        _source_fd: int,
+        source_name: bytes,
+        _destination_fd: int,
+        destination_name: bytes,
+        _flags: int,
+    ) -> int:
+        parent = self.source.parent
+        source = parent / os.fsdecode(source_name)
+        destination = parent / os.fsdecode(destination_name)
+        if source == self.source:
+            source.rename(self.trusted)
+            source.mkdir()
+        source.rename(destination)
+        return 0
+
+
+class _SwappingLibrary:
+    def __init__(self, source: Path, trusted: Path) -> None:
+        self.renameatx_np = _SwappingRename(source, trusted)
+
+
+class _MutatingRename:
+    def __init__(self, member: str) -> None:
+        self.member = member
+        self.mutated = False
+        self.argtypes: object = None
+        self.restype: object = None
+
+    def __call__(
+        self,
+        source_fd: int,
+        source_name: bytes,
+        destination_fd: int,
+        destination_name: bytes,
+        _flags: int,
+    ) -> int:
+        directory_fd = os.open(
+            source_name,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+            dir_fd=source_fd,
+        )
+        try:
+            if not self.mutated:
+                try:
+                    member_fd = os.open(self.member, os.O_WRONLY | os.O_TRUNC, dir_fd=directory_fd)
+                except FileNotFoundError:
+                    pass
+                else:
+                    try:
+                        os.write(member_fd, b"forged during publication\n")
+                        self.mutated = True
+                    finally:
+                        os.close(member_fd)
+        finally:
+            os.close(directory_fd)
+        os.rename(
+            source_name,
+            destination_name,
+            src_dir_fd=source_fd,
+            dst_dir_fd=destination_fd,
+        )
+        return 0
+
+
+class _MutatingLibrary:
+    def __init__(self, member: str) -> None:
+        self.renameatx_np = _MutatingRename(member)
+
+
+def test_bundle_publication_does_not_replace_a_concurrently_created_empty_directory(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "result"
+    publish = artifacts_module._publish_directory_no_replace
+
+    def create_destination_then_publish(temporary: Path, destination: Path) -> None:
+        destination.mkdir()
+        publish(temporary, destination)
+
+    monkeypatch.setattr(
+        artifacts_module,
+        "_publish_directory_no_replace",
+        create_destination_then_publish,
+    )
+
+    with pytest.raises(ArtifactError, match="already exists or is unsafe"):
+        design(pairwise_spec).write(output)
+
+    assert output.is_dir()
+    assert list(output.iterdir()) == []
+    assert not list(tmp_path.glob(".result.tmp-*"))
+
+
+def test_directory_publication_rejects_a_swapped_source_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "temporary"
+    source.mkdir()
+    (source / "trusted.txt").write_text("trusted")
+    trusted = tmp_path / "original-temporary"
+    destination = tmp_path / "published"
+    library = _SwappingLibrary(source, trusted)
+    monkeypatch.setattr(artifacts_module.ctypes, "CDLL", lambda *_args, **_kwargs: library)
+    monkeypatch.setattr(artifacts_module.sys, "platform", "darwin")
+
+    with pytest.raises(OSError, match=r"changed|identity"):
+        artifacts_module._publish_directory_no_replace(source, destination)
+
+    assert trusted.joinpath("trusted.txt").read_text() == "trusted"
+    assert destination.is_dir()
+    assert list(destination.iterdir()) == []
+
+
+def test_portfolio_write_rejects_member_mutation_during_publication(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "result"
+    library = _MutatingLibrary("candidates.tsv")
+    monkeypatch.setattr(artifacts_module.ctypes, "CDLL", lambda *_args, **_kwargs: library)
+    monkeypatch.setattr(artifacts_module.sys, "platform", "darwin")
+
+    with pytest.raises(ArtifactError, match="post-publication replay"):
+        design(pairwise_spec).write(output)
+
+    assert output.joinpath("candidates.tsv").read_bytes() == b"forged during publication\n"
+    assert not list(tmp_path.glob(".result.rejected-*"))
+
+
+def test_post_publication_failure_leaves_concurrent_destination_replacement_untouched(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "result"
+    rejected = tmp_path / "rejected-result"
+    real_read = artifacts_module.read_portfolio_record
+    replaced = False
+
+    def replace_destination_then_fail(directory: Path) -> object:
+        nonlocal replaced
+        if Path(directory) == output and not replaced:
+            replaced = True
+            output.rename(rejected)
+            output.mkdir()
+            output.joinpath("unrelated.txt").write_text("do not touch")
+            raise ArtifactError("forced post-publication failure")
+        return real_read(directory)
+
+    monkeypatch.setattr(artifacts_module, "read_portfolio_record", replace_destination_then_fail)
+
+    with pytest.raises(ArtifactError, match="post-publication replay"):
+        design(pairwise_spec).write(output)
+
+    assert output.joinpath("unrelated.txt").read_text() == "do not touch"
+    assert rejected.joinpath("manifest.json").is_file()
 
 
 def test_resealed_derived_fasta_still_fails_semantic_replay(

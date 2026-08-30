@@ -64,6 +64,41 @@ def _candidate_for(sequence: str, spec: DesignSpec) -> Candidate:
     )
 
 
+def _motif_for_word(motif_id: str, word: str) -> MotifModel:
+    rows = []
+    for base in word:
+        row = [0.01, 0.01, 0.01, 0.01]
+        row["ACGT".index(base)] = 0.97
+        rows.append(tuple(row))
+    return MotifModel(
+        motif_id=motif_id,
+        probabilities=tuple(rows),
+        background=(0.25, 0.25, 0.25, 0.25),
+    )
+
+
+def _assert_candidate_text_is_legible(payload: bytes) -> None:
+    root = ET.fromstring(payload)
+    namespace = "{http://www.w3.org/2000/svg}"
+    text_nodes = root.findall(f".//{namespace}text")
+    assert text_nodes
+    assert min(float(node.attrib["font-size"]) for node in text_nodes) >= 12
+    for group_id in ("primary-sequence", "complementary-sequence"):
+        group = root.find(f".//{namespace}g[@id='{group_id}']")
+        assert group is not None
+        bases = [node for node in group.findall(f"{namespace}text") if node.text in set("ACGT")]
+        assert bases
+        assert min(float(node.attrib["font-size"]) for node in bases) >= 14
+
+
+def _assert_svg_text_is_legible(payload: bytes) -> None:
+    root = ET.fromstring(payload)
+    namespace = "{http://www.w3.org/2000/svg}"
+    text_nodes = root.findall(f".//{namespace}text")
+    assert text_nodes
+    assert min(float(node.attrib["font-size"]) for node in text_nodes) >= 12
+
+
 def _write_legacy_bundle(
     bundle: Path,
     current_spec: DesignSpec,
@@ -303,6 +338,7 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
 
     for payload in (candidate, balance, search_record):
         assert payload is not None
+        _assert_svg_text_is_legible(payload)
         root = ET.fromstring(payload)
         assert root.tag.endswith("svg")
         assert root.attrib["role"] == "img"
@@ -321,6 +357,8 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
     assert b'class="motif-model"' in candidate
     assert b"data-model-digest=" in candidate
     assert b'data-probability="0.69999999999999996"' in candidate
+    assert b'data-display-convention="fixed-glyph-probability-strip"' in candidate
+    _assert_candidate_text_is_legible(candidate)
     assert b'id="position-support"' in candidate
     assert "5\u2032\u21923\u2032".encode() in candidate
     assert "3\u2032\u21925\u2032".encode() in candidate
@@ -378,6 +416,12 @@ def test_one_html_compositor_uses_result_reading_order_and_scrolls_wide_figures(
     assert '<div class="states"' not in html
     assert '<p class="status-line"' in html
     assert "<summary>Search diagnostics</summary>" in html
+    assert "Exact motif probability matrices" in html
+    assert "Position" in html
+    assert "Probability A" in html
+    assert "0.69999999999999996" in html
+    assert "weakest target attainment" in html
+    assert "sequence_space_exhausted" in html
     assert "model-defined sequence evidence, not measurements" in html
     assert "figure-scroll" in html
     compact = "".join(html.split())
@@ -388,6 +432,61 @@ def test_one_html_compositor_uses_result_reading_order_and_scrolls_wide_figures(
     assert ".print-records{display:block;}" in compact
     assert "<script" not in html
     assert "https://" not in html
+
+
+def test_realistic_width_overlapping_both_strand_fixture_is_legible(
+    tmp_path: Path,
+) -> None:
+    forward_word = "ACGTTGCA"
+    reverse_word = "TGCAACGT"
+    spec = DesignSpec(
+        motifs=(
+            _motif_for_word("forward_model", forward_word),
+            _motif_for_word("reverse_model", reverse_word),
+        ),
+        length=8,
+        count=1,
+        strands="both",
+        evaluations=65_536,
+        seed=17,
+    )
+    bundle = tmp_path / "overlapping-both-strand"
+    design(spec).write(bundle)
+    inspection = inspect_result(bundle, kind="bundle")
+
+    candidate = inspection.portfolio.candidates[0]
+    assert {match.strand for match in candidate.matches} == {"+", "-"}
+    assert {(match.start, match.end) for match in candidate.matches} == {(0, 8)}
+    assert candidate.shared_coordinates == tuple(range(8))
+    payload = render_candidate_svg(inspection)
+    _assert_candidate_text_is_legible(payload)
+    assert b"Shared-coordinate union: 8 positions" in payload
+
+
+def test_long_candidate_review_preserves_horizontal_reading_width(
+    tmp_path: Path,
+) -> None:
+    motif = _motif_for_word("long_model", "ACGTTGCA")
+    spec = DesignSpec(
+        motifs=(motif,),
+        length=40,
+        count=1,
+        strands="both",
+        evaluations=64,
+        seed=29,
+    )
+    bundle = tmp_path / "long-candidate"
+    design(spec).write(bundle)
+    inspection = inspect_result(bundle, kind="bundle")
+
+    candidate = render_candidate_svg(inspection)
+    root = ET.fromstring(candidate)
+    assert int(root.attrib["width"]) >= 1_212
+    _assert_candidate_text_is_legible(candidate)
+    html = render_html(inspection).decode()
+    compact = "".join(html.split())
+    assert ".figure-scroll{overflow-x:auto" in compact
+    assert ".figure-scrollsvg{display:block;max-width:none" in compact
 
 
 def test_chromium_print_contains_progressively_disclosed_exact_records(
@@ -637,6 +736,13 @@ def test_result_contract_and_search_renderer_enforce_bounds(
     assert b'id="best-observed-step"' not in improving_svg
     assert b'id="sampled-checkpoints"' in improving_svg
     assert b"sampled markers; omitted intervals are not connected" in improving_svg
+    dense = tuple(SearchCheckpoint(evaluations=i, best_score=i / 600) for i in range(1, 601))
+    dense_search = inspection.search.model_copy(
+        update={"checkpoints": dense, "evaluator_calls": 600, "evaluation_budget": 600}
+    )
+    dense_html = render_html(inspection.model_copy(update={"search": dense_search})).decode()
+    assert "Showing 500 of 600 checkpoints" in dense_html
+    assert "the inspection JSON retains every recorded checkpoint" in dense_html
 
 
 def test_projection_rejects_support_rows_above_its_own_bound(
@@ -654,6 +760,7 @@ def test_projection_rejects_support_rows_above_its_own_bound(
 
 def test_portfolio_view_keeps_limiting_motifs_when_columns_are_bounded(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     common = ((0.97, 0.01, 0.01, 0.01),)
     limiting = ((0.3, 0.2, 0.1, 0.4),)
@@ -677,9 +784,19 @@ def test_portfolio_view_keeps_limiting_motifs_when_columns_are_bounded(
     design(spec).write(bundle)
 
     svg = render_portfolio_svg(inspect_result(bundle, kind="bundle"))
+    candidate_svg = render_candidate_svg(inspect_result(bundle, kind="bundle"))
 
     assert b'data-total-motifs="18"' in svg
     assert b'data-displayed-motifs="16"' in svg
     assert b'data-displayed-limiting="1"' in svg
     assert b'data-total-limiting="1"' in svg
     assert b">motif_17<" in svg
+    assert b'data-total-matches="18"' in candidate_svg
+    _assert_candidate_text_is_legible(candidate_svg)
+    monkeypatch.setattr(
+        "motif_balance.inspection.render.html.MAX_HTML_MOTIF_POSITIONS",
+        5,
+    )
+    html = render_html(inspect_result(bundle, kind="bundle")).decode()
+    assert "Showing 5 of 18 motif positions" in html
+    assert "inspection JSON retains every exact probability" in html

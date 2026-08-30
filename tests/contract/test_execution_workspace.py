@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import zipfile
 from pathlib import Path
 
@@ -10,6 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 import motif_balance
+import motif_balance.artifacts as artifacts_module
 import motif_balance.execution as execution_module
 from motif_balance import DesignSpec
 from motif_balance.errors import ArtifactError
@@ -18,6 +20,57 @@ from motif_balance.inspection import ResultInspection, inspect_result
 from motif_balance.inspection.render import render_html
 from motif_balance.model import ExecutionWorkspace
 from motif_balance.receipt import workspace_bytes, workspace_id
+
+
+class _WorkspaceMutatingRename:
+    def __init__(self) -> None:
+        self.mutated = False
+        self.argtypes: object = None
+        self.restype: object = None
+
+    def __call__(
+        self,
+        source_fd: int,
+        source_name: bytes,
+        destination_fd: int,
+        destination_name: bytes,
+        _flags: int,
+    ) -> int:
+        directory_fd = os.open(
+            source_name,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+            dir_fd=source_fd,
+        )
+        try:
+            if not self.mutated:
+                try:
+                    member_fd = os.open(
+                        "execution-receipt.json",
+                        os.O_WRONLY | os.O_TRUNC,
+                        dir_fd=directory_fd,
+                    )
+                except FileNotFoundError:
+                    pass
+                else:
+                    try:
+                        os.write(member_fd, b"{}\n")
+                        self.mutated = True
+                    finally:
+                        os.close(member_fd)
+        finally:
+            os.close(directory_fd)
+        os.rename(
+            source_name,
+            destination_name,
+            src_dir_fd=source_fd,
+            dst_dir_fd=destination_fd,
+        )
+        return 0
+
+
+class _WorkspaceMutatingLibrary:
+    def __init__(self) -> None:
+        self.renameatx_np = _WorkspaceMutatingRename()
 
 
 def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
@@ -31,9 +84,9 @@ def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
         if alter_api and relative == "api.py":
             payload += b"# substituted\n"
         entries[f"motif_balance/{relative}"] = payload
-    dist_info = "motif_balance-0.4.0a4.dist-info/"
+    dist_info = "motif_balance-0.4.0a5.dist-info/"
     entries[f"{dist_info}METADATA"] = (
-        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a4\n"
+        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a5\n"
     )
     entries[f"{dist_info}WHEEL"] = b"Wheel-Version: 1.0\n"
     entries[f"{dist_info}entry_points.txt"] = (
@@ -62,7 +115,7 @@ def design_path(tmp_path: Path, pairwise_spec: DesignSpec) -> Path:
 
 
 def _execute(tmp_path: Path, specification: Path) -> tuple[Path, Path, dict[str, object]]:
-    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a5-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     workspace = execute_design_workspace(
@@ -109,7 +162,7 @@ def test_execute_refuses_a_substituted_release_tree(
     tmp_path: Path,
     design_path: Path,
 ) -> None:
-    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a5-py3-none-any.whl"
     _write_runtime_wheel(release, alter_api=True)
 
     with pytest.raises(ArtifactError, match="does not match the running package"):
@@ -296,7 +349,7 @@ def test_execute_refuses_existing_destination(
     tmp_path: Path,
     design_path: Path,
 ) -> None:
-    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a5-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     output.mkdir()
@@ -310,6 +363,140 @@ def test_execute_refuses_existing_destination(
         )
 
 
+def test_execute_does_not_replace_a_concurrently_created_empty_destination(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release = tmp_path / "motif_balance-0.4.0a5-py3-none-any.whl"
+    output = tmp_path / "execution"
+    _write_runtime_wheel(release)
+    publish = execution_module._publish_directory_no_replace
+
+    def create_destination_then_publish(temporary: Path, destination: Path) -> None:
+        destination.mkdir()
+        publish(temporary, destination)
+
+    monkeypatch.setattr(
+        execution_module,
+        "_publish_directory_no_replace",
+        create_destination_then_publish,
+    )
+
+    with pytest.raises(ArtifactError, match="already exists or is unsafe"):
+        execute_design_workspace(
+            design_path,
+            output,
+            producer_revision="a" * 40,
+            release_artifact=release,
+        )
+
+    assert output.is_dir()
+    assert list(output.iterdir()) == []
+    assert not list(tmp_path.glob(".execution.tmp-*"))
+
+
+def test_execute_rejects_member_mutation_during_workspace_publication(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release = tmp_path / "motif_balance-0.4.0a5-py3-none-any.whl"
+    output = tmp_path / "execution"
+    _write_runtime_wheel(release)
+    library = _WorkspaceMutatingLibrary()
+    monkeypatch.setattr(artifacts_module.ctypes, "CDLL", lambda *_args, **_kwargs: library)
+    monkeypatch.setattr(artifacts_module.sys, "platform", "darwin")
+
+    with pytest.raises(ArtifactError, match="post-publication verification"):
+        execute_design_workspace(
+            design_path,
+            output,
+            producer_revision="a" * 40,
+            release_artifact=release,
+        )
+
+    assert output.joinpath("execution-receipt.json").read_bytes() == b"{}\n"
+    assert not list(tmp_path.glob(".execution.rejected-*"))
+
+
+def test_release_read_rejects_file_substitution_between_check_and_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release = tmp_path / "release.whl"
+    release.write_bytes(b"trusted release bytes")
+    replacement = tmp_path / "replacement.whl"
+    replacement.write_bytes(b"substituted release bytes")
+    real_open = execution_module.os.open
+    substituted = False
+
+    def substitute_then_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        nonlocal substituted
+        if Path(path) == release and not substituted:
+            substituted = True
+            release.unlink()
+            replacement.replace(release)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(execution_module.os, "open", substitute_then_open)
+
+    with pytest.raises(ArtifactError, match=r"changed.*open|unsafe"):
+        execution_module._read_release(release)
+
+
+def test_release_read_rejects_symlink_substitution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release = tmp_path / "release.whl"
+    release.write_bytes(b"trusted release bytes")
+    replacement = tmp_path / "replacement.whl"
+    replacement.write_bytes(b"substituted release bytes")
+    real_open = execution_module.os.open
+    substituted = False
+
+    def substitute_then_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        nonlocal substituted
+        if Path(path) == release and not substituted:
+            substituted = True
+            release.unlink()
+            release.symlink_to(replacement)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(execution_module.os, "open", substitute_then_open)
+
+    with pytest.raises(ArtifactError, match=r"unsafe|symbolic link"):
+        execution_module._read_release(release)
+
+
+def test_release_read_is_bounded_when_file_grows_during_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release = tmp_path / "release.whl"
+    release.write_bytes(b"12345678")
+    monkeypatch.setattr(execution_module, "MAX_BUNDLE_ARTIFACT_BYTES", 16)
+    real_read = execution_module.os.read
+    grown = False
+
+    def grow_then_read(descriptor: int, count: int) -> bytes:
+        nonlocal grown
+        if not grown:
+            grown = True
+            with release.open("ab") as handle:
+                handle.write(b"x" * 32)
+        return real_read(descriptor, count)
+
+    monkeypatch.setattr(execution_module.os, "read", grow_then_read)
+
+    with pytest.raises(
+        ArtifactError,
+        match=r"no larger than 16 bytes|changed while it was read",
+    ):
+        execution_module._read_release(release)
+
+
 def test_execution_verification_rejects_inventory_drift(
     tmp_path: Path,
     design_path: Path,
@@ -319,6 +506,116 @@ def test_execution_verification_rejects_inventory_drift(
 
     with pytest.raises(ArtifactError, match="root inventory mismatch"):
         verify_execution_workspace(**_verification_arguments(output, release, index))
+
+
+def test_execution_verification_does_not_use_unbounded_path_reads(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output, release, index = _execute(tmp_path, design_path)
+    arguments = _verification_arguments(output, release, index)
+
+    def reject_path_read(_path: Path) -> bytes:
+        raise AssertionError("UNBOUNDED_PATH_READ_REACHED")
+
+    monkeypatch.setattr(Path, "read_bytes", reject_path_read)
+
+    assert verify_execution_workspace(**arguments) == index["workspace_id"]
+
+
+@pytest.mark.parametrize("substitution", ["inode", "symlink", "fifo"])
+def test_execution_verification_rejects_workspace_member_substitution(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    substitution: str,
+) -> None:
+    output, release, index = _execute(tmp_path, design_path)
+    arguments = _verification_arguments(output, release, index)
+    target = output / "execution-workspace.json"
+    original = output / "execution-workspace-original.json"
+    real_open = execution_module.os.open
+    substituted = False
+
+    def substitute_then_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        nonlocal substituted
+        if path == "execution-workspace.json" and not substituted:
+            substituted = True
+            target.rename(original)
+            if substitution == "inode":
+                target.write_bytes(original.read_bytes())
+            elif substitution == "symlink":
+                target.symlink_to(original.name)
+            else:
+                os.mkfifo(target)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(execution_module.os, "open", substitute_then_open)
+
+    with pytest.raises(ArtifactError, match=r"unsafe|changed"):
+        verify_execution_workspace(**arguments)
+
+
+def test_execution_verification_rejects_member_growth_during_snapshot(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output, release, index = _execute(tmp_path, design_path)
+    arguments = _verification_arguments(output, release, index)
+    target = output / "execution-workspace.json"
+    target_inode = target.stat().st_ino
+    real_read = execution_module.os.read
+    grown = False
+
+    def grow_then_read(descriptor: int, count: int) -> bytes:
+        nonlocal grown
+        if os.fstat(descriptor).st_ino == target_inode and not grown:
+            grown = True
+            with target.open("ab") as handle:
+                handle.write(b"\n")
+        return real_read(descriptor, count)
+
+    monkeypatch.setattr(execution_module.os, "read", grow_then_read)
+
+    with pytest.raises(ArtifactError, match="changed"):
+        verify_execution_workspace(**arguments)
+
+
+def test_execution_member_size_is_checked_before_path_read_allocation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "workspace"
+    root.mkdir()
+    resource = root / "large.json"
+    resource.write_bytes(b"x" * 17)
+    monkeypatch.setattr(execution_module, "MAX_BUNDLE_ARTIFACT_BYTES", 16)
+
+    def reject_path_read(_path: Path) -> bytes:
+        raise AssertionError("UNBOUNDED_PATH_READ_REACHED")
+
+    monkeypatch.setattr(Path, "read_bytes", reject_path_read)
+
+    with pytest.raises(ArtifactError, match="byte limit"):
+        execution_module._read_workspace_file(root, "large.json")
+
+
+def test_no_replace_publication_fails_closed_on_unsupported_platform(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "temporary"
+    destination = tmp_path / "published"
+    source.mkdir()
+    monkeypatch.setattr("motif_balance.artifacts.sys.platform", "freebsd")
+
+    with pytest.raises(OSError, match="unavailable"):
+        execution_module._publish_directory_no_replace(source, destination)
+
+    assert source.is_dir()
+    assert not destination.exists()
 
 
 def test_execution_verification_rejects_input_inventory_drift(
