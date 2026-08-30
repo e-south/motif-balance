@@ -228,7 +228,7 @@ def _styles() -> str:
   --paper:#fbfcfa; --accent:#d97757;
 }
 * { box-sizing:border-box; }
-html, body { max-width:100%; overflow-x:hidden; }
+html, body { max-width:100%; }
 body {
   margin:0; background:var(--paper); color:var(--ink);
   font:16px/1.5 system-ui,sans-serif;
@@ -237,10 +237,10 @@ main { width:100%; min-width:0; max-width:1180px; margin:auto; padding:2.5rem 1.
 h1 { font-size:clamp(2rem,5vw,3.2rem); line-height:1.05; margin:0 0 .8rem; overflow-wrap:anywhere; }
 h2 { margin:2.8rem 0 1rem; border-top:1px solid var(--line); padding-top:1rem; }
 h3 { margin-top:1.6rem; }
-.lede { max-width:74ch; color:var(--muted); font-size:1.12rem; }
+.lede { max-width:74ch; color:var(--muted); font-size:1.12rem; overflow-wrap:anywhere; }
 .contract { font-weight:650; letter-spacing:.01em; overflow-wrap:anywhere; }
-.status-line { color:var(--muted); margin:1rem 0 2rem; }
-.status-line span { white-space:nowrap; }
+.status-line { color:var(--muted); margin:1rem 0 2rem; overflow-wrap:anywhere; }
+.status-line span { white-space:normal; }
 .best-observed-record { max-width:100%; overflow-x:auto; padding-bottom:.2rem; }
 .best-observed-record .sequence { white-space:nowrap; }
 .figure-scroll {

@@ -5,6 +5,7 @@ import math
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
+from itertools import pairwise
 from pathlib import Path
 from typing import Literal
 
@@ -370,6 +371,38 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
     assert b"global optimality" in search_record
 
 
+def test_candidate_support_labels_remain_readable_for_realistic_long_motifs(
+    tmp_path: Path,
+) -> None:
+    word = "ACGTACGTACGTACGTACGTAC"
+    motif = _motif_for_word("long_motif", word)
+    spec = DesignSpec(
+        motifs=(motif,),
+        length=len(word),
+        count=1,
+        strands="both",
+        evaluations=256,
+        seed=17,
+    )
+    bundle = tmp_path / "bundle"
+    design(spec).write(bundle)
+
+    payload = render_candidate_svg(inspect_result(bundle, kind="bundle"))
+    root = ET.fromstring(payload)
+    namespace = "{http://www.w3.org/2000/svg}"
+    support = root.find(f".//{namespace}g[@id='position-support']")
+    assert support is not None
+    cell_width = float(support.attrib["data-cell-width"])
+    labels = support.findall(f".//{namespace}text[@class='llr-contribution-label']")
+    assert len(labels) == len(word)
+    assert cell_width >= 44
+    assert (
+        min(float(right.attrib["x"]) - float(left.attrib["x"]) for left, right in pairwise(labels))
+        >= cell_width
+    )
+    _assert_candidate_text_is_legible(payload)
+
+
 def test_portfolio_labels_are_scoring_version_specific(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
@@ -425,6 +458,11 @@ def test_one_html_compositor_uses_result_reading_order_and_scrolls_wide_figures(
     assert "model-defined sequence evidence, not measurements" in html
     assert "figure-scroll" in html
     compact = "".join(html.split())
+    assert ".status-linespan{white-space:normal;}" in compact
+    assert (
+        ".lede{max-width:74ch;color:var(--muted);font-size:1.12rem;overflow-wrap:anywhere;}"
+        in compact
+    )
     assert ".figure-scrollsvg{display:block;max-width:none;min-width:60rem" in compact
     assert "@mediaprint" in compact
     assert ".figure-scrollsvg{min-width:0;width:100%;height:auto;}" in compact

@@ -22,6 +22,27 @@ from .svg_primitives import (
 )
 
 _BASE_COLORS = {"A": "#1B7F5A", "C": "#315F9E", "G": "#B7791F", "T": "#B64A3A"}
+_MONOSPACE_CHARACTER_WIDTH = 8
+_CELL_HORIZONTAL_PADDING = 12
+
+
+def _support_label(value: float) -> str:
+    return f"{value:+.2g}"
+
+
+def _candidate_cell_width(
+    shown: tuple[InspectionMatch, ...],
+) -> int:
+    """Keep exact support labels readable, even for realistic long motifs."""
+
+    labels = tuple(
+        _support_label(support.llr_contribution)
+        for match in shown
+        for support in match.position_support
+    )
+    longest_label = max((len(label) for label in labels), default=0)
+    label_width = longest_label * _MONOSPACE_CHARACTER_WIDTH + _CELL_HORIZONTAL_PADDING
+    return max(44, label_width)
 
 
 def _candidate(inspection: ResultInspection, rank: int) -> InspectionCandidate:
@@ -187,7 +208,7 @@ def render_candidate_svg(
     }
     forward = tuple(match for match in shown if match.strand == "+")
     reverse = tuple(match for match in shown if match.strand == "-")
-    cell = 24
+    cell = _candidate_cell_width(shown)
     left = 210
     right = 42
     width = max(960, left + len(candidate.sequence) * cell + right)
@@ -355,7 +376,7 @@ def render_candidate_svg(
                 for index, match in enumerate(reverse)
             ),
             "</g>",
-            '<g id="position-support">',
+            f'<g id="position-support" data-cell-width="{cell}">',
             text(
                 20,
                 support_y - 12,
@@ -404,11 +425,16 @@ def render_candidate_svg(
                     text(
                         x + cell / 2,
                         y + 35,
-                        f"{support.llr_contribution:+.2g}",
+                        _support_label(support.llr_contribution),
                         size=12,
                         anchor="middle",
                         fill=MUTED,
                         family="ui-monospace,monospace",
+                        extra=(
+                            ' class="llr-contribution-label" '
+                            f'data-motif-position="{support.motif_position}" '
+                            f'data-candidate-position="{support.candidate_position}"'
+                        ),
                     ),
                 ]
             )
