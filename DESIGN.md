@@ -7,7 +7,7 @@ audience:
   - API consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-29
+last_verified: 2026-08-30
 doc_type: explanation
 ---
 
@@ -98,11 +98,15 @@ accepted through loosened validation.
 ## Search boundary
 
 Small sequence spaces use deterministic exhaustive enumeration. Larger spaces
-use `annealed_multistart_v1`, which combines perturbed multi-chain starts, Gibbs-style
-single-base updates, block and multi-base proposals, motif insertion, targeted
-proposal windows, and annealed acceptance under one exact evaluator-call
-budget. It records bounded checkpoints, restart-final scores, and proposal
-counts rather than raw optimizer-state traces.
+use `annealed_multistart_v1`, a bounded multi-start annealed stochastic local
+search. It combines perturbed starts, four-base single-position resampling,
+block and multi-base replacement, motif-guided proposals, and annealed
+acceptance under one exact evaluator-call budget. It is not an MCMC sampler, a
+posterior sampler, or a Gibbs sampler. It records bounded checkpoints,
+restart-final scores, and proposal counts rather than raw optimizer-state
+traces. A fixed number of evaluator calls is not fixed compute: evaluation cost
+still depends on sequence length, motif number and width, strand policy, and
+avoiders.
 
 That engine is production software, not evidence that it outperforms a
 baseline. Comparative performance and repeated-seed robustness require a
@@ -114,6 +118,11 @@ ceiling excess. This is a lexicographic admission rule, not a weighted penalty.
 Complete enumeration can prove constraint infeasibility. A bounded heuristic
 run can report only that it exhausted its budget without finding enough
 feasible sequences.
+
+The public objective is a max-min formulation over feasible sequences: maximize
+the minimum target-motif attainment. In a larger space, the heuristic reports
+the best evaluations it observed under its budget; it does not establish that
+the global max-min solution was reached.
 
 The advanced `motif_balance.observation` module can produce one bounded,
 immutable, path-free record of the complete unique evaluated pool. It exists
