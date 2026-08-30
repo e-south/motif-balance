@@ -24,9 +24,10 @@ motifs.
 For `relative_pwm_attainment_v2`, the reference-domain endpoints are the sums
 of the position-wise minimum and maximum log odds over one motif-width word.
 Those word-level extrema are exact. Because candidate evaluation retains the
-best window across all valid placements and strands, the sequence-level lower
-endpoint need not be reachable when a candidate contains multiple windows; the
-upper endpoint remains reachable by embedding a score-maximizing word.
+best score across all valid placements and strands, the sequence-level lower
+endpoint need not be reachable when multiple placements or orientations
+compete; the upper endpoint remains reachable by embedding a score-maximizing
+word.
 
 For a tractable sequence space, search evaluates every sequence. Larger spaces
 use a versioned, bounded multi-start annealed stochastic local search. Starts

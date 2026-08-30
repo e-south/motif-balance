@@ -77,9 +77,10 @@ background. Compilation derives log-odds scores. Evaluation scans every valid
 offset and declared strand, selects one match per motif with a deterministic
 total order, and reports its relative attainment between the motif's theoretical
 minimum and maximum raw log-likelihood-ratio scores over one motif-width word.
-Both word-level extrema are exact; after a longer candidate is reduced to its
-best scanned window, the lower endpoint need not be sequence-attainable while
-the upper endpoint remains attainable by embedding a maximizing word. The
+Both word-level extrema are exact; after retaining the best score across
+multiple placements or orientations, the lower endpoint need not be
+sequence-attainable while the upper endpoint remains attainable by embedding a
+maximizing word. The
 conventional probability consensus is recorded separately from the
 score-maximizing reference because they can differ under a nonuniform
 background. The lowest relative attainment is `balance_score`. Avoider motifs

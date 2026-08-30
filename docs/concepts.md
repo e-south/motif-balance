@@ -35,9 +35,9 @@ The method has three separate decisions:
 
 Those separations prevent an optimizer surrogate or a diversity rule from
 silently changing the public score. Both normalization endpoints are attainable
-by individual motif-width words. After scanning a longer sequence and retaining
-its best window, the upper endpoint remains attainable by embedding a
-score-maximizing word, while the lower endpoint need not be attainable by the
-sequence-level best-window operation. A high relative attainment remains a
-model-relative result, not proof of expression, binding, transferability, or
-experimental success.
+by individual motif-width words. After retaining the best score across multiple
+placements or orientations, the upper endpoint remains attainable by embedding
+a score-maximizing word, while the lower endpoint need not be attainable by the
+sequence-level scan. A high relative attainment remains a model-relative
+result, not proof of expression, binding, transferability, or experimental
+success.

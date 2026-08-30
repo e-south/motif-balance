@@ -34,8 +34,9 @@ probability, while the score-maximizing reference chooses the highest
 log-likelihood ratio against the declared background. These references can
 differ. The theoretical minimum and maximum raw LLR over one motif-width word
 are the sums of the position-wise minimum and maximum log odds. Both are exact
-word-level extrema; after best-window scanning of a longer candidate, the
-lower endpoint need not be attainable as that sequence's reported match score.
+word-level extrema; after retaining the best score across multiple placements
+or orientations, the lower endpoint need not be attainable as that sequence's
+reported match score.
 
 Structured YAML and JSON motif files must declare `schema_version` explicitly.
 This prevents a previously valid unversioned v1 file from being reinterpreted

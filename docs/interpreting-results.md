@@ -26,11 +26,11 @@ The lowest per-motif relative PWM attainment is the candidate's `balance_score`.
 Inspect that limiting motif instead of reading the aggregate as a probability.
 Zero is the theoretical minimum raw LLR over one motif-width word, and one is
 the corresponding maximum. Both word-level extrema are attained by choosing a
-minimum- or maximum-scoring base at every motif position. For a longer candidate,
-however, Motif Balance reports the best scanned window: embedding a
+minimum- or maximum-scoring base at every motif position. Motif Balance reports
+the best score across all valid placements and orientations: embedding a
 score-maximizing word can attain one, while no sequence need have zero as its
-best-window score. The conventional probability consensus can differ from the
-score-maximizing reference under a nonuniform background. Two scores are
+reported best match. The conventional probability consensus can differ from
+the score-maximizing reference under a nonuniform background. Two scores are
 directly comparable only when motif content, score version, strand rule, and
 attainment authority are identical.
 

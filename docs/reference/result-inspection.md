@@ -91,10 +91,10 @@ The portfolio view is a candidate-by-motif matrix in deterministic rank and
 canonical motif order. Values remain numeric. Under
 `relative_pwm_attainment_v2`, the color scale spans zero to one: the theoretical
 raw-LLR extrema over one motif-width word. Neither endpoint is a probability.
-After best-window scanning, one remains sequence-attainable by embedding a
-score-maximizing word; zero need not be attainable as the best match of a
-longer sequence. Explicitly versioned historical results retain their original
-scoring interpretation.
+After retaining the best score across multiple placements or orientations, one
+remains sequence-attainable by embedding a score-maximizing word; zero need not
+be attainable as the sequence's reported best match. Explicitly versioned
+historical results retain their original scoring interpretation.
 
 The search view is a closed diagnostic in HTML and remains directly exportable
 as SVG. It is the running maximum of recorded published hard-minimum scores
