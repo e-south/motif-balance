@@ -210,3 +210,34 @@ def test_design_motif_references_reject_intermediate_directory_substitution(
 
     with pytest.raises(InvalidDesign, match=r"unsafe|changed|symbolic"):
         load_design_spec(design)
+
+
+def test_design_motif_reference_rejects_same_size_in_place_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    models = tmp_path / "models"
+    models.mkdir()
+    motif = models / "target.yaml"
+    motif.write_bytes(_MOTIF)
+    motif_inode = motif.stat().st_ino
+    design = tmp_path / "design.yaml"
+    design.write_text(
+        "schema_version: design-spec/v2\n"
+        "motifs:\n  trusted: models/target.yaml\n"
+        "length: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
+    )
+    real_read = structured_module.os.read
+    mutated = False
+
+    def mutate_then_read(descriptor: int, count: int) -> bytes:
+        nonlocal mutated
+        if os.fstat(descriptor).st_ino == motif_inode and not mutated:
+            mutated = True
+            motif.write_bytes(_MOTIF.replace(b"0.7", b"0.6"))
+        return real_read(descriptor, count)
+
+    monkeypatch.setattr(structured_module.os, "read", mutate_then_read)
+
+    with pytest.raises(InvalidDesign, match="changed"):
+        load_design_spec(design)

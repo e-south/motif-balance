@@ -19,8 +19,15 @@ class BoundedInputError(ValueError):
         super().__init__(reason)
 
 
-def _identity(metadata: os.stat_result) -> tuple[int, int, int, int]:
-    return (metadata.st_dev, metadata.st_ino, metadata.st_mode, metadata.st_size)
+def _identity(metadata: os.stat_result) -> tuple[int, int, int, int, int, int]:
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_mode,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+    )
 
 
 @contextmanager
@@ -68,7 +75,7 @@ def read_bounded_regular_file_at(directory_fd: int, relative_path: Path) -> byte
         or any(part in {"", ".", ".."} for part in components)
     ):
         raise BoundedInputError("unsafe contained path")
-    opened_directories: list[tuple[int, str, int, tuple[int, int, int, int]]] = []
+    opened_directories: list[tuple[int, str, int, tuple[int, int, int, int, int, int]]] = []
     current_fd = os.dup(directory_fd)
     file_fd: int | None = None
     try:
