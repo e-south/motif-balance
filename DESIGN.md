@@ -116,4 +116,6 @@ feasible sequences.
 The advanced `motif_balance.observation` module can produce one bounded,
 immutable, path-free record of the complete unique evaluated pool. It exists
 for explicit downstream analysis, is replay-verified, and is not part of
-`Portfolio`, the canonical bundle, or the top-level scientific facade.
+`Portfolio`, the canonical bundle, or the top-level scientific facade. An
+advanced paired operation derives both the ordinary `Portfolio` and this
+observation from one authoritative search result when an analysis needs both.

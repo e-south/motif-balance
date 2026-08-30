@@ -27,7 +27,7 @@ uv run motif-balance --help
 ```
 
 A released wheel can instead be installed into a clean environment with
-`uv pip install /path/to/motif_balance-0.4.0a3-py3-none-any.whl`. Installation
+`uv pip install /path/to/motif_balance-0.4.0a4-py3-none-any.whl`. Installation
 by package name is not supported during the prerelease.
 
 ## Validate, design, and inspect

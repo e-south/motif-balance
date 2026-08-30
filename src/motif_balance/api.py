@@ -10,7 +10,7 @@ from motif_balance.artifacts import (
     verify_portfolio_record,
     write_bundle,
 )
-from motif_balance.compile import build_run_id, compile_design
+from motif_balance.compile import CompiledProblem, build_run_id, compile_design
 from motif_balance.constants import (
     BUILD_LOCK_SHA256,
     PACKAGE_VERSION,
@@ -30,7 +30,7 @@ from motif_balance.model import (
     RunManifest,
 )
 from motif_balance.scoring import evaluate
-from motif_balance.search import search
+from motif_balance.search import SearchResult, search
 from motif_balance.selection import select_candidates
 
 __all__ = ["design", "score"]
@@ -64,9 +64,7 @@ def score(sequence: str, spec: DesignSpec) -> Evaluation:
     return evaluate(sequence, compile_design(spec))
 
 
-def design(spec: DesignSpec) -> Portfolio:
-    """Return one exact immutable portfolio or raise a typed failure."""
-
+def _require_publishable_design(spec: DesignSpec) -> None:
     if spec.schema_version != "design-spec/v2":
         raise IncompatibleDesign(
             "design-spec/v1 is read-only and cannot publish a new result",
@@ -74,8 +72,14 @@ def design(spec: DesignSpec) -> Portfolio:
             hint="Use design-spec/v2 and motif-model/v2 for new design runs.",
         )
 
-    problem = compile_design(spec)
-    result = search(problem)
+
+def _portfolio_from_search_result(
+    spec: DesignSpec,
+    problem: CompiledProblem,
+    result: SearchResult,
+) -> Portfolio:
+    """Construct the ordinary immutable portfolio from one authoritative search result."""
+
     feasible = tuple(item for item in result.evaluations if item.constraint_feasible)
     best_infeasible = min(
         (item for item in result.evaluations if not item.constraint_feasible),
@@ -174,3 +178,12 @@ def design(spec: DesignSpec) -> Portfolio:
         candidates=candidates,
         manifest=manifest,
     )
+
+
+def design(spec: DesignSpec) -> Portfolio:
+    """Return one exact immutable portfolio or raise a typed failure."""
+
+    _require_publishable_design(spec)
+    problem = compile_design(spec)
+    result = search(problem)
+    return _portfolio_from_search_result(spec, problem, result)

@@ -66,7 +66,7 @@ ALLOWED_IMPORTS = {
         "search",
         "selection",
     },
-    "observation": {"compile", "constants", "errors", "model", "scoring", "search"},
+    "observation": {"api", "compile", "constants", "errors", "model", "scoring", "search"},
     "execution": {"api", "artifacts", "constants", "errors", "formats", "model", "receipt"},
     "inspection": {
         "artifacts",

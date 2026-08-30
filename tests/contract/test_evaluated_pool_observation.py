@@ -9,9 +9,11 @@ from pydantic import ValidationError
 
 import motif_balance
 import motif_balance.observation as observation_module
-from motif_balance import DesignSpec
+from motif_balance import DesignSpec, MotifModel, design
+from motif_balance.artifacts import read_verified_portfolio
 from motif_balance.compile import CompiledProblem
-from motif_balance.errors import ArtifactError
+from motif_balance.errors import ArtifactError, PortfolioInfeasible
+from motif_balance.model import Evaluation
 from motif_balance.observation import (
     MAX_EVALUATED_POOL_RECORDS,
     EvaluatedPoolObservation,
@@ -59,6 +61,125 @@ def test_observation_runs_search_once_and_publication_replays_it(
     assert search_calls == 1
     write_evaluated_pool(observation, tmp_path / "pool.json")
     assert search_calls == 2
+
+
+def test_design_with_evaluated_pool_uses_one_search_and_one_result_authority(
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected_portfolio = design(pairwise_spec)
+    real_search = observation_module.search
+    search_calls = 0
+
+    def counted_search(problem: CompiledProblem) -> SearchResult:
+        nonlocal search_calls
+        search_calls += 1
+        return real_search(problem)
+
+    monkeypatch.setattr(observation_module, "search", counted_search)
+
+    portfolio, observation = observation_module.design_with_evaluated_pool(pairwise_spec)
+
+    best_row = min(
+        observation.evaluations,
+        key=lambda evaluation: (-evaluation.balance_score, evaluation.sequence),
+    )
+    observed_best = Evaluation.model_validate(
+        best_row.model_dump(mode="python", exclude={"first_evaluation_index"})
+    )
+    assert search_calls == 1
+    assert portfolio == expected_portfolio
+    assert portfolio.problem_id == observation.problem_id
+    assert portfolio.run_id == observation.run_id
+    assert portfolio.manifest.best_observed == observed_best
+    assert portfolio.manifest.search_diagnostics == observation.diagnostics
+    assert portfolio.manifest.evaluation_count == observation.evaluation_count
+    assert portfolio.manifest.unique_evaluations == observation.unique_evaluations
+    assert "design_with_evaluated_pool" not in motif_balance.__all__
+
+
+def test_paired_design_outputs_publish_and_read_back_independently(
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    real_search = observation_module.search
+    search_calls = 0
+
+    def counted_search(problem: CompiledProblem) -> SearchResult:
+        nonlocal search_calls
+        search_calls += 1
+        return real_search(problem)
+
+    monkeypatch.setattr(observation_module, "search", counted_search)
+    portfolio, observation = observation_module.design_with_evaluated_pool(pairwise_spec)
+    bundle = tmp_path / "result"
+    pool_path = tmp_path / "evaluated-pool.json"
+
+    portfolio.write(bundle)
+    write_evaluated_pool(observation, pool_path)
+    reread_portfolio = read_verified_portfolio(bundle)
+    reread_observation = read_evaluated_pool(pool_path)
+
+    assert reread_portfolio.model_dump(mode="python") == portfolio.model_dump(mode="python")
+    assert reread_observation == observation
+    assert search_calls == 3
+
+
+def test_paired_design_failure_returns_no_publishable_outputs(
+    pairwise_spec: DesignSpec, tmp_path: Path
+) -> None:
+    infeasible = pairwise_spec.model_copy(update={"count": 5, "min_distance": 1.0})
+
+    with pytest.raises(PortfolioInfeasible):
+        observation_module.design_with_evaluated_pool(infeasible)
+
+    assert tuple(tmp_path.iterdir()) == ()
+
+
+def test_observation_rejects_an_unencodable_pool_before_return(
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tiny = pairwise_spec.model_copy(
+        update={"length": 2, "count": 1, "evaluations": 16, "min_distance": None}
+    )
+    monkeypatch.setattr(observation_module, "MAX_EVALUATED_POOL_BYTES", 1)
+
+    with pytest.raises(ArtifactError, match="byte limit"):
+        observe_evaluated_pool(tiny)
+
+
+def test_paired_design_returns_neither_output_when_the_pool_is_unencodable(
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tiny = pairwise_spec.model_copy(
+        update={"length": 2, "count": 1, "evaluations": 16, "min_distance": None}
+    )
+    monkeypatch.setattr(observation_module, "MAX_EVALUATED_POOL_BYTES", 1)
+    returned: tuple[object, object] | None = None
+
+    with pytest.raises(ArtifactError, match="byte limit"):
+        returned = observation_module.design_with_evaluated_pool(tiny)
+
+    assert returned is None
+
+
+def test_high_cardinality_observation_fails_closed_at_its_encoded_byte_limit(
+    motif_a: MotifModel,
+    motif_b: MotifModel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    motif_c = motif_a.model_copy(update={"motif_id": "motif_c"})
+    motif_d = motif_b.model_copy(update={"motif_id": "motif_d"})
+    specification = DesignSpec(
+        motifs=(motif_a, motif_b, motif_c, motif_d),
+        length=4,
+        count=1,
+        strands="both",
+        evaluations=256,
+        seed=11,
+    )
+    monkeypatch.setattr(observation_module, "MAX_EVALUATED_POOL_BYTES", 64 * 1024)
+
+    with pytest.raises(ArtifactError, match="byte limit"):
+        observe_evaluated_pool(specification)
 
 
 def test_evaluated_pool_export_is_atomic_path_free_and_refuses_overwrite(
@@ -138,6 +259,31 @@ def test_evaluated_pool_reader_rejects_inode_substitution_before_open(
         return real_open(path, flags)
 
     monkeypatch.setattr(observation_module.os, "open", substitute_then_open)
+
+    with pytest.raises(ArtifactError, match=r"unsafe|changed"):
+        read_evaluated_pool(source)
+
+
+def test_evaluated_pool_reader_rejects_fifo_substitution_without_blocking(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "pool.json"
+    write_evaluated_pool(observe_evaluated_pool(pairwise_spec), source)
+    real_open = os.open
+    substituted = False
+
+    def substitute_fifo_then_open(path: str | os.PathLike[str], flags: int) -> int:
+        nonlocal substituted
+        if Path(path) == source and not substituted:
+            substituted = True
+            source.unlink()
+            os.mkfifo(source)
+        assert flags & os.O_NONBLOCK
+        return real_open(path, flags)
+
+    monkeypatch.setattr(observation_module.os, "open", substitute_fifo_then_open)
 
     with pytest.raises(ArtifactError, match=r"unsafe|changed"):
         read_evaluated_pool(source)

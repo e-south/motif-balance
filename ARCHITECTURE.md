@@ -67,6 +67,9 @@ errors, constants, and model
 - `observation.py` owns the bounded, immutable complete evaluated-pool export
   for explicit analysis consumers. It does not enlarge `Portfolio`, write into
   canonical bundles, discover storage, or enter the top-level facade.
+  Its advanced paired operation may reuse the API shell's private portfolio
+  construction from the same search result; it does not introduce another
+  scoring, search, or selection authority.
 - `api.py` contains only the public `design` and `score` operations plus the
   `Portfolio` publication methods used by the top-level scientific facade.
 - `receipt.py` defines the runtime receipt and execution-workspace identity
