@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import zipfile
 from pathlib import Path
 
@@ -429,6 +430,116 @@ def test_execution_verification_rejects_inventory_drift(
 
     with pytest.raises(ArtifactError, match="root inventory mismatch"):
         verify_execution_workspace(**_verification_arguments(output, release, index))
+
+
+def test_execution_verification_does_not_use_unbounded_path_reads(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output, release, index = _execute(tmp_path, design_path)
+    arguments = _verification_arguments(output, release, index)
+
+    def reject_path_read(_path: Path) -> bytes:
+        raise AssertionError("UNBOUNDED_PATH_READ_REACHED")
+
+    monkeypatch.setattr(Path, "read_bytes", reject_path_read)
+
+    assert verify_execution_workspace(**arguments) == index["workspace_id"]
+
+
+@pytest.mark.parametrize("substitution", ["inode", "symlink", "fifo"])
+def test_execution_verification_rejects_workspace_member_substitution(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    substitution: str,
+) -> None:
+    output, release, index = _execute(tmp_path, design_path)
+    arguments = _verification_arguments(output, release, index)
+    target = output / "execution-workspace.json"
+    original = output / "execution-workspace-original.json"
+    real_open = execution_module.os.open
+    substituted = False
+
+    def substitute_then_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        nonlocal substituted
+        if path == "execution-workspace.json" and not substituted:
+            substituted = True
+            target.rename(original)
+            if substitution == "inode":
+                target.write_bytes(original.read_bytes())
+            elif substitution == "symlink":
+                target.symlink_to(original.name)
+            else:
+                os.mkfifo(target)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(execution_module.os, "open", substitute_then_open)
+
+    with pytest.raises(ArtifactError, match=r"unsafe|changed"):
+        verify_execution_workspace(**arguments)
+
+
+def test_execution_verification_rejects_member_growth_during_snapshot(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output, release, index = _execute(tmp_path, design_path)
+    arguments = _verification_arguments(output, release, index)
+    target = output / "execution-workspace.json"
+    target_inode = target.stat().st_ino
+    real_read = execution_module.os.read
+    grown = False
+
+    def grow_then_read(descriptor: int, count: int) -> bytes:
+        nonlocal grown
+        if os.fstat(descriptor).st_ino == target_inode and not grown:
+            grown = True
+            with target.open("ab") as handle:
+                handle.write(b"\n")
+        return real_read(descriptor, count)
+
+    monkeypatch.setattr(execution_module.os, "read", grow_then_read)
+
+    with pytest.raises(ArtifactError, match="changed"):
+        verify_execution_workspace(**arguments)
+
+
+def test_execution_member_size_is_checked_before_path_read_allocation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "workspace"
+    root.mkdir()
+    resource = root / "large.json"
+    resource.write_bytes(b"x" * 17)
+    monkeypatch.setattr(execution_module, "MAX_BUNDLE_ARTIFACT_BYTES", 16)
+
+    def reject_path_read(_path: Path) -> bytes:
+        raise AssertionError("UNBOUNDED_PATH_READ_REACHED")
+
+    monkeypatch.setattr(Path, "read_bytes", reject_path_read)
+
+    with pytest.raises(ArtifactError, match="byte limit"):
+        execution_module._read_workspace_file(root, "large.json")
+
+
+def test_no_replace_publication_fails_closed_on_unsupported_platform(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "temporary"
+    destination = tmp_path / "published"
+    source.mkdir()
+    monkeypatch.setattr("motif_balance.artifacts.sys.platform", "freebsd")
+
+    with pytest.raises(OSError, match="unavailable"):
+        execution_module._publish_directory_no_replace(source, destination)
+
+    assert source.is_dir()
+    assert not destination.exists()
 
 
 def test_execution_verification_rejects_input_inventory_drift(

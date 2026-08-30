@@ -9,7 +9,7 @@ from motif_balance.errors import InvalidDesign, InvalidMotif
 from motif_balance.model import DesignSpec, MotifModel
 
 from .motif import read_motif
-from .structured import load_yaml_unique
+from .structured import BoundedInputError, load_yaml_unique, read_bounded_regular_file
 
 
 def _resolve_motif(
@@ -53,15 +53,19 @@ def load_design_spec(path: str | Path) -> DesignSpec:
     """Read one bounded design specification and resolve contained motif references."""
 
     source = Path(path)
-    if source.is_symlink():
-        raise InvalidDesign(f"Refusing symbolic-link design specification '{source.name}'.")
     try:
-        if source.stat().st_size > MAX_INPUT_BYTES:
-            raise InvalidDesign(f"Design specification exceeds the {MAX_INPUT_BYTES}-byte limit.")
-        raw = source.read_bytes()
-        if len(raw) > MAX_INPUT_BYTES:
-            raise InvalidDesign(f"Design specification exceeds the {MAX_INPUT_BYTES}-byte limit.")
+        raw = read_bounded_regular_file(source)
         payload = load_yaml_unique(raw)
+    except BoundedInputError as exc:
+        if exc.reason == "byte limit":
+            raise InvalidDesign(
+                f"Design specification exceeds the {MAX_INPUT_BYTES}-byte limit."
+            ) from exc
+        if exc.reason == "symbolic-link input":
+            raise InvalidDesign(
+                f"Refusing symbolic-link design specification '{source.name}'."
+            ) from exc
+        raise InvalidDesign(f"Unable to read design specification: {exc}") from exc
     except (OSError, yaml.YAMLError) as exc:
         raise InvalidDesign(f"Unable to read design specification: {exc}") from exc
     if not isinstance(payload, dict):

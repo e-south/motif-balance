@@ -7,7 +7,7 @@ audience:
   - bundle consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-29
+last_verified: 2026-08-30
 doc_type: reference
 ---
 
@@ -15,17 +15,19 @@ doc_type: reference
 
 ## Determinism
 
-The same normalized specification, motif content, scoring version, package
-version, seed, and budgets must produce the same evaluated records, selection,
-and canonical artifact bytes. Canonical JSON is UTF-8, key-sorted, human-readable, and
-ends with one newline. Tables have fixed columns, stable row order, explicit
-float formatting, and one trailing newline. Host paths, usernames, timestamps,
-thread completion order, and environment mapping order do not enter content
-identity.
+Within one declared package and runtime environment, the same normalized
+specification, motif content, scoring version, seed, and budgets must produce
+the same evaluated records, selection, and canonical artifact bytes. Canonical
+JSON is UTF-8, key-sorted, human-readable, and ends with one newline. Tables
+have fixed columns, stable row order, explicit float formatting, and one
+trailing newline. Host paths, usernames, timestamps, thread completion order,
+and environment mapping order do not enter content identity.
 
-That same-byte claim is release-gated on the hosted Linux CPython 3.12-3.14
-matrix. Local macOS checks establish alpha operability, but the project does not
-claim cross-host byte identity beyond the published release evidence.
+Hosted CI verifies behavior on Linux with CPython 3.12-3.14, but it does not
+currently fan artifact digests into a cross-runtime equality check. Local macOS
+checks establish alpha operability. The project therefore does not claim
+same-byte identity across Python versions, operating systems, or architectures
+without a separate release-attested replay that compares those exact bytes.
 
 `build_lock_sha256` identifies the repository lock used to build this alpha;
 it is not a claim that a wheel consumer installed that exact environment.

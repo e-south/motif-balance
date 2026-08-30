@@ -9,9 +9,9 @@ PWM attainment; an optional minimum-distance constraint can keep the returned se
 distinct.
 
 This repository is a public prerelease and is not approved for PyPI publication.
-The `0.3` alpha supports CPython 3.12–3.14 on POSIX systems; Linux is the hosted
-CI authority and macOS is exercised locally. Windows is not yet a supported
-runtime.
+The `0.4` alpha supports CPython 3.12–3.14 on Linux and macOS. Linux is the
+hosted CI authority and macOS is exercised locally. Other operating systems are
+not yet supported.
 Outputs are inspectable sequence hypotheses under the supplied models. They do not establish
 binding, expression, synthesis readiness, biological function, or global
 optimality.
