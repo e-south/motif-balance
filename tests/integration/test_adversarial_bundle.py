@@ -142,7 +142,8 @@ def test_directory_publication_rejects_a_swapped_source_entry(
         artifacts_module._publish_directory_no_replace(source, destination)
 
     assert trusted.joinpath("trusted.txt").read_text() == "trusted"
-    assert not destination.exists()
+    assert destination.is_dir()
+    assert list(destination.iterdir()) == []
 
 
 def test_portfolio_write_rejects_member_mutation_during_publication(
@@ -158,10 +159,37 @@ def test_portfolio_write_rejects_member_mutation_during_publication(
     with pytest.raises(ArtifactError, match="post-publication replay"):
         design(pairwise_spec).write(output)
 
-    assert not output.exists()
-    quarantines = list(tmp_path.glob(".result.rejected-*"))
-    assert len(quarantines) == 1
-    assert quarantines[0].joinpath("candidates.tsv").read_bytes() == b"forged during publication\n"
+    assert output.joinpath("candidates.tsv").read_bytes() == b"forged during publication\n"
+    assert not list(tmp_path.glob(".result.rejected-*"))
+
+
+def test_post_publication_failure_leaves_concurrent_destination_replacement_untouched(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "result"
+    rejected = tmp_path / "rejected-result"
+    real_read = artifacts_module.read_portfolio_record
+    replaced = False
+
+    def replace_destination_then_fail(directory: Path) -> object:
+        nonlocal replaced
+        if Path(directory) == output and not replaced:
+            replaced = True
+            output.rename(rejected)
+            output.mkdir()
+            output.joinpath("unrelated.txt").write_text("do not touch")
+            raise ArtifactError("forced post-publication failure")
+        return real_read(directory)
+
+    monkeypatch.setattr(artifacts_module, "read_portfolio_record", replace_destination_then_fail)
+
+    with pytest.raises(ArtifactError, match="post-publication replay"):
+        design(pairwise_spec).write(output)
+
+    assert output.joinpath("unrelated.txt").read_text() == "do not touch"
+    assert rejected.joinpath("manifest.json").is_file()
 
 
 def test_resealed_derived_fasta_still_fails_semantic_replay(

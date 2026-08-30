@@ -416,10 +416,8 @@ def test_execute_rejects_member_mutation_during_workspace_publication(
             release_artifact=release,
         )
 
-    assert not output.exists()
-    quarantines = list(tmp_path.glob(".execution.rejected-*"))
-    assert len(quarantines) == 1
-    assert quarantines[0].joinpath("execution-receipt.json").read_bytes() == b"{}\n"
+    assert output.joinpath("execution-receipt.json").read_bytes() == b"{}\n"
+    assert not list(tmp_path.glob(".execution.rejected-*"))
 
 
 def test_release_read_rejects_file_substitution_between_check_and_open(

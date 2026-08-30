@@ -71,12 +71,16 @@ Bundle publication writes to a sibling temporary directory, verifies
 the complete result, and renames it atomically. The publisher pins the source
 directory identity through the no-replace rename and then performs a complete
 semantic reread and replay from the published destination before returning.
-A destination that fails this publish-time check is moved to an identity-bound,
-no-replace quarantine path and is not accepted as a result. Existing output
-paths are never merged, replaced, or partially repaired. These checks detect
-mutation during publication; they are not an access-control mechanism and do
-not prevent the same user from tampering with accepted files later. Consumers
-must verify a bundle or execution workspace again at the point of use.
+A destination that fails this publish-time check is not accepted as a result.
+The failure path deliberately does not rename, delete, quarantine, or otherwise
+mutate that destination pathname: under concurrent same-user substitution, no
+pathname cleanup can safely prove it still addresses the rejected directory.
+The path is left for explicit inspection and owner-directed cleanup. Existing
+output paths are never merged, replaced, or partially repaired. These checks
+detect mutation during publication; they are not an access-control mechanism
+and do not prevent the same user from tampering with accepted files later.
+Consumers must verify a bundle or execution workspace again at the point of
+use.
 
 Bulk traces and optimizer state are not canonical bundle members. External
 systems may register their locations and digests without changing the software
