@@ -8,17 +8,20 @@ audience:
   - downstream integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-29
+last_verified: 2026-08-30
 doc_type: reference
 ---
 
 # Motif Balance information architecture
 
-Motif Balance has one product ontology. It accepts a balanced motif design,
-compiles explicit motif models, evaluates fixed-length sequences, searches a
-bounded sequence space, selects an exact portfolio, and publishes a verifiable
-bundle. The ontology is deliberately limited to concepts required to perform,
-verify, or inspect that operation.
+Motif Balance has one product ontology for balanced inverse design. It accepts
+explicit motif models and a fixed sequence length, evaluates candidate
+sequences, searches a bounded sequence space, selects an exact portfolio, and
+publishes a verifiable bundle. The best-scoring sequence realization for each
+motif—its matched word, placement, strand, and any shared coordinates—emerges
+from candidate evaluation rather than being prescribed. The ontology is
+deliberately limited to concepts required to perform, verify, or inspect that
+operation.
 
 ## Authorities
 
@@ -110,7 +113,10 @@ conversion rationale remain caller-owned.
 complete enumeration. Larger spaces use versioned multi-start annealed search
 with single-base, block, multi-base, and motif-insertion proposals. The engine
 records bounded checkpoints, restart-final scores, and proposal summaries; raw
-state traces are not product artifacts.
+state traces are not product artifacts. Complete enumeration establishes an
+optimum only when the admitted sequence space is fully covered. Annealed runs
+publish the best result observed under their declared evaluator-call budget,
+not a convergence or global-optimality claim.
 
 Hard avoidance is feasibility-first: feasible evaluations outrank infeasible
 evaluations before target score is considered. Among infeasible evaluations,
@@ -118,6 +124,10 @@ search prefers smaller maximum ceiling excess. This lexicographic contract is
 not a weighted penalty. Exhaustive search can prove exact constraint
 infeasibility; bounded search can report only unresolved feasibility at its
 declared budget.
+
+Shared coordinates between representative target matches are inspectable
+sequence geometry. They do not establish simultaneous motif occupancy,
+co-binding, or regulatory function.
 
 ### Selection
 

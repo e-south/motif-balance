@@ -1,20 +1,25 @@
 # ![Motif Balance — balanced motif design](assets/motif-balance-banner.svg)
 
-Design DNA against several motif models at once. Motif Balance lets researchers
-declare which motif preferences should coexist within a finite sequence, then
-returns an exact-size ranked portfolio without requiring the sequence, motif
-variant, placement, strand, or shared-coordinate pattern to be prescribed in
-advance. Under `relative_pwm_attainment_v2`, it maximizes the weakest relative
-PWM attainment; an optional minimum-distance constraint can keep the returned sequences
-distinct.
+Design DNA against several motif models at once. Motif models are usually used
+to scan existing DNA for matches. Motif Balance reverses that operation: given
+explicit models and a fixed sequence length, it searches for sequences that
+make the weakest relative PWM attainment as strong as possible. The
+best-scoring sequence realization for each motif—its matched word, placement,
+strand, and any shared coordinates—emerges from the candidate instead of being
+prescribed. The result is an exact-size ranked portfolio, with optional hard
+avoider ceilings and a minimum-distance constraint for sequence-distinct
+alternatives.
 
 This repository is a public prerelease and is not approved for PyPI publication.
 The `0.4` alpha supports CPython 3.12–3.14 on Linux and macOS. Linux is the
 hosted CI authority and macOS is exercised locally. Other operating systems are
 not yet supported.
-Outputs are inspectable sequence hypotheses under the supplied models. They do not establish
-binding, expression, synthesis readiness, biological function, or global
-optimality.
+Outputs are inspectable sequence hypotheses under the supplied models.
+Exhaustive runs establish an optimum only when the admitted sequence space is
+fully enumerated; larger searches report the best result observed under the
+declared evaluator-call budget. Shared motif-window coordinates do not
+establish simultaneous occupancy or co-binding, and outputs do not establish
+binding, expression, synthesis readiness, or biological function.
 
 ## First design
 

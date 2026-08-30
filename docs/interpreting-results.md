@@ -7,7 +7,7 @@ audience:
   - bundle consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-29
+last_verified: 2026-08-30
 doc_type: explanation
 ---
 
@@ -34,6 +34,12 @@ the score-maximizing reference under a nonuniform background. Two scores are
 directly comparable only when motif content, score version, strand rule, and
 attainment authority are identical.
 
+The reported match is the best-scoring sequence realization under the declared
+scanner: a matched word at one candidate span and strand. It is not a choice
+from a separately supplied motif-variant library. When representative windows
+overlap, they share candidate coordinates and bases; that geometry does not
+establish simultaneous occupancy, co-binding, or regulatory function.
+
 For constraint-bearing designs, target and avoider evidence answer different
 questions. `balance_score` remains the minimum target-motif score. Every
 avoider reports its own best normalized match and declared upper ceiling; the
@@ -49,7 +55,10 @@ reported separately and publish no partial bundle.
 Best-score checkpoints describe computational progress. Restart-final scores
 describe variation among starts. Proposal summaries describe search execution.
 They are not posterior samples, biological replicates, or a global-optimality
-certificate.
+certificate. Complete enumeration establishes an optimum only when the admitted
+sequence space is fully covered. Otherwise the result records the best
+evaluation observed under the declared evaluator-call budget separately from
+the exact portfolio selected under any distance constraint.
 
 The package establishes a self-consistent computational result under declared
 inputs. Binding, expression, fitness, cross-context portability, or superiority
