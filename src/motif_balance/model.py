@@ -67,6 +67,7 @@ class MotifConversion(FrozenModel):
         "jaspar_counts_to_probabilities_v1",
         "count_matrix_sqrt_n_background_prior_v1",
         "probability_matrix_prior_mixture_v1",
+        "probability_matrix_target_background_v1",
     ]
     prior_weight: Annotated[float, Field(strict=True, ge=0.0, allow_inf_nan=False)] | None = Field(
         default=None, exclude_if=lambda value: value is None
@@ -81,6 +82,27 @@ class MotifConversion(FrozenModel):
     position_denominators: (
         tuple[Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)], ...] | None
     ) = Field(default=None, exclude_if=lambda value: value is None)
+    source_background: (
+        tuple[
+            Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)],
+            Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)],
+            Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)],
+            Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)],
+        ]
+        | None
+    ) = Field(default=None, exclude_if=lambda value: value is None)
+    target_background: (
+        tuple[
+            Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)],
+            Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)],
+            Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)],
+            Annotated[float, Field(strict=True, gt=0.0, allow_inf_nan=False)],
+        ]
+        | None
+    ) = Field(default=None, exclude_if=lambda value: value is None)
+    target_background_policy: Literal["explicit_target_background_v1"] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def validate_conversion_contract(self) -> Self:
@@ -88,6 +110,11 @@ class MotifConversion(FrozenModel):
             self.position_observed_counts,
             self.position_prior_masses,
             self.position_denominators,
+        )
+        background_fields = (
+            self.source_background,
+            self.target_background,
+            self.target_background_policy,
         )
         if self.method == "count_matrix_sqrt_n_background_prior_v1":
             if self.schema_version != "motif-conversion/v2":
@@ -98,6 +125,10 @@ class MotifConversion(FrozenModel):
                 )
             if any(value is None for value in count_fields):
                 raise ValueError("count-matrix conversion requires complete count metadata")
+            if any(value is not None for value in background_fields):
+                raise ValueError(
+                    "target-background metadata is only valid for its probability-matrix conversion"
+                )
             assert self.position_observed_counts is not None
             assert self.position_prior_masses is not None
             assert self.position_denominators is not None
@@ -122,10 +153,35 @@ class MotifConversion(FrozenModel):
                         "count-matrix position denominator must equal observed count plus prior"
                     )
             return self
+        if self.method == "probability_matrix_target_background_v1":
+            if self.schema_version != "motif-conversion/v2":
+                raise ValueError("target-background conversion requires motif-conversion/v2")
+            if any(value is not None for value in count_fields):
+                raise ValueError("count metadata is only valid for the count-matrix conversion")
+            if (
+                self.prior_weight is None
+                or not self.source_motif_id
+                or any(value is None for value in background_fields)
+            ):
+                raise ValueError(
+                    "target-background conversion requires a prior weight, source motif ID, "
+                    "source background, target background, and policy"
+                )
+            assert self.source_background is not None
+            assert self.target_background is not None
+            if not math.isclose(sum(self.source_background), 1.0, abs_tol=1.0e-6):
+                raise ValueError("source background must sum to one")
+            if not math.isclose(sum(self.target_background), 1.0, abs_tol=1.0e-6):
+                raise ValueError("target background must sum to one")
+            return self
         if self.schema_version != "motif-conversion/v1":
-            raise ValueError("motif-conversion/v2 is reserved for count-matrix conversion")
+            raise ValueError("motif-conversion/v2 does not admit the declared conversion method")
         if any(value is not None for value in count_fields):
             raise ValueError("count metadata is only valid for the count-matrix conversion")
+        if any(value is not None for value in background_fields):
+            raise ValueError(
+                "target-background metadata is only valid for its probability-matrix conversion"
+            )
         if self.prior_weight is None:
             raise ValueError("prior_weight is required for the declared conversion")
         if self.method == "probability_matrix_prior_mixture_v1" and (
@@ -226,11 +282,23 @@ class MotifModel(FrozenModel):
             raise ValueError("count-matrix sqrt-N conversion requires motif-model/v2")
         if (
             self.conversion is not None
+            and self.conversion.method == "probability_matrix_target_background_v1"
+            and self.schema_version != "motif-model/v2"
+        ):
+            raise ValueError("target-background conversion requires motif-model/v2")
+        if (
+            self.conversion is not None
             and self.conversion.method == "count_matrix_sqrt_n_background_prior_v1"
             and self.conversion.position_observed_counts is not None
             and len(self.conversion.position_observed_counts) != self.width
         ):
             raise ValueError("count-matrix conversion position metadata must equal motif width")
+        if (
+            self.conversion is not None
+            and self.conversion.method == "probability_matrix_target_background_v1"
+            and self.conversion.target_background != self.background
+        ):
+            raise ValueError("conversion target background must equal model background")
         return self
 
     @property

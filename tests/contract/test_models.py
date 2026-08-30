@@ -182,6 +182,118 @@ def test_count_matrix_sqrt_n_conversion_is_explicit_and_width_bound() -> None:
         )
 
 
+def test_probability_matrix_target_background_conversion_is_explicit_and_model_bound() -> None:
+    conversion = MotifConversion(
+        schema_version="motif-conversion/v2",
+        method="probability_matrix_target_background_v1",
+        prior_weight=0.1,
+        source_motif_id="source_model",
+        source_background=(0.4, 0.1, 0.2, 0.3),
+        target_background=(0.25, 0.25, 0.25, 0.25),
+        target_background_policy="explicit_target_background_v1",
+    )
+    motif = MotifModel(
+        motif_id="target_background",
+        probabilities=((1.025 / 1.1, 0.025 / 1.1, 0.025 / 1.1, 0.025 / 1.1),),
+        background=(0.25, 0.25, 0.25, 0.25),
+        conversion=conversion,
+    )
+
+    assert motif.model_dump(mode="json", exclude_none=True)["conversion"] == {
+        "schema_version": "motif-conversion/v2",
+        "method": "probability_matrix_target_background_v1",
+        "prior_weight": 0.1,
+        "source_motif_id": "source_model",
+        "source_background": [0.4, 0.1, 0.2, 0.3],
+        "target_background": [0.25, 0.25, 0.25, 0.25],
+        "target_background_policy": "explicit_target_background_v1",
+    }
+    without_provenance = MotifModel(
+        motif_id="other_name",
+        probabilities=motif.probabilities,
+        background=motif.background,
+    )
+    assert motif.model_digest == without_provenance.model_digest
+
+    with pytest.raises(ValidationError, match="requires motif-model/v2"):
+        MotifModel(
+            schema_version="motif-model/v1",
+            motif_id="historical_semantics",
+            probabilities=motif.probabilities,
+            background=motif.background,
+            conversion=conversion,
+        )
+
+
+@pytest.mark.parametrize(
+    "conversion",
+    [
+        {
+            "schema_version": "motif-conversion/v2",
+            "method": "probability_matrix_target_background_v1",
+            "prior_weight": 0.1,
+            "source_motif_id": "source_model",
+            "source_background": (0.4, 0.1, 0.2, 0.3),
+            "target_background": (0.25, 0.25, 0.25, 0.25),
+            "target_background_policy": "invented_policy",
+        },
+        {
+            "schema_version": "motif-conversion/v2",
+            "method": "probability_matrix_target_background_v1",
+            "prior_weight": 0.1,
+            "source_motif_id": "source_model",
+            "source_background": (0.4, 0.1, 0.2),
+            "target_background": (0.25, 0.25, 0.25, 0.25),
+            "target_background_policy": "explicit_target_background_v1",
+        },
+        {
+            "schema_version": "motif-conversion/v2",
+            "method": "probability_matrix_target_background_v1",
+            "prior_weight": 0.1,
+            "source_motif_id": "source_model",
+            "source_background": (0.4, 0.1, 0.2, 0.3),
+            "target_background": (0.25, 0.25, 0.25, 0.25),
+            "target_background_policy": "explicit_target_background_v1",
+            "invented": "field",
+        },
+        {
+            "schema_version": "motif-conversion/v2",
+            "method": "probability_matrix_target_background_v1",
+            "prior_weight": 0.1,
+            "source_motif_id": "source_model",
+            "source_background": (0.4, 0.1, 0.2, 0.4),
+            "target_background": (0.25, 0.25, 0.25, 0.25),
+            "target_background_policy": "explicit_target_background_v1",
+        },
+    ],
+)
+def test_probability_matrix_target_background_conversion_rejects_malformed_contract(
+    conversion: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        MotifConversion.model_validate(conversion)
+
+
+def test_probability_matrix_target_background_conversion_rejects_model_disagreement() -> None:
+    conversion = MotifConversion(
+        schema_version="motif-conversion/v2",
+        method="probability_matrix_target_background_v1",
+        prior_weight=0.1,
+        source_motif_id="source_model",
+        source_background=(0.4, 0.1, 0.2, 0.3),
+        target_background=(0.25, 0.25, 0.25, 0.25),
+        target_background_policy="explicit_target_background_v1",
+    )
+
+    with pytest.raises(ValidationError, match="target background must equal model background"):
+        MotifModel(
+            motif_id="disagrees",
+            probabilities=((0.7, 0.1, 0.1, 0.1),),
+            background=(0.4, 0.1, 0.2, 0.3),
+            conversion=conversion,
+        )
+
+
 @pytest.mark.parametrize(
     "conversion",
     [
@@ -261,7 +373,7 @@ def test_conversion_schema_versions_do_not_advertise_each_others_methods() -> No
             position_denominators=(6.0,),
         )
 
-    with pytest.raises(ValidationError, match="reserved for count-matrix"):
+    with pytest.raises(ValidationError, match="does not admit the declared conversion method"):
         MotifConversion(
             schema_version="motif-conversion/v2",
             method="probability_matrix_prior_mixture_v1",
