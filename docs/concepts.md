@@ -16,8 +16,8 @@ doc_type: explanation
 A motif model assigns a score to each possible placement of a motif in a DNA
 sequence. Motif Balance finds the single declared best match for every motif,
 reports each best raw log-likelihood-ratio score as relative attainment between
-that motif's attainable score minimum and maximum, and optimizes the weakest
-relative score. The public balance score is therefore:
+that motif's theoretical minimum and maximum over one motif-width word, and
+optimizes the weakest relative score. The public balance score is therefore:
 
 ```text
 balance_score = min(per_motif_relative_attainments)
@@ -34,6 +34,10 @@ The method has three separate decisions:
    candidates.
 
 Those separations prevent an optimizer surrogate or a diversity rule from
-silently changing the public score. A high relative attainment remains model-relative
+silently changing the public score. Both normalization endpoints are attainable
+by individual motif-width words. After retaining the best score across multiple
+placements or orientations, the upper endpoint remains attainable by embedding
+a score-maximizing word, while the lower endpoint need not be attainable by the
+sequence-level scan. A high relative attainment remains a model-relative
 result, not proof of expression, binding, transferability, or experimental
 success.

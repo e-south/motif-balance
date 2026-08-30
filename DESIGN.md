@@ -46,6 +46,9 @@ may select output or validation behavior but cannot revise that specification.
 - One scoring implementation is authoritative. The public balance score is the
   hard minimum of per-motif normalized scores; any smooth surrogate is search-
   internal and is never reported as the public score.
+- Relative-attainment endpoints are exact extrema over one motif-width word.
+  Best-window scanning preserves the reachable upper endpoint but can make the
+  word-level lower endpoint unreachable as a sequence's reported match score.
 - Candidate evaluation produces an immutable record. Search and selection may
   not mutate sequence or scores after that boundary.
 - Selection returns exactly the requested count or fails explicitly. Diversity

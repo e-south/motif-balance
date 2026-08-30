@@ -21,6 +21,14 @@ domain. Raw scores within `1e-12` are ties; the leftmost placement wins, then
 the plus strand. The reported candidate score is the hard minimum across
 motifs.
 
+For `relative_pwm_attainment_v2`, the reference-domain endpoints are the sums
+of the position-wise minimum and maximum log odds over one motif-width word.
+Those word-level extrema are exact. Because candidate evaluation retains the
+best score across all valid placements and strands, the sequence-level lower
+endpoint need not be reachable when multiple placements or orientations
+compete; the upper endpoint remains reachable by embedding a score-maximizing
+word.
+
 For a tractable sequence space, search evaluates every sequence. Larger spaces
 use a versioned, bounded multi-start annealed stochastic local search. Starts
 share one seeded origin and receive deterministic perturbations. The engine
