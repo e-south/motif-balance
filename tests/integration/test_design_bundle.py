@@ -5,9 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from motif_balance import DesignSpec, design
+from motif_balance import DesignSpec, MotifModel, design
 from motif_balance.artifacts import read_verified_portfolio, verify_bundle
 from motif_balance.errors import ArtifactError
+from motif_balance.model import MotifConversion
 
 
 def test_synthetic_pairwise_design_is_deterministic_and_writes_canonical_bundle(
@@ -53,6 +54,40 @@ def test_synthetic_pairwise_design_is_deterministic_and_writes_canonical_bundle(
         "matches.tsv",
         "motifs.json",
     }
+
+
+def test_target_background_conversion_survives_bundle_replay(tmp_path: Path) -> None:
+    motif = MotifModel(
+        motif_id="source_model",
+        probabilities=((1.025 / 1.1, 0.025 / 1.1, 0.025 / 1.1, 0.025 / 1.1),),
+        background=(0.25, 0.25, 0.25, 0.25),
+        conversion=MotifConversion(
+            schema_version="motif-conversion/v2",
+            method="probability_matrix_target_background_v1",
+            prior_weight=0.1,
+            source_motif_id="source_model",
+            source_background=(0.4, 0.1, 0.2, 0.3),
+            target_background=(0.25, 0.25, 0.25, 0.25),
+            target_background_policy="explicit_target_background_v1",
+        ),
+    )
+    spec = DesignSpec(
+        motifs=(motif,),
+        length=1,
+        count=1,
+        strands="both",
+        evaluations=4,
+        seed=7,
+    )
+    output = tmp_path / "target-background-result"
+
+    portfolio = design(spec)
+    portfolio.write(output)
+    reread = read_verified_portfolio(output)
+
+    assert reread.spec.motifs[0].conversion == motif.conversion
+    assert reread.spec.motifs[0].model_digest == motif.model_digest
+    assert verify_bundle(output) == portfolio.manifest.bundle_id
 
 
 def test_bundle_refuses_overwrite_and_detects_tampering(
