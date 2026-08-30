@@ -68,8 +68,15 @@ content. Verification parses and replays one descriptor-bound, bounded byte
 snapshot; it does not reread member paths after verification. JSON, bundle
 bytes, and semantic table rows have explicit pre-read or streaming bounds.
 Bundle publication writes to a sibling temporary directory, verifies
-the complete result, and renames it atomically. Existing output paths are never
-merged, replaced, or partially repaired.
+the complete result, and renames it atomically. The publisher pins the source
+directory identity through the no-replace rename and then performs a complete
+semantic reread and replay from the published destination before returning.
+A destination that fails this publish-time check is moved to an identity-bound,
+no-replace quarantine path and is not accepted as a result. Existing output
+paths are never merged, replaced, or partially repaired. These checks detect
+mutation during publication; they are not an access-control mechanism and do
+not prevent the same user from tampering with accepted files later. Consumers
+must verify a bundle or execution workspace again at the point of use.
 
 Bulk traces and optimizer state are not canonical bundle members. External
 systems may register their locations and digests without changing the software

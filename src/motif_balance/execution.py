@@ -19,6 +19,7 @@ from pathlib import Path, PurePosixPath
 from motif_balance.api import design
 from motif_balance.artifacts import (
     _publish_directory_no_replace,
+    _quarantine_directory_no_replace,
     manifest_bytes,
     read_verified_portfolio,
 )
@@ -354,7 +355,31 @@ def execute_design_workspace(
         )
         if verified != workspace.workspace_id:
             raise ArtifactError("execution workspace round-trip changed its identity")
-        _publish_directory_no_replace(temporary, destination)
+        published_identity = _publish_directory_no_replace(temporary, destination)
+        try:
+            published_workspace_id = verify_execution_workspace(
+                destination,
+                expected_workspace_id=workspace.workspace_id,
+                expected_receipt_sha256=workspace.receipt.sha256,
+                expected_release_sha256=release_sha256,
+                expected_producer_revision=producer_revision,
+            )
+            if published_workspace_id != workspace.workspace_id:
+                raise ArtifactError("published execution workspace changed its identity")
+        except Exception as exc:
+            try:
+                _quarantine_directory_no_replace(
+                    destination,
+                    expected_identity=published_identity,
+                )
+            except OSError as quarantine_exc:
+                raise ArtifactError(
+                    "published execution workspace failed verification and could not be safely "
+                    "quarantined"
+                ) from quarantine_exc
+            raise ArtifactError(
+                "published execution workspace failed post-publication verification"
+            ) from exc
         return workspace
     except FileExistsError as exc:
         if temporary.exists():

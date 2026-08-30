@@ -51,6 +51,54 @@ class _SwappingLibrary:
         self.renameatx_np = _SwappingRename(source, trusted)
 
 
+class _MutatingRename:
+    def __init__(self, member: str) -> None:
+        self.member = member
+        self.mutated = False
+        self.argtypes: object = None
+        self.restype: object = None
+
+    def __call__(
+        self,
+        source_fd: int,
+        source_name: bytes,
+        destination_fd: int,
+        destination_name: bytes,
+        _flags: int,
+    ) -> int:
+        directory_fd = os.open(
+            source_name,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+            dir_fd=source_fd,
+        )
+        try:
+            if not self.mutated:
+                try:
+                    member_fd = os.open(self.member, os.O_WRONLY | os.O_TRUNC, dir_fd=directory_fd)
+                except FileNotFoundError:
+                    pass
+                else:
+                    try:
+                        os.write(member_fd, b"forged during publication\n")
+                        self.mutated = True
+                    finally:
+                        os.close(member_fd)
+        finally:
+            os.close(directory_fd)
+        os.rename(
+            source_name,
+            destination_name,
+            src_dir_fd=source_fd,
+            dst_dir_fd=destination_fd,
+        )
+        return 0
+
+
+class _MutatingLibrary:
+    def __init__(self, member: str) -> None:
+        self.renameatx_np = _MutatingRename(member)
+
+
 def test_bundle_publication_does_not_replace_a_concurrently_created_empty_directory(
     pairwise_spec: DesignSpec,
     tmp_path: Path,
@@ -95,6 +143,25 @@ def test_directory_publication_rejects_a_swapped_source_entry(
 
     assert trusted.joinpath("trusted.txt").read_text() == "trusted"
     assert not destination.exists()
+
+
+def test_portfolio_write_rejects_member_mutation_during_publication(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "result"
+    library = _MutatingLibrary("candidates.tsv")
+    monkeypatch.setattr(artifacts_module.ctypes, "CDLL", lambda *_args, **_kwargs: library)
+    monkeypatch.setattr(artifacts_module.sys, "platform", "darwin")
+
+    with pytest.raises(ArtifactError, match="post-publication replay"):
+        design(pairwise_spec).write(output)
+
+    assert not output.exists()
+    quarantines = list(tmp_path.glob(".result.rejected-*"))
+    assert len(quarantines) == 1
+    assert quarantines[0].joinpath("candidates.tsv").read_bytes() == b"forged during publication\n"
 
 
 def test_resealed_derived_fasta_still_fails_semantic_replay(

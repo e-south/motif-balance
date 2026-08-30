@@ -53,9 +53,19 @@ _V3_FILES = _CANONICAL_FILES | _DERIVED_FILES
 _V4_FILES = _V3_FILES
 _V5_FILES = _V4_FILES
 _V2_FILES = _V3_FILES | {"report.html"}
+_PublicationIdentity = tuple[int, int, int]
 
 
-def _publish_directory_no_replace(source: Path, destination: Path) -> None:
+def _publication_identity(metadata: os.stat_result) -> _PublicationIdentity:
+    return (metadata.st_dev, metadata.st_ino, stat.S_IFMT(metadata.st_mode))
+
+
+def _publish_directory_no_replace(
+    source: Path,
+    destination: Path,
+    *,
+    expected_source_identity: _PublicationIdentity | None = None,
+) -> _PublicationIdentity:
     """Atomically publish one sibling directory without replacing any entry."""
 
     if source.parent != destination.parent:
@@ -80,12 +90,11 @@ def _publish_directory_no_replace(source: Path, destination: Path) -> None:
         source_descriptor = os.open(source.name, flags, dir_fd=parent_descriptor)
         opened_source = os.fstat(source_descriptor)
 
-        def identity(metadata: os.stat_result) -> tuple[int, int, int]:
-            return (metadata.st_dev, metadata.st_ino, stat.S_IFMT(metadata.st_mode))
-
-        source_identity = identity(source_stat)
-        if identity(opened_source) != source_identity:
+        source_identity = _publication_identity(source_stat)
+        if _publication_identity(opened_source) != source_identity:
             raise OSError(errno.EIO, "publication source changed before it was opened")
+        if expected_source_identity is not None and source_identity != expected_source_identity:
+            raise OSError(errno.EIO, "publication source identity does not match expectation")
 
         library = ctypes.CDLL(None, use_errno=True)
         source_name = os.fsencode(source.name)
@@ -139,9 +148,8 @@ def _publish_directory_no_replace(source: Path, destination: Path) -> None:
             dir_fd=parent_descriptor,
             follow_symlinks=False,
         )
-        if (
-            identity(os.fstat(source_descriptor)) != source_identity
-            or identity(published) != source_identity
+        if _publication_identity(os.fstat(source_descriptor)) != source_identity or (
+            _publication_identity(published) != source_identity
         ):
             quarantine_name = os.fsencode(f".{destination.name}.rejected-{secrets.token_hex(8)}")
             quarantine_result = rename_no_replace(destination_name, quarantine_name)
@@ -151,15 +159,39 @@ def _publish_directory_no_replace(source: Path, destination: Path) -> None:
                     dir_fd=parent_descriptor,
                     follow_symlinks=False,
                 )
-                if identity(quarantined) == identity(published):
+                if _publication_identity(quarantined) == _publication_identity(published):
                     with suppress(OSError):
                         os.rmdir(os.fsdecode(quarantine_name), dir_fd=parent_descriptor)
             raise OSError(errno.EIO, "published directory identity changed during rename")
+        return source_identity
     finally:
         if source_descriptor is not None:
             os.close(source_descriptor)
         if parent_descriptor is not None:
             os.close(parent_descriptor)
+
+
+def _quarantine_directory_no_replace(
+    destination: Path,
+    *,
+    expected_identity: _PublicationIdentity,
+) -> Path:
+    """Move one exact rejected publication aside without replacing another entry."""
+
+    for _attempt in range(8):
+        quarantine = destination.with_name(f".{destination.name}.rejected-{secrets.token_hex(8)}")
+        try:
+            moved_identity = _publish_directory_no_replace(
+                destination,
+                quarantine,
+                expected_source_identity=expected_identity,
+            )
+        except FileExistsError:
+            continue
+        if moved_identity != expected_identity:
+            raise OSError(errno.EIO, "quarantined directory identity changed during rename")
+        return quarantine
+    raise OSError(errno.EEXIST, "unable to allocate a no-replace quarantine path")
 
 
 def _schema_files(manifest: RunManifest) -> set[str]:
@@ -860,7 +892,22 @@ def write_bundle(
         replay = read_portfolio_record(temporary)
         if replay.model_dump(mode="python") != portfolio.model_dump(mode="python"):
             raise ArtifactError("bundle round-trip validation changed portfolio semantics")
-        _publish_directory_no_replace(temporary, output)
+        published_identity = _publish_directory_no_replace(temporary, output)
+        try:
+            published = read_portfolio_record(output)
+            if published.model_dump(mode="python") != portfolio.model_dump(mode="python"):
+                raise ArtifactError("published bundle replay changed portfolio semantics")
+        except Exception as exc:
+            try:
+                _quarantine_directory_no_replace(
+                    output,
+                    expected_identity=published_identity,
+                )
+            except OSError as quarantine_exc:
+                raise ArtifactError(
+                    "published bundle failed replay and could not be safely quarantined"
+                ) from quarantine_exc
+            raise ArtifactError("published bundle failed post-publication replay") from exc
     except FileExistsError as exc:
         if temporary.exists():
             shutil.rmtree(temporary)

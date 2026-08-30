@@ -11,6 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 import motif_balance
+import motif_balance.artifacts as artifacts_module
 import motif_balance.execution as execution_module
 from motif_balance import DesignSpec
 from motif_balance.errors import ArtifactError
@@ -19,6 +20,57 @@ from motif_balance.inspection import ResultInspection, inspect_result
 from motif_balance.inspection.render import render_html
 from motif_balance.model import ExecutionWorkspace
 from motif_balance.receipt import workspace_bytes, workspace_id
+
+
+class _WorkspaceMutatingRename:
+    def __init__(self) -> None:
+        self.mutated = False
+        self.argtypes: object = None
+        self.restype: object = None
+
+    def __call__(
+        self,
+        source_fd: int,
+        source_name: bytes,
+        destination_fd: int,
+        destination_name: bytes,
+        _flags: int,
+    ) -> int:
+        directory_fd = os.open(
+            source_name,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+            dir_fd=source_fd,
+        )
+        try:
+            if not self.mutated:
+                try:
+                    member_fd = os.open(
+                        "execution-receipt.json",
+                        os.O_WRONLY | os.O_TRUNC,
+                        dir_fd=directory_fd,
+                    )
+                except FileNotFoundError:
+                    pass
+                else:
+                    try:
+                        os.write(member_fd, b"{}\n")
+                        self.mutated = True
+                    finally:
+                        os.close(member_fd)
+        finally:
+            os.close(directory_fd)
+        os.rename(
+            source_name,
+            destination_name,
+            src_dir_fd=source_fd,
+            dst_dir_fd=destination_fd,
+        )
+        return 0
+
+
+class _WorkspaceMutatingLibrary:
+    def __init__(self) -> None:
+        self.renameatx_np = _WorkspaceMutatingRename()
 
 
 def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
@@ -342,6 +394,32 @@ def test_execute_does_not_replace_a_concurrently_created_empty_destination(
     assert output.is_dir()
     assert list(output.iterdir()) == []
     assert not list(tmp_path.glob(".execution.tmp-*"))
+
+
+def test_execute_rejects_member_mutation_during_workspace_publication(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
+    output = tmp_path / "execution"
+    _write_runtime_wheel(release)
+    library = _WorkspaceMutatingLibrary()
+    monkeypatch.setattr(artifacts_module.ctypes, "CDLL", lambda *_args, **_kwargs: library)
+    monkeypatch.setattr(artifacts_module.sys, "platform", "darwin")
+
+    with pytest.raises(ArtifactError, match="post-publication verification"):
+        execute_design_workspace(
+            design_path,
+            output,
+            producer_revision="a" * 40,
+            release_artifact=release,
+        )
+
+    assert not output.exists()
+    quarantines = list(tmp_path.glob(".execution.rejected-*"))
+    assert len(quarantines) == 1
+    assert quarantines[0].joinpath("execution-receipt.json").read_bytes() == b"{}\n"
 
 
 def test_release_read_rejects_file_substitution_between_check_and_open(
