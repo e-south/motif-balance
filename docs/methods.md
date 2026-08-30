@@ -7,7 +7,7 @@ audience:
   - integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-08-30
 doc_type: reference
 ---
 
@@ -17,22 +17,34 @@ For each candidate sequence, Motif Balance enumerates valid placements for each
 declared motif and strand. It scores each placement through the versioned
 scoring authority, selects one best match with a deterministic total-order tie
 break, and normalizes the selected score using the model's declared reference
-domain. The reported candidate score is the hard minimum across motifs.
+domain. Raw scores within `1e-12` are ties; the leftmost placement wins, then
+the plus strand. The reported candidate score is the hard minimum across
+motifs.
 
 For a tractable sequence space, search evaluates every sequence. Larger spaces
-use a versioned multi-start annealed engine. Starts share one seeded origin and
-receive deterministic perturbations. The engine mixes single-base Gibbs-style
-updates, contiguous-block replacements, multi-position replacements, and motif
-insertions. Proposals may target the current limiting motif. A smooth minimum
-guides proposals and a separate inverse-temperature schedule controls
-acceptance; neither value is a public score.
+use a versioned, bounded multi-start annealed stochastic local search. Starts
+share one seeded origin and receive deterministic perturbations. The engine
+mixes four-base single-position resampling, contiguous-block replacement,
+multi-position replacement, motif-guided proposals, and annealed acceptance.
+It is not an MCMC sampler, a posterior sampler, or a Gibbs sampler. Proposals
+may target the current limiting motif. A smooth minimum guides proposals and a
+separate inverse-temperature schedule controls acceptance; neither value is a
+public score.
+
+The optimization problem is formulated as max-min: maximize the minimum
+target-motif attainment over feasible sequences. Exhaustive search can identify
+that maximum when the evaluator budget covers the sequence space. In a larger
+space, the heuristic reports the best evaluations observed within its budget,
+not a claim that it reached the global max-min solution.
 
 The budget counts calls to the authoritative evaluator, including the four
-candidate evaluations used by a single-base update. Once evaluated, a sequence
-and its matches are immutable. Search records bounded best-score checkpoints,
-restart-final scores, and proposal counts. Selection applies deterministic
-ordering and any declared distance rule to return exactly the requested
-portfolio size without constraint relaxation.
+candidate evaluations used by a single-position resampling move. Equal
+evaluator-call budgets do not imply equal compute: per-call work depends on
+sequence length, motif number and width, strand policy, and avoiders. Once
+evaluated, a sequence and its matches are immutable. Search records bounded
+best-score checkpoints, restart-final scores, and proposal counts. Selection
+applies deterministic ordering and any declared distance rule to return exactly
+the requested portfolio size without constraint relaxation.
 
 The canonical bundle writes the normalized request, motif content, candidate
 table, long-form match table, and complete manifest. Publication is atomic and
