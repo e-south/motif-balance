@@ -10,6 +10,7 @@ from pydantic import ValidationError
 import motif_balance
 import motif_balance.observation as observation_module
 from motif_balance import DesignSpec
+from motif_balance.compile import CompiledProblem
 from motif_balance.errors import ArtifactError
 from motif_balance.observation import (
     MAX_EVALUATED_POOL_RECORDS,
@@ -19,6 +20,7 @@ from motif_balance.observation import (
     verify_evaluated_pool,
     write_evaluated_pool,
 )
+from motif_balance.search import SearchResult
 
 
 def test_evaluated_pool_observation_is_complete_bounded_and_not_top_level(
@@ -37,6 +39,26 @@ def test_evaluated_pool_observation_is_complete_bounded_and_not_top_level(
     assert "observe_evaluated_pool" not in motif_balance.__all__
     with pytest.raises(ValidationError):
         observation.evaluation_count = 1
+
+
+def test_observation_runs_search_once_and_publication_replays_it(
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    real_search = observation_module.search
+    search_calls = 0
+
+    def counted_search(problem: CompiledProblem) -> SearchResult:
+        nonlocal search_calls
+        search_calls += 1
+        return real_search(problem)
+
+    monkeypatch.setattr(observation_module, "search", counted_search)
+
+    observation = observe_evaluated_pool(pairwise_spec)
+
+    assert search_calls == 1
+    write_evaluated_pool(observation, tmp_path / "pool.json")
+    assert search_calls == 2
 
 
 def test_evaluated_pool_export_is_atomic_path_free_and_refuses_overwrite(
@@ -122,14 +144,34 @@ def test_evaluated_pool_reader_rejects_inode_substitution_before_open(
 
 
 def test_evaluated_pool_observation_rejects_work_above_its_explicit_record_limit(
-    pairwise_spec: DesignSpec,
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     oversized = pairwise_spec.model_copy(
         update={"length": 9, "evaluations": MAX_EVALUATED_POOL_RECORDS + 1}
     )
+    search_called = False
 
+    def unexpected_search(*args: object, **kwargs: object) -> None:
+        nonlocal search_called
+        search_called = True
+
+    monkeypatch.setattr(observation_module, "search", unexpected_search)
     with pytest.raises(ArtifactError, match="record limit"):
         observe_evaluated_pool(oversized)
+    assert not search_called
+
+
+def test_evaluated_pool_observation_admits_the_formal_evaluator_budget(
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    formal = pairwise_spec.model_copy(update={"length": 9, "evaluations": 32_768})
+
+    def admitted_search(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("formal evaluator budget admitted")
+
+    monkeypatch.setattr(observation_module, "search", admitted_search)
+    with pytest.raises(RuntimeError, match="formal evaluator budget admitted"):
+        observe_evaluated_pool(formal)
 
 
 def test_evaluated_pool_writer_replays_science_before_publication(

@@ -22,7 +22,10 @@ from motif_balance.model import DesignSpec, Evaluation, FrozenModel, SearchDiagn
 from motif_balance.scoring import evaluate
 from motif_balance.search import SearchResult, search
 
-MAX_EVALUATED_POOL_RECORDS = 10_000
+# Keep the observer bounded to its demonstrated 32,768-call analysis need; the
+# independent 64 MiB encoded byte limit still rejects unusually large records
+# before publication.
+MAX_EVALUATED_POOL_RECORDS = 32_768
 MAX_EVALUATED_POOL_BYTES = 64 * 1024 * 1024
 
 
@@ -223,7 +226,10 @@ def observe_evaluated_pool(spec: DesignSpec) -> EvaluatedPoolObservation:
     observation = identity_payload.model_copy(
         update={"observation_id": _observation_id(_observation_payload(identity_payload))}
     )
-    verify_evaluated_pool(observation)
+    # The rows and metadata above come directly from this authoritative search
+    # result. Publication and independent reads replay the complete search via
+    # verify_evaluated_pool; repeating it here would make observe-then-write run
+    # the same bounded search three times without crossing a trust boundary.
     return observation
 
 
