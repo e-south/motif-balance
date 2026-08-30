@@ -167,6 +167,8 @@ class MotifConversion(FrozenModel):
                     "target-background conversion requires a prior weight, source motif ID, "
                     "source background, target background, and policy"
                 )
+            if self.prior_weight <= 0.0:
+                raise ValueError("target-background conversion requires a positive prior weight")
             assert self.source_background is not None
             assert self.target_background is not None
             if not math.isclose(sum(self.source_background), 1.0, abs_tol=1.0e-6):

@@ -294,6 +294,19 @@ def test_probability_matrix_target_background_conversion_rejects_model_disagreem
         )
 
 
+def test_probability_matrix_target_background_conversion_requires_positive_prior() -> None:
+    with pytest.raises(ValidationError, match="positive prior weight"):
+        MotifConversion(
+            schema_version="motif-conversion/v2",
+            method="probability_matrix_target_background_v1",
+            prior_weight=0.0,
+            source_motif_id="source_model",
+            source_background=(0.4, 0.1, 0.2, 0.3),
+            target_background=(0.25, 0.25, 0.25, 0.25),
+            target_background_policy="explicit_target_background_v1",
+        )
+
+
 @pytest.mark.parametrize(
     "conversion",
     [
