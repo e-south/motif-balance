@@ -275,7 +275,7 @@ def execute_design_workspace(
 ) -> ExecutionWorkspace:
     """Execute and atomically publish input, release, bundle, and runtime receipt."""
 
-    destination = Path(output)
+    destination = Path(output).absolute()
     release_path = Path(release_artifact)
     _validate_execution_identity(release_path, producer_revision)
     if destination.exists() or destination.is_symlink():
