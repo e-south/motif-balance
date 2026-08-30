@@ -84,9 +84,9 @@ def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
         if alter_api and relative == "api.py":
             payload += b"# substituted\n"
         entries[f"motif_balance/{relative}"] = payload
-    dist_info = "motif_balance-0.4.0a4.dist-info/"
+    dist_info = "motif_balance-0.4.0a5.dist-info/"
     entries[f"{dist_info}METADATA"] = (
-        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a4\n"
+        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a5\n"
     )
     entries[f"{dist_info}WHEEL"] = b"Wheel-Version: 1.0\n"
     entries[f"{dist_info}entry_points.txt"] = (
@@ -115,7 +115,7 @@ def design_path(tmp_path: Path, pairwise_spec: DesignSpec) -> Path:
 
 
 def _execute(tmp_path: Path, specification: Path) -> tuple[Path, Path, dict[str, object]]:
-    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a5-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     workspace = execute_design_workspace(
@@ -162,7 +162,7 @@ def test_execute_refuses_a_substituted_release_tree(
     tmp_path: Path,
     design_path: Path,
 ) -> None:
-    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a5-py3-none-any.whl"
     _write_runtime_wheel(release, alter_api=True)
 
     with pytest.raises(ArtifactError, match="does not match the running package"):
@@ -349,7 +349,7 @@ def test_execute_refuses_existing_destination(
     tmp_path: Path,
     design_path: Path,
 ) -> None:
-    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a5-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     output.mkdir()
@@ -368,7 +368,7 @@ def test_execute_does_not_replace_a_concurrently_created_empty_destination(
     design_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a5-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     publish = execution_module._publish_directory_no_replace
@@ -401,7 +401,7 @@ def test_execute_rejects_member_mutation_during_workspace_publication(
     design_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a5-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     library = _WorkspaceMutatingLibrary()
