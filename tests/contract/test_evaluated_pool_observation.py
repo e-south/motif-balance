@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 import motif_balance
 import motif_balance.observation as observation_module
-from motif_balance import DesignSpec, design
+from motif_balance import DesignSpec, MotifModel, design
 from motif_balance.artifacts import read_verified_portfolio
 from motif_balance.compile import CompiledProblem
 from motif_balance.errors import ArtifactError, PortfolioInfeasible
@@ -134,6 +134,54 @@ def test_paired_design_failure_returns_no_publishable_outputs(
     assert tuple(tmp_path.iterdir()) == ()
 
 
+def test_observation_rejects_an_unencodable_pool_before_return(
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tiny = pairwise_spec.model_copy(
+        update={"length": 2, "count": 1, "evaluations": 16, "min_distance": None}
+    )
+    monkeypatch.setattr(observation_module, "MAX_EVALUATED_POOL_BYTES", 1)
+
+    with pytest.raises(ArtifactError, match="byte limit"):
+        observe_evaluated_pool(tiny)
+
+
+def test_paired_design_returns_neither_output_when_the_pool_is_unencodable(
+    pairwise_spec: DesignSpec, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tiny = pairwise_spec.model_copy(
+        update={"length": 2, "count": 1, "evaluations": 16, "min_distance": None}
+    )
+    monkeypatch.setattr(observation_module, "MAX_EVALUATED_POOL_BYTES", 1)
+    returned: tuple[object, object] | None = None
+
+    with pytest.raises(ArtifactError, match="byte limit"):
+        returned = observation_module.design_with_evaluated_pool(tiny)
+
+    assert returned is None
+
+
+def test_high_cardinality_observation_fails_closed_at_its_encoded_byte_limit(
+    motif_a: MotifModel,
+    motif_b: MotifModel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    motif_c = motif_a.model_copy(update={"motif_id": "motif_c"})
+    motif_d = motif_b.model_copy(update={"motif_id": "motif_d"})
+    specification = DesignSpec(
+        motifs=(motif_a, motif_b, motif_c, motif_d),
+        length=4,
+        count=1,
+        strands="both",
+        evaluations=256,
+        seed=11,
+    )
+    monkeypatch.setattr(observation_module, "MAX_EVALUATED_POOL_BYTES", 64 * 1024)
+
+    with pytest.raises(ArtifactError, match="byte limit"):
+        observe_evaluated_pool(specification)
+
+
 def test_evaluated_pool_export_is_atomic_path_free_and_refuses_overwrite(
     pairwise_spec: DesignSpec,
     tmp_path: Path,
@@ -211,6 +259,31 @@ def test_evaluated_pool_reader_rejects_inode_substitution_before_open(
         return real_open(path, flags)
 
     monkeypatch.setattr(observation_module.os, "open", substitute_then_open)
+
+    with pytest.raises(ArtifactError, match=r"unsafe|changed"):
+        read_evaluated_pool(source)
+
+
+def test_evaluated_pool_reader_rejects_fifo_substitution_without_blocking(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "pool.json"
+    write_evaluated_pool(observe_evaluated_pool(pairwise_spec), source)
+    real_open = os.open
+    substituted = False
+
+    def substitute_fifo_then_open(path: str | os.PathLike[str], flags: int) -> int:
+        nonlocal substituted
+        if Path(path) == source and not substituted:
+            substituted = True
+            source.unlink()
+            os.mkfifo(source)
+        assert flags & os.O_NONBLOCK
+        return real_open(path, flags)
+
+    monkeypatch.setattr(observation_module.os, "open", substitute_fifo_then_open)
 
     with pytest.raises(ArtifactError, match=r"unsafe|changed"):
         read_evaluated_pool(source)

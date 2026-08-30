@@ -85,11 +85,13 @@ uses a bounded print-only copy of progressively disclosed tables because
 Chromium does not print descendants of closed `details` elements.
 
 Evaluated-pool observations are separate bounded JSON exports. They contain at
-most 32,768 unique evaluations and 64 MiB, refuse overwrite, use a
+most 32,768 unique evaluations and 64 MiB, refuse overwrite, use a nonblocking
 descriptor-bound no-symlink reader, bind their content identity, and replay
-every score before publication and after reading. The advanced paired design
-operation performs one exploratory search; independent pool publication and
-reading continue to replay that search at their trust boundaries.
+every score before publication and after reading. Construction verifies the
+canonical byte ceiling before either observation API returns. The advanced
+paired design operation performs one exploratory search; independent pool
+publication and reading continue to replay that search at their trust
+boundaries.
 
 ## Degraded behavior
 

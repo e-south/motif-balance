@@ -44,7 +44,8 @@ fetch anything named by the inspected object.
 
 The optional evaluated-pool export is path-free and bounded. Its writer refuses
 existing paths and publishes atomically; its reader rejects symlinks and
-descriptor substitution, enforces byte and row limits, checks canonical
+descriptor substitution without blocking on substituted special files,
+enforces byte and row limits, checks canonical
 encoding and content identity, and replays every evaluation.
 
 Artifact paths are normalized relative POSIX paths. Parent traversal, absolute

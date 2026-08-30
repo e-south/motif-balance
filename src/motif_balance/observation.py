@@ -239,6 +239,11 @@ def _observation_from_search_result(
     observation = identity_payload.model_copy(
         update={"observation_id": _observation_id(_observation_payload(identity_payload))}
     )
+    # Construction is the admission boundary for both observation APIs. Do
+    # not let an in-memory record escape when its canonical representation
+    # exceeds the public byte ceiling; paired design must return both values or
+    # neither. Publication and independent reads still perform full replay.
+    observation_bytes(observation)
     # The rows and metadata above come directly from this authoritative search
     # result. Publication and independent reads replay the complete search via
     # verify_evaluated_pool; repeating it here would make observe-then-write run
@@ -311,7 +316,12 @@ def read_evaluated_pool(path: str | Path) -> EvaluatedPoolObservation:
             raise ArtifactError("evaluated-pool input must be a regular file, not a symbolic link")
         if before.st_size > MAX_EVALUATED_POOL_BYTES:
             raise ArtifactError("evaluated-pool input exceeds its byte limit")
-        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        flags = (
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
         descriptor = os.open(source, flags)
         opened = os.fstat(descriptor)
         if (
