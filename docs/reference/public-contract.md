@@ -110,5 +110,6 @@ scientific claim, define a benchmark cohort, or confer manuscript status.
 Downstream analyses that require the complete unique evaluated pool may use
 the deliberately advanced `motif_balance.observation` submodule. Its single
 bounded JSON record is immutable, canonical, path-free, identity-checked, and
-scientifically replayed. It is not a `Portfolio`, canonical bundle member, CLI
-journey, or top-level export.
+scientifically replayed. The observer admits at most 32,768 evaluator calls
+and independently limits the encoded record to 64 MiB. It is not a
+`Portfolio`, canonical bundle member, CLI journey, or top-level export.
