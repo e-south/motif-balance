@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import csv
+import ctypes
+import errno
 import hashlib
 import io
 import json
@@ -8,6 +10,7 @@ import math
 import os
 import shutil
 import stat
+import sys
 import tempfile
 from collections import defaultdict
 from dataclasses import dataclass
@@ -48,6 +51,78 @@ _V3_FILES = _CANONICAL_FILES | _DERIVED_FILES
 _V4_FILES = _V3_FILES
 _V5_FILES = _V4_FILES
 _V2_FILES = _V3_FILES | {"report.html"}
+
+
+def _publish_directory_no_replace(source: Path, destination: Path) -> None:
+    """Atomically publish one sibling directory without replacing any entry."""
+
+    if source.parent != destination.parent:
+        raise OSError(errno.EXDEV, "publication directories must share one parent")
+    parent_descriptor: int | None = None
+    try:
+        flags = (
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_DIRECTORY", 0)
+        )
+        parent_descriptor = os.open(source.parent, flags)
+        source_stat = os.stat(
+            source.name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not stat.S_ISDIR(source_stat.st_mode):
+            raise OSError(errno.EINVAL, "publication source is not a directory")
+
+        library = ctypes.CDLL(None, use_errno=True)
+        source_name = os.fsencode(source.name)
+        destination_name = os.fsencode(destination.name)
+        if sys.platform == "darwin":
+            rename = library.renameatx_np
+            rename.argtypes = [
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_uint,
+            ]
+            rename.restype = ctypes.c_int
+            result = rename(
+                parent_descriptor,
+                source_name,
+                parent_descriptor,
+                destination_name,
+                0x00000004,  # RENAME_EXCL
+            )
+        elif sys.platform.startswith("linux") and hasattr(library, "renameat2"):
+            rename = library.renameat2
+            rename.argtypes = [
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_uint,
+            ]
+            rename.restype = ctypes.c_int
+            result = rename(
+                parent_descriptor,
+                source_name,
+                parent_descriptor,
+                destination_name,
+                0x00000001,  # RENAME_NOREPLACE
+            )
+        else:
+            raise OSError(
+                errno.ENOTSUP,
+                "atomic no-replace directory publication is unavailable",
+            )
+        if result != 0:
+            error = ctypes.get_errno()
+            raise OSError(error, os.strerror(error), destination)
+    finally:
+        if parent_descriptor is not None:
+            os.close(parent_descriptor)
 
 
 def _schema_files(manifest: RunManifest) -> set[str]:
@@ -748,9 +823,13 @@ def write_bundle(
         replay = read_portfolio_record(temporary)
         if replay.model_dump(mode="python") != portfolio.model_dump(mode="python"):
             raise ArtifactError("bundle round-trip validation changed portfolio semantics")
-        if output.exists() or output.is_symlink():
-            raise ArtifactError(f"output directory already exists or is unsafe: '{output.name}'")
-        os.rename(temporary, output)
+        _publish_directory_no_replace(temporary, output)
+    except FileExistsError as exc:
+        if temporary.exists():
+            shutil.rmtree(temporary)
+        raise ArtifactError(
+            f"output directory already exists or is unsafe: '{output.name}'"
+        ) from exc
     except OSError as exc:
         if temporary.exists():
             shutil.rmtree(temporary)

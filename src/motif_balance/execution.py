@@ -17,7 +17,11 @@ from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
 
 from motif_balance.api import design
-from motif_balance.artifacts import manifest_bytes, read_verified_portfolio
+from motif_balance.artifacts import (
+    _publish_directory_no_replace,
+    manifest_bytes,
+    read_verified_portfolio,
+)
 from motif_balance.constants import MAX_BUNDLE_ARTIFACT_BYTES, PACKAGE_VERSION
 from motif_balance.errors import ArtifactError
 from motif_balance.formats.design import load_design_spec
@@ -54,16 +58,78 @@ def _resource(path: str, payload: bytes) -> ExecutionResource:
 
 
 def _read_release(path: Path) -> bytes:
-    if path.is_symlink():
-        raise ArtifactError("release artifact must not be a symbolic link")
+    descriptor: int | None = None
     try:
-        if not path.is_file() or path.stat().st_size > MAX_BUNDLE_ARTIFACT_BYTES:
+        before = os.lstat(path)
+        if not stat.S_ISREG(before.st_mode):
+            raise ArtifactError("release artifact must be a regular file, not a symbolic link")
+        if before.st_size > MAX_BUNDLE_ARTIFACT_BYTES:
             raise ArtifactError(
                 f"release artifact must be a file no larger than {MAX_BUNDLE_ARTIFACT_BYTES} bytes"
             )
-        payload = path.read_bytes()
+        flags = (
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
+        descriptor = os.open(path, flags)
+        opened = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(opened.st_mode)
+            or (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino)
+            or opened.st_size != before.st_size
+        ):
+            raise ArtifactError("release artifact changed before it was opened")
+        chunks: list[bytes] = []
+        remaining = MAX_BUNDLE_ARTIFACT_BYTES + 1
+        while remaining:
+            chunk = os.read(descriptor, remaining)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        payload = b"".join(chunks)
+        after = os.fstat(descriptor)
+        path_after = os.lstat(path)
+        opened_identity = (
+            opened.st_dev,
+            opened.st_ino,
+            opened.st_size,
+            opened.st_mtime_ns,
+            opened.st_ctime_ns,
+        )
+        after_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        path_identity = (
+            path_after.st_dev,
+            path_after.st_ino,
+            path_after.st_size,
+            path_after.st_mtime_ns,
+            path_after.st_ctime_ns,
+        )
+        if len(payload) > MAX_BUNDLE_ARTIFACT_BYTES:
+            raise ArtifactError(
+                f"release artifact must be a file no larger than {MAX_BUNDLE_ARTIFACT_BYTES} bytes"
+            )
+        if (
+            opened_identity != after_identity
+            or opened_identity != path_identity
+            or len(payload) != opened.st_size
+        ):
+            raise ArtifactError("release artifact changed while it was read")
+    except ArtifactError:
+        raise
     except OSError as exc:
-        raise ArtifactError(f"unable to read release artifact: {exc}") from exc
+        raise ArtifactError(f"release artifact is unsafe or changed while opening: {exc}") from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
     return payload
 
 
@@ -288,12 +354,14 @@ def execute_design_workspace(
         )
         if verified != workspace.workspace_id:
             raise ArtifactError("execution workspace round-trip changed its identity")
-        if destination.exists() or destination.is_symlink():
-            raise ArtifactError(
-                f"execution workspace already exists or is unsafe: '{destination.name}'"
-            )
-        os.rename(temporary, destination)
+        _publish_directory_no_replace(temporary, destination)
         return workspace
+    except FileExistsError as exc:
+        if temporary.exists():
+            shutil.rmtree(temporary)
+        raise ArtifactError(
+            f"execution workspace already exists or is unsafe: '{destination.name}'"
+        ) from exc
     except OSError as exc:
         if temporary.exists():
             shutil.rmtree(temporary)

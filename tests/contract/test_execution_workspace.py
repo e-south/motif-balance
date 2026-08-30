@@ -310,6 +310,116 @@ def test_execute_refuses_existing_destination(
         )
 
 
+def test_execute_does_not_replace_a_concurrently_created_empty_destination(
+    tmp_path: Path,
+    design_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release = tmp_path / "motif_balance-0.4.0a4-py3-none-any.whl"
+    output = tmp_path / "execution"
+    _write_runtime_wheel(release)
+    publish = execution_module._publish_directory_no_replace
+
+    def create_destination_then_publish(temporary: Path, destination: Path) -> None:
+        destination.mkdir()
+        publish(temporary, destination)
+
+    monkeypatch.setattr(
+        execution_module,
+        "_publish_directory_no_replace",
+        create_destination_then_publish,
+    )
+
+    with pytest.raises(ArtifactError, match="already exists or is unsafe"):
+        execute_design_workspace(
+            design_path,
+            output,
+            producer_revision="a" * 40,
+            release_artifact=release,
+        )
+
+    assert output.is_dir()
+    assert list(output.iterdir()) == []
+    assert not list(tmp_path.glob(".execution.tmp-*"))
+
+
+def test_release_read_rejects_file_substitution_between_check_and_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release = tmp_path / "release.whl"
+    release.write_bytes(b"trusted release bytes")
+    replacement = tmp_path / "replacement.whl"
+    replacement.write_bytes(b"substituted release bytes")
+    real_open = execution_module.os.open
+    substituted = False
+
+    def substitute_then_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        nonlocal substituted
+        if Path(path) == release and not substituted:
+            substituted = True
+            release.unlink()
+            replacement.replace(release)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(execution_module.os, "open", substitute_then_open)
+
+    with pytest.raises(ArtifactError, match=r"changed.*open|unsafe"):
+        execution_module._read_release(release)
+
+
+def test_release_read_rejects_symlink_substitution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release = tmp_path / "release.whl"
+    release.write_bytes(b"trusted release bytes")
+    replacement = tmp_path / "replacement.whl"
+    replacement.write_bytes(b"substituted release bytes")
+    real_open = execution_module.os.open
+    substituted = False
+
+    def substitute_then_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        nonlocal substituted
+        if Path(path) == release and not substituted:
+            substituted = True
+            release.unlink()
+            release.symlink_to(replacement)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(execution_module.os, "open", substitute_then_open)
+
+    with pytest.raises(ArtifactError, match=r"unsafe|symbolic link"):
+        execution_module._read_release(release)
+
+
+def test_release_read_is_bounded_when_file_grows_during_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    release = tmp_path / "release.whl"
+    release.write_bytes(b"12345678")
+    monkeypatch.setattr(execution_module, "MAX_BUNDLE_ARTIFACT_BYTES", 16)
+    real_read = execution_module.os.read
+    grown = False
+
+    def grow_then_read(descriptor: int, count: int) -> bytes:
+        nonlocal grown
+        if not grown:
+            grown = True
+            with release.open("ab") as handle:
+                handle.write(b"x" * 32)
+        return real_read(descriptor, count)
+
+    monkeypatch.setattr(execution_module.os, "read", grow_then_read)
+
+    with pytest.raises(
+        ArtifactError,
+        match=r"no larger than 16 bytes|changed while it was read",
+    ):
+        execution_module._read_release(release)
+
+
 def test_execution_verification_rejects_inventory_drift(
     tmp_path: Path,
     design_path: Path,

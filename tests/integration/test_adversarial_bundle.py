@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+import motif_balance.artifacts as artifacts_module
 from motif_balance import DesignSpec, Portfolio, design
 from motif_balance.artifacts import (
     artifact_records,
@@ -17,6 +18,32 @@ from motif_balance.artifacts import (
 )
 from motif_balance.errors import ArtifactError
 from motif_balance.model import ArtifactDigest, RunManifest
+
+
+def test_bundle_publication_does_not_replace_a_concurrently_created_empty_directory(
+    pairwise_spec: DesignSpec,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "result"
+    publish = artifacts_module._publish_directory_no_replace
+
+    def create_destination_then_publish(temporary: Path, destination: Path) -> None:
+        destination.mkdir()
+        publish(temporary, destination)
+
+    monkeypatch.setattr(
+        artifacts_module,
+        "_publish_directory_no_replace",
+        create_destination_then_publish,
+    )
+
+    with pytest.raises(ArtifactError, match="already exists or is unsafe"):
+        design(pairwise_spec).write(output)
+
+    assert output.is_dir()
+    assert list(output.iterdir()) == []
+    assert not list(tmp_path.glob(".result.tmp-*"))
 
 
 def test_resealed_derived_fasta_still_fails_semantic_replay(
