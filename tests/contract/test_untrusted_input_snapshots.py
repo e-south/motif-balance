@@ -70,7 +70,7 @@ def test_untrusted_input_readers_reject_substitution_without_blocking(
 
     def substitute_then_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
         nonlocal substituted
-        if Path(path) == source and not substituted:
+        if Path(path) in {source, Path(source.name)} and not substituted:
             substituted = True
             source.rename(original)
             if substitution == "inode":
@@ -138,3 +138,75 @@ def test_oversized_input_is_rejected_before_path_read_allocation(
 
     with pytest.raises(InvalidMotif, match="byte limit"):
         read_motif(source)
+
+
+@pytest.mark.parametrize("role", ["target", "avoider"])
+@pytest.mark.parametrize("substitution", ["inode", "symlink"])
+def test_design_motif_references_reject_intermediate_directory_substitution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    role: str,
+    substitution: str,
+) -> None:
+    specification = tmp_path / "specification"
+    models = specification / "models"
+    models.mkdir(parents=True)
+    motif_name = f"{role}.yaml"
+    (models / motif_name).write_bytes(_MOTIF.replace(b"trusted", role.encode()))
+    external = tmp_path / "external-models"
+    external.mkdir()
+    (external / motif_name).write_bytes(_MOTIF.replace(b"trusted", role.encode()))
+    design = specification / "design.yaml"
+    if role == "target":
+        motif_section = f"motifs:\n  {role}: models/{motif_name}\n"
+    else:
+        motif_section = (
+            "motifs:\n"
+            "  target:\n"
+            "    schema_version: motif-model/v2\n"
+            "    probabilities: [[0.7, 0.1, 0.1, 0.1]]\n"
+            "    background: [0.25, 0.25, 0.25, 0.25]\n"
+            f"avoiders:\n  {role}:\n    motif: models/{motif_name}\n"
+            "    score_ceiling: 0.5\n"
+        )
+    design.write_text(
+        "schema_version: design-spec/v2\n"
+        f"{motif_section}"
+        "length: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
+    )
+    original = specification / "original-models"
+    real_resolve = Path.resolve
+    real_stat = structured_module.os.stat
+    substituted = False
+
+    def substitute_directory() -> None:
+        nonlocal substituted
+        substituted = True
+        models.rename(original)
+        if substitution == "inode":
+            models.mkdir()
+            (models / motif_name).write_bytes((external / motif_name).read_bytes())
+        else:
+            models.symlink_to(external, target_is_directory=True)
+
+    def resolve_then_substitute(self: Path, *args: object, **kwargs: object) -> Path:
+        resolved = real_resolve(self, *args, **kwargs)
+        if not substituted and self == models / motif_name:
+            substitute_directory()
+        return resolved
+
+    def stat_then_substitute(
+        path: object,
+        *args: object,
+        **kwargs: object,
+    ) -> os.stat_result:
+        result = real_stat(path, *args, **kwargs)
+        if not substituted and Path(path).name == "models":
+            substitute_directory()
+        return result
+
+    monkeypatch.setattr(Path, "resolve", resolve_then_substitute)
+    monkeypatch.setattr(structured_module.os, "stat", stat_then_substitute)
+
+    with pytest.raises(InvalidDesign, match=r"unsafe|changed|symbolic"):
+        load_design_spec(design)

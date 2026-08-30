@@ -96,6 +96,15 @@ def read_motif(path: str | Path, *, motif_id: str | None = None) -> MotifModel:
         if exc.reason == "symbolic-link input":
             raise InvalidMotif(f"Refusing symbolic-link motif file '{source.name}'.") from exc
         raise InvalidMotif(f"Unable to read motif file '{source.name}': {exc}") from exc
+    return _read_motif_snapshot(source, raw, motif_id=motif_id)
+
+
+def _read_motif_snapshot(
+    source: Path,
+    raw: bytes,
+    *,
+    motif_id: str | None = None,
+) -> MotifModel:
     if source.suffix.lower() in {".meme", ".txt"}:
         try:
             text = raw.decode("utf-8")

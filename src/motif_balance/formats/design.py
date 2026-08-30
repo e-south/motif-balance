@@ -8,13 +8,19 @@ from motif_balance.constants import MAX_INPUT_BYTES
 from motif_balance.errors import InvalidDesign, InvalidMotif
 from motif_balance.model import DesignSpec, MotifModel
 
-from .motif import read_motif
-from .structured import BoundedInputError, load_yaml_unique, read_bounded_regular_file
+from .motif import _read_motif_snapshot
+from .structured import (
+    BoundedInputError,
+    load_yaml_unique,
+    pinned_directory,
+    read_bounded_regular_file_at,
+)
 
 
 def _resolve_motif(
     source: Path,
     *,
+    directory_fd: int,
     motif_id: str,
     payload: object,
 ) -> MotifModel:
@@ -24,20 +30,17 @@ def _resolve_motif(
             raise InvalidDesign(
                 f"Motif reference '{payload}' must remain contained in the specification directory."
             )
-        candidate = source.parent / reference
-        cursor = source.parent
-        for component in reference.parts:
-            cursor /= component
-            if cursor.is_symlink():
-                raise InvalidDesign(f"Motif reference '{payload}' traverses a symbolic link.")
         try:
-            candidate.resolve(strict=False).relative_to(source.parent.resolve())
-        except ValueError as exc:
+            raw = read_bounded_regular_file_at(directory_fd, reference)
+            return _read_motif_snapshot(reference, raw, motif_id=motif_id)
+        except BoundedInputError as exc:
+            if exc.reason == "byte limit":
+                raise InvalidDesign(
+                    f"Motif file '{reference.name}' exceeds the {MAX_INPUT_BYTES}-byte limit."
+                ) from exc
             raise InvalidDesign(
-                f"Motif reference '{payload}' is not contained in the specification directory."
+                f"Motif reference '{payload}' is unsafe or changed: {exc}."
             ) from exc
-        try:
-            return read_motif(candidate, motif_id=motif_id)
         except InvalidMotif as exc:
             raise InvalidDesign(str(exc), motif_id=motif_id, hint=exc.hint) from exc
     if isinstance(payload, dict):
@@ -49,23 +52,9 @@ def _resolve_motif(
     raise InvalidDesign(f"Motif '{motif_id}' must be a path or model mapping.")
 
 
-def load_design_spec(path: str | Path) -> DesignSpec:
-    """Read one bounded design specification and resolve contained motif references."""
-
-    source = Path(path)
+def _load_design_snapshot(source: Path, raw: bytes, *, directory_fd: int) -> DesignSpec:
     try:
-        raw = read_bounded_regular_file(source)
         payload = load_yaml_unique(raw)
-    except BoundedInputError as exc:
-        if exc.reason == "byte limit":
-            raise InvalidDesign(
-                f"Design specification exceeds the {MAX_INPUT_BYTES}-byte limit."
-            ) from exc
-        if exc.reason == "symbolic-link input":
-            raise InvalidDesign(
-                f"Refusing symbolic-link design specification '{source.name}'."
-            ) from exc
-        raise InvalidDesign(f"Unable to read design specification: {exc}") from exc
     except (OSError, yaml.YAMLError) as exc:
         raise InvalidDesign(f"Unable to read design specification: {exc}") from exc
     if not isinstance(payload, dict):
@@ -83,7 +72,12 @@ def load_design_spec(path: str | Path) -> DesignSpec:
     for motif_id, motif_payload in motifs.items():
         if not isinstance(motif_id, str):
             raise InvalidDesign("Motif mapping keys must be strings.")
-        resolved[motif_id] = _resolve_motif(source, motif_id=motif_id, payload=motif_payload)
+        resolved[motif_id] = _resolve_motif(
+            source,
+            directory_fd=directory_fd,
+            motif_id=motif_id,
+            payload=motif_payload,
+        )
     payload["motifs"] = resolved
     avoiders = payload.get("avoiders", {})
     if isinstance(avoiders, (list, tuple)):
@@ -102,9 +96,30 @@ def load_design_spec(path: str | Path) -> DesignSpec:
             **constraint,
             "motif": _resolve_motif(
                 source,
+                directory_fd=directory_fd,
                 motif_id=motif_id,
                 payload=constraint["motif"],
             ),
         }
     payload["avoiders"] = resolved_avoiders
     return DesignSpec.model_validate(payload)
+
+
+def load_design_spec(path: str | Path) -> DesignSpec:
+    """Read one bounded design specification and resolve contained motif references."""
+
+    source = Path(path)
+    try:
+        with pinned_directory(source.parent) as directory_fd:
+            raw = read_bounded_regular_file_at(directory_fd, Path(source.name))
+            return _load_design_snapshot(source, raw, directory_fd=directory_fd)
+    except BoundedInputError as exc:
+        if exc.reason == "byte limit":
+            raise InvalidDesign(
+                f"Design specification exceeds the {MAX_INPUT_BYTES}-byte limit."
+            ) from exc
+        if exc.reason == "symbolic-link input":
+            raise InvalidDesign(
+                f"Refusing symbolic-link design specification '{source.name}'."
+            ) from exc
+        raise InvalidDesign(f"Unable to read design specification: {exc}") from exc
