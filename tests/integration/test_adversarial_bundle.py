@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,36 @@ from motif_balance.artifacts import (
 )
 from motif_balance.errors import ArtifactError
 from motif_balance.model import ArtifactDigest, RunManifest
+
+
+class _SwappingRename:
+    def __init__(self, source: Path, trusted: Path) -> None:
+        self.source = source
+        self.trusted = trusted
+        self.argtypes: object = None
+        self.restype: object = None
+
+    def __call__(
+        self,
+        _source_fd: int,
+        source_name: bytes,
+        _destination_fd: int,
+        destination_name: bytes,
+        _flags: int,
+    ) -> int:
+        parent = self.source.parent
+        source = parent / os.fsdecode(source_name)
+        destination = parent / os.fsdecode(destination_name)
+        if source == self.source:
+            source.rename(self.trusted)
+            source.mkdir()
+        source.rename(destination)
+        return 0
+
+
+class _SwappingLibrary:
+    def __init__(self, source: Path, trusted: Path) -> None:
+        self.renameatx_np = _SwappingRename(source, trusted)
 
 
 def test_bundle_publication_does_not_replace_a_concurrently_created_empty_directory(
@@ -44,6 +75,26 @@ def test_bundle_publication_does_not_replace_a_concurrently_created_empty_direct
     assert output.is_dir()
     assert list(output.iterdir()) == []
     assert not list(tmp_path.glob(".result.tmp-*"))
+
+
+def test_directory_publication_rejects_a_swapped_source_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "temporary"
+    source.mkdir()
+    (source / "trusted.txt").write_text("trusted")
+    trusted = tmp_path / "original-temporary"
+    destination = tmp_path / "published"
+    library = _SwappingLibrary(source, trusted)
+    monkeypatch.setattr(artifacts_module.ctypes, "CDLL", lambda *_args, **_kwargs: library)
+    monkeypatch.setattr(artifacts_module.sys, "platform", "darwin")
+
+    with pytest.raises(OSError, match=r"changed|identity"):
+        artifacts_module._publish_directory_no_replace(source, destination)
+
+    assert trusted.joinpath("trusted.txt").read_text() == "trusted"
+    assert not destination.exists()
 
 
 def test_resealed_derived_fasta_still_fails_semantic_replay(

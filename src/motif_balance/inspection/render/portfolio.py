@@ -134,16 +134,16 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                 left + column * cell_width + cell_width / 2,
                 116,
                 name,
-                size=11,
+                size=12,
                 anchor="middle",
                 weight=650,
             )
         )
     parts.extend(
         [
-            text(left + len(motifs) * cell_width + 16, 116, "balance_score", size=11, weight=650),
-            text(left + len(motifs) * cell_width + 120, 116, "limiting motif", size=11, weight=650),
-            text(left + len(motifs) * cell_width + 245, 116, "nearest", size=11, weight=650),
+            text(left + len(motifs) * cell_width + 16, 116, "balance_score", size=12, weight=650),
+            text(left + len(motifs) * cell_width + 120, 116, "limiting motif", size=12, weight=650),
+            text(left + len(motifs) * cell_width + 245, 116, "nearest", size=12, weight=650),
         ]
     )
     for row, candidate in enumerate(candidates):
@@ -153,7 +153,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                 20,
                 y + 21,
                 f"rank {candidate.rank} · {candidate.candidate_id[-8:]}",
-                size=11,
+                size=12,
                 family="ui-monospace,monospace",
             )
         )
@@ -173,7 +173,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                         x + (cell_width - 4) / 2,
                         y + 20,
                         f"{match.normalized_score:.6g}",
-                        size=11,
+                        size=12,
                         anchor="middle",
                         weight=650,
                         family="ui-monospace,monospace",
@@ -187,17 +187,17 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                     end + 16,
                     y + 20,
                     f"{candidate.balance_score:.6g}",
-                    size=11,
+                    size=12,
                     family="ui-monospace,monospace",
                 ),
-                text(end + 120, y + 20, ", ".join(candidate.limiting_motif_ids), size=11),
+                text(end + 120, y + 20, ", ".join(candidate.limiting_motif_ids), size=12),
                 text(
                     end + 245,
                     y + 20,
                     "—"
                     if candidate.nearest_neighbor_distance is None
                     else f"{candidate.nearest_neighbor_distance:.4g}",
-                    size=11,
+                    size=12,
                     family="ui-monospace,monospace",
                 ),
             ]
@@ -212,13 +212,13 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
             f'fill="{POSITIVE}" fill-opacity=".72"/>',
             f'<line x1="{reference_x:.3f}" y1="{legend_y - 4}" '
             f'x2="{reference_x:.3f}" y2="{legend_y + 14}" stroke="{INK}"/>',
-            text(20, legend_y + 30, "0", size=10, fill=MUTED),
-            text(200, legend_y + 30, f"{display_max:.6g}", size=10, anchor="end", fill=MUTED),
+            text(20, legend_y + 30, "0", size=12, fill=MUTED),
+            text(200, legend_y + 30, f"{display_max:.6g}", size=12, anchor="end", fill=MUTED),
             text(
                 reference_x,
                 legend_y - 8,
                 reference_label,
-                size=10,
+                size=12,
                 anchor="middle",
             ),
             "</g>",
@@ -233,7 +233,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                 height - 18,
                 f"Bounded view: {len(candidates)}/{len(inspection.portfolio.candidates)} "
                 f"candidates and {len(motifs)}/{len(inspection.problem.motifs)} motifs.",
-                size=11,
+                size=12,
                 fill=MUTED,
             )
         )
@@ -243,7 +243,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                 330,
                 height - 4,
                 f"Limiting motifs shown: {displayed_limiting}/{len(limiting_ids)}.",
-                size=11,
+                size=12,
                 fill=MUTED,
             )
         )

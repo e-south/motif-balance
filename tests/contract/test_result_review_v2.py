@@ -91,6 +91,14 @@ def _assert_candidate_text_is_legible(payload: bytes) -> None:
         assert min(float(node.attrib["font-size"]) for node in bases) >= 14
 
 
+def _assert_svg_text_is_legible(payload: bytes) -> None:
+    root = ET.fromstring(payload)
+    namespace = "{http://www.w3.org/2000/svg}"
+    text_nodes = root.findall(f".//{namespace}text")
+    assert text_nodes
+    assert min(float(node.attrib["font-size"]) for node in text_nodes) >= 12
+
+
 def _write_legacy_bundle(
     bundle: Path,
     current_spec: DesignSpec,
@@ -330,6 +338,7 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
 
     for payload in (candidate, balance, search_record):
         assert payload is not None
+        _assert_svg_text_is_legible(payload)
         root = ET.fromstring(payload)
         assert root.tag.endswith("svg")
         assert root.attrib["role"] == "img"

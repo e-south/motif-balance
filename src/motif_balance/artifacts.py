@@ -8,11 +8,13 @@ import io
 import json
 import math
 import os
+import secrets
 import shutil
 import stat
 import sys
 import tempfile
 from collections import defaultdict
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -59,6 +61,7 @@ def _publish_directory_no_replace(source: Path, destination: Path) -> None:
     if source.parent != destination.parent:
         raise OSError(errno.EXDEV, "publication directories must share one parent")
     parent_descriptor: int | None = None
+    source_descriptor: int | None = None
     try:
         flags = (
             os.O_RDONLY
@@ -74,10 +77,32 @@ def _publish_directory_no_replace(source: Path, destination: Path) -> None:
         )
         if not stat.S_ISDIR(source_stat.st_mode):
             raise OSError(errno.EINVAL, "publication source is not a directory")
+        source_descriptor = os.open(source.name, flags, dir_fd=parent_descriptor)
+        opened_source = os.fstat(source_descriptor)
+
+        def identity(metadata: os.stat_result) -> tuple[int, int, int]:
+            return (metadata.st_dev, metadata.st_ino, stat.S_IFMT(metadata.st_mode))
+
+        source_identity = identity(source_stat)
+        if identity(opened_source) != source_identity:
+            raise OSError(errno.EIO, "publication source changed before it was opened")
 
         library = ctypes.CDLL(None, use_errno=True)
         source_name = os.fsencode(source.name)
         destination_name = os.fsencode(destination.name)
+
+        def rename_no_replace(from_name: bytes, to_name: bytes) -> int:
+            ctypes.set_errno(0)
+            return int(
+                rename(
+                    parent_descriptor,
+                    from_name,
+                    parent_descriptor,
+                    to_name,
+                    rename_flag,
+                )
+            )
+
         if sys.platform == "darwin":
             rename = library.renameatx_np
             rename.argtypes = [
@@ -88,13 +113,7 @@ def _publish_directory_no_replace(source: Path, destination: Path) -> None:
                 ctypes.c_uint,
             ]
             rename.restype = ctypes.c_int
-            result = rename(
-                parent_descriptor,
-                source_name,
-                parent_descriptor,
-                destination_name,
-                0x00000004,  # RENAME_EXCL
-            )
+            rename_flag = 0x00000004  # RENAME_EXCL
         elif sys.platform.startswith("linux") and hasattr(library, "renameat2"):
             rename = library.renameat2
             rename.argtypes = [
@@ -105,22 +124,40 @@ def _publish_directory_no_replace(source: Path, destination: Path) -> None:
                 ctypes.c_uint,
             ]
             rename.restype = ctypes.c_int
-            result = rename(
-                parent_descriptor,
-                source_name,
-                parent_descriptor,
-                destination_name,
-                0x00000001,  # RENAME_NOREPLACE
-            )
+            rename_flag = 0x00000001  # RENAME_NOREPLACE
         else:
             raise OSError(
                 errno.ENOTSUP,
                 "atomic no-replace directory publication is unavailable",
             )
+        result = rename_no_replace(source_name, destination_name)
         if result != 0:
             error = ctypes.get_errno()
             raise OSError(error, os.strerror(error), destination)
+        published = os.stat(
+            destination.name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if (
+            identity(os.fstat(source_descriptor)) != source_identity
+            or identity(published) != source_identity
+        ):
+            quarantine_name = os.fsencode(f".{destination.name}.rejected-{secrets.token_hex(8)}")
+            quarantine_result = rename_no_replace(destination_name, quarantine_name)
+            if quarantine_result == 0:
+                quarantined = os.stat(
+                    os.fsdecode(quarantine_name),
+                    dir_fd=parent_descriptor,
+                    follow_symlinks=False,
+                )
+                if identity(quarantined) == identity(published):
+                    with suppress(OSError):
+                        os.rmdir(os.fsdecode(quarantine_name), dir_fd=parent_descriptor)
+            raise OSError(errno.EIO, "published directory identity changed during rename")
     finally:
+        if source_descriptor is not None:
+            os.close(source_descriptor)
         if parent_descriptor is not None:
             os.close(parent_descriptor)
 
