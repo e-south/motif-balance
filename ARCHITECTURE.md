@@ -39,7 +39,7 @@ verified artifacts.
 ## Layer direction
 
 ```text
-errors, constants, and model
+errors, constants, claim-language advisory, and model
   <- formats, compile, scoring, and admissibility
   <- search and selection
   <- api, artifacts, and observation
@@ -52,6 +52,9 @@ errors, constants, and model
   imports.
 - `constants.py` contains only shared literal constants and imports no other
   first-party layer.
+- `claim_language.py` is a pure, advanced wording-hazard seam for downstream
+  study and manuscript authors. It does not inspect evidence, search literature,
+  rewrite text, or accept claims, and it is absent from the top-level facade and CLI.
 - `formats/` parses external representations into strict models; it does not
   choose scientific policy.
 - `compile.py` normalizes a specification into evaluator-ready state.
