@@ -42,6 +42,7 @@ linked only where the next layer is useful.
 | Supported Python, CLI, and artifact seams | [Public contract](reference/public-contract.md) |
 | Attested execution workspace | [Execution workspaces](reference/execution-receipts.md) |
 | Unsupported interpretations and uses | [Limitations](limitations.md) |
+| Screen study or manuscript wording for known hazards | [Claim-language check](reference/claim-language.md) |
 | Product nouns and semantic authorities | [Information architecture](../IA.md) |
 | Module ownership and dependencies | [Architecture](../ARCHITECTURE.md) |
 | Invariants and change rules | [Engineering contracts](../DESIGN.md) |
