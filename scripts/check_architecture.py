@@ -88,13 +88,9 @@ def _source_layer(relative_path: Path) -> str | None:
     """Return the declared layer for one package source path."""
     if relative_path == Path("__init__.py"):
         return None
-    if relative_path.parts[0] in {"formats", "inspection"}:
-        return relative_path.parts[0]
-    if len(relative_path.parts) != 1:
-        raise ValueError(f"unknown first-party package path {relative_path.as_posix()!r}")
-    layer = relative_path.stem
+    layer = relative_path.parts[0] if len(relative_path.parts) > 1 else relative_path.stem
     if layer not in KNOWN_LAYERS:
-        raise ValueError(f"unknown first-party module {relative_path.name!r}")
+        raise ValueError(f"unknown first-party layer {layer!r}")
     return layer
 
 
