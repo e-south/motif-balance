@@ -42,6 +42,9 @@ from motif_balance.inspection.render import (
     render_search_svg,
     render_text,
 )
+from motif_balance.inspection.render.information_logo import (
+    render_coordinate_aligned_information_logo,
+)
 from motif_balance.model import (
     ArtifactDigest,
     Candidate,
@@ -355,10 +358,10 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
     assert b'id="primary-sequence"' in candidate
     assert b'id="complementary-sequence"' in candidate
     assert b'id="motif-models"' in candidate
-    assert b'class="motif-model"' in candidate
+    assert b'class="motif-information-logo"' in candidate
     assert b"data-model-digest=" in candidate
     assert b'data-probability="0.69999999999999996"' in candidate
-    assert b'data-display-convention="fixed-glyph-probability-strip"' in candidate
+    assert b'data-display-convention="coordinate-aligned-information-logo"' in candidate
     _assert_candidate_text_is_legible(candidate)
     assert b'id="position-support"' in candidate
     assert "5\u2032\u21923\u2032".encode() in candidate
@@ -499,6 +502,125 @@ def test_realistic_width_overlapping_both_strand_fixture_is_legible(
     payload = render_candidate_svg(inspection)
     _assert_candidate_text_is_legible(payload)
     assert b"Shared-coordinate union: 8 positions" in payload
+
+    root = ET.fromstring(payload)
+    namespace = "{http://www.w3.org/2000/svg}"
+    logos = root.findall(f".//{namespace}g[@class='motif-information-logo']")
+    assert len(logos) == 2
+    by_strand = {logo.attrib["data-match-strand"]: logo for logo in logos}
+    assert set(by_strand) == {"+", "-"}
+    assert by_strand["+"].attrib["data-duplex-side"] == "primary"
+    assert by_strand["-"].attrib["data-duplex-side"] == "complement"
+
+    forward_columns = by_strand["+"].findall(f"{namespace}g[@class='information-logo-column']")
+    reverse_columns = by_strand["-"].findall(f"{namespace}g[@class='information-logo-column']")
+    assert [int(column.attrib["data-candidate-position"]) for column in forward_columns] == list(
+        range(8)
+    )
+    assert [int(column.attrib["data-candidate-position"]) for column in reverse_columns] == list(
+        reversed(range(8))
+    )
+    assert [int(column.attrib["data-motif-position"]) for column in reverse_columns] == list(
+        range(8)
+    )
+
+    for logo in logos:
+        columns = logo.findall(f"{namespace}g[@class='information-logo-column']")
+        motif_color = logo.attrib["data-motif-color"]
+        duplex_sequence = (
+            candidate.sequence
+            if logo.attrib["data-duplex-side"] == "primary"
+            else candidate.complement_sequence
+        )
+        for column in columns:
+            assert 0.0 <= float(column.attrib["data-information-bits"]) <= 2.0
+            letters = column.findall(f"{namespace}text[@class='information-logo-letter']")
+            assert len(letters) == 4
+            observed = [letter for letter in letters if letter.attrib["data-observed"] == "true"]
+            alternatives = [
+                letter for letter in letters if letter.attrib["data-observed"] == "false"
+            ]
+            assert len(observed) == 1
+            candidate_position = int(column.attrib["data-candidate-position"])
+            assert observed[0].text == duplex_sequence[candidate_position]
+            assert observed[0].attrib["fill"] == motif_color
+            assert {letter.attrib["fill"] for letter in alternatives} == {"#D1D5DB"}
+
+        motif_id = logo.attrib["data-motif-id"]
+        match_group = root.find(
+            f".//{namespace}g[@class='motif-match'][@data-motif-id='{motif_id}']"
+        )
+        support_row = root.find(
+            f".//{namespace}g[@class='position-support-row'][@data-motif-id='{motif_id}']"
+        )
+        assert match_group is not None
+        assert support_row is not None
+        assert match_group.attrib["data-motif-color"] == motif_color
+        assert support_row.attrib["data-motif-color"] == motif_color
+        assert match_group.find(f"{namespace}rect").attrib["stroke"] == motif_color
+        assert support_row.find(f"{namespace}line").attrib["stroke"] == motif_color
+
+    limiting = root.findall(
+        f".//{namespace}g[@class='motif-information-logo'][@data-limiting='true']"
+    )
+    assert limiting
+    assert all(
+        logo.find(f"{namespace}path[@class='limiting-marker']") is not None for logo in limiting
+    )
+    assert root.find(f".//{namespace}g[@id='position-support']") is not None
+
+
+def test_information_logo_fails_clearly_for_nonuniform_scoring_background(
+    tmp_path: Path,
+) -> None:
+    motif = MotifModel(
+        motif_id="nonuniform",
+        probabilities=((0.7, 0.1, 0.1, 0.1),),
+        background=(0.4, 0.3, 0.2, 0.1),
+    )
+    spec = DesignSpec(
+        motifs=(motif,),
+        length=1,
+        count=1,
+        strands="forward",
+        evaluations=4,
+        seed=3,
+    )
+    bundle = tmp_path / "nonuniform"
+    design(spec).write(bundle)
+    inspection = inspect_result(bundle, kind="bundle")
+
+    assert render_text(inspection)
+    assert render_inspection_json(inspection)
+    with pytest.raises(ArtifactError, match="information logo requires uniform background"):
+        render_candidate_svg(inspection)
+
+
+def test_avoider_information_logo_requires_its_declared_ceiling(
+    tmp_path: Path,
+    pairwise_spec: DesignSpec,
+) -> None:
+    bundle = tmp_path / "bundle"
+    design(pairwise_spec).write(bundle)
+    inspection = inspect_result(bundle, kind="bundle")
+    motif = inspection.problem.motifs[0]
+    match = next(
+        item
+        for item in inspection.portfolio.candidates[0].matches
+        if item.motif_id == motif.motif_id
+    )
+
+    with pytest.raises(ArtifactError, match="avoider information logo requires a score ceiling"):
+        render_coordinate_aligned_information_logo(
+            motif,
+            match,
+            top=0,
+            left=200,
+            cell=44,
+            limiting=False,
+            avoider=True,
+            score_ceiling=None,
+        )
 
 
 def test_long_candidate_review_preserves_horizontal_reading_width(

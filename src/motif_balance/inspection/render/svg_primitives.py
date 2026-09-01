@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 from html import escape
 
@@ -19,6 +20,17 @@ SHARED = "#F3D9A6"
 
 _DOMAIN_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
 _CANDIDATE_ID = re.compile(r"^candidate-[0-9a-f]{16}$")
+_MOTIF_PALETTE = (
+    "#4477AA",
+    "#EE6677",
+    "#228833",
+    "#CCBB44",
+    "#66CCEE",
+    "#AA3377",
+    "#EE7733",
+    "#009988",
+    "#CC3311",
+)
 
 
 def safe_text(value: object) -> str:
@@ -29,6 +41,14 @@ def motif_id(value: str) -> str:
     if not _DOMAIN_ID.fullmatch(value):
         raise ArtifactError("derived visualization encountered an invalid motif identifier")
     return safe_text(value)
+
+
+def motif_color(value: str) -> str:
+    """Return one stable categorical color for a validated motif identifier."""
+
+    motif_id(value)
+    index = int.from_bytes(hashlib.sha256(value.encode("utf-8")).digest()[:2], "big")
+    return _MOTIF_PALETTE[index % len(_MOTIF_PALETTE)]
 
 
 def candidate_id(value: str) -> str:
