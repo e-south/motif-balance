@@ -88,13 +88,9 @@ def _source_layer(relative_path: Path) -> str | None:
     """Return the declared layer for one package source path."""
     if relative_path == Path("__init__.py"):
         return None
-    if relative_path.parts[0] in {"formats", "inspection"}:
-        return relative_path.parts[0]
-    if len(relative_path.parts) != 1:
-        raise ValueError(f"unknown first-party package path {relative_path.as_posix()!r}")
-    layer = relative_path.stem
+    layer = relative_path.parts[0] if len(relative_path.parts) > 1 else relative_path.stem
     if layer not in KNOWN_LAYERS:
-        raise ValueError(f"unknown first-party module {relative_path.name!r}")
+        raise ValueError(f"unknown first-party layer {layer!r}")
     return layer
 
 
@@ -162,7 +158,11 @@ def inspection_boundary_violations(
             for module in sorted(modules)
             if not any(module == prefix or module.startswith(prefix + ".") for prefix in allowed)
         ]
-    if relative_path == Path("inspection/project.py"):
+    is_projector = relative_path == Path("inspection/project.py") or relative_path.parts[:2] == (
+        "inspection",
+        "project",
+    )
+    if is_projector:
         return [
             f"{relative_path}:{node.lineno}: inspection projector must not import {module!r}"
             for module in sorted(modules)

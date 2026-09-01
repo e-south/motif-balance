@@ -26,6 +26,25 @@ def test_candidate_renderer_consumes_the_verified_result_inspection(
     assert portfolio.manifest.bundle_id not in svg
 
 
+def test_candidate_facade_preserves_the_semantic_section_renderer_bytes(
+    tmp_path: Path,
+    pairwise_spec: DesignSpec,
+) -> None:
+    from motif_balance.inspection.render.candidate_sections import (
+        render_candidate_projection_svg,
+    )
+
+    bundle = tmp_path / "bundle"
+    design(pairwise_spec).write(bundle)
+    inspection = inspect_result(bundle, kind="bundle")
+    candidate = inspection.portfolio.candidates[0]
+
+    assert render_candidate_svg(inspection, candidate_rank=1) == render_candidate_projection_svg(
+        inspection.problem,
+        candidate,
+    )
+
+
 def test_candidate_renderer_has_no_unbound_problem_candidate_entrypoint() -> None:
     with pytest.raises(ImportError):
         exec(

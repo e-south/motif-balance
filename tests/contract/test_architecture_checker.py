@@ -42,6 +42,38 @@ def test_projection_cannot_depend_on_renderers() -> None:
     assert any("inspection projector" in error and "render" in error for error in errors)
 
 
+def test_nested_projection_modules_cannot_depend_on_renderers() -> None:
+    checker = _checker()
+
+    errors = checker.violations_for_source(
+        Path("inspection/project/helpers.py"),
+        "from motif_balance.inspection.render import render_html\n",
+    )
+
+    assert any("inspection projector" in error and "render" in error for error in errors)
+
+
+def test_nested_modules_inherit_their_declared_top_level_layer() -> None:
+    checker = _checker()
+
+    allowed = checker.violations_for_source(
+        Path("search/proposals/local.py"),
+        "from motif_balance.scoring import evaluate\n",
+    )
+    inverted = checker.violations_for_source(
+        Path("search/proposals/local.py"),
+        "from motif_balance.cli import main\n",
+    )
+    unknown = checker.violations_for_source(
+        Path("unknown/helpers.py"),
+        "from motif_balance.model import Candidate\n",
+    )
+
+    assert allowed == []
+    assert any("layer 'search' must not import 'cli'" in error for error in inverted)
+    assert any("unknown first-party" in error and "unknown" in error for error in unknown)
+
+
 def test_repository_owned_paths_ignore_cache_residue_but_keep_new_source(tmp_path: Path) -> None:
     checker = _checker()
     subprocess.run(("git", "init", "-q", str(tmp_path)), check=True)

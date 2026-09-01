@@ -89,6 +89,11 @@ errors, constants, claim-language advisory, and model
 - `inspection/render/` turns only that projection into text, JSON, SVG, or one
   self-contained HTML composition. It cannot read artifacts, search, rescore,
   discover stores, compare cohorts, or accept evidence.
+  The candidate renderer keeps `render/candidate.py` as its stable facade and
+  separates verified candidate selection, deterministic layout, positional
+  support, and SVG-section composition into candidate-named internal modules.
+  These modules consume only `ResultInspection` records and do not add a scene
+  graph, renderer registry, or second scoring authority.
 - `cli.py` adapts files and arguments to the public facade and contains no
   derivations.
 
