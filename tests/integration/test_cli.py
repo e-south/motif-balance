@@ -204,7 +204,15 @@ def test_candidate_svg_receipt_is_deterministic_and_replays_candidate_identity(
     )
     implementation = hashlib.sha256()
     package = resources.files("motif_balance.inspection.render")
-    for name in ("candidate.py", "information_logo.py", "svg_primitives.py"):
+    for name in (
+        "candidate.py",
+        "candidate_layout.py",
+        "candidate_projection.py",
+        "candidate_sections.py",
+        "candidate_support.py",
+        "information_logo.py",
+        "svg_primitives.py",
+    ):
         source = package.joinpath(name).read_bytes()
         encoded_name = name.encode("ascii")
         implementation.update(len(encoded_name).to_bytes(2, "big"))

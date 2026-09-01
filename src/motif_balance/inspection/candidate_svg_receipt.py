@@ -11,7 +11,15 @@ from .model import InspectionCandidate, ResultInspection
 from .render import render_candidate_svg
 
 CANDIDATE_SVG_RENDERER_IDENTITY = "motif-balance.candidate-information-logo-svg/v1"
-_RENDERER_MODULES = ("candidate.py", "information_logo.py", "svg_primitives.py")
+_RENDERER_MODULES = (
+    "candidate.py",
+    "candidate_layout.py",
+    "candidate_projection.py",
+    "candidate_sections.py",
+    "candidate_support.py",
+    "information_logo.py",
+    "svg_primitives.py",
+)
 
 
 def _canonical_json(value: object) -> bytes:
