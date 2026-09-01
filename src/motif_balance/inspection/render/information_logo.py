@@ -109,8 +109,8 @@ def render_coordinate_aligned_information_logo(
             size=12,
             fill=MUTED,
         ),
-        f'<line x1="{left}" y1="{logo_bottom}" '
-        f'x2="{left + cell * max(match.end, 1)}" y2="{logo_bottom}" '
+        f'<line class="information-logo-baseline" x1="{match_left:.3f}" y1="{logo_bottom}" '
+        f'x2="{match_left + match_width:.3f}" y2="{logo_bottom}" '
         f'stroke="{INK}" stroke-width="1"/>',
     ]
     for support in match.position_support:

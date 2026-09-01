@@ -33,7 +33,7 @@ from motif_balance.inspection.model import (
     IntegrityInspection,
     SearchInspection,
 )
-from motif_balance.inspection.project import project_candidate
+from motif_balance.inspection.project import project_candidate, project_problem
 from motif_balance.inspection.render import (
     render_candidate_svg,
     render_html,
@@ -621,6 +621,38 @@ def test_avoider_information_logo_requires_its_declared_ceiling(
             avoider=True,
             score_ceiling=None,
         )
+
+
+def test_information_logo_baseline_is_locked_to_a_nonzero_match_span() -> None:
+    motif = _motif_for_word("offset", "AC")
+    spec = DesignSpec(
+        motifs=(motif,),
+        length=4,
+        count=1,
+        strands="forward",
+        evaluations=16,
+        seed=3,
+    )
+    candidate = project_candidate(spec, _candidate_for("TTAC", spec))
+    match = candidate.matches[0]
+    assert (match.start, match.end) == (2, 4)
+
+    fragment = render_coordinate_aligned_information_logo(
+        project_problem(spec).motifs[0],
+        match,
+        top=0,
+        left=210,
+        cell=44,
+        limiting=False,
+        avoider=False,
+        score_ceiling=None,
+    )
+    root = ET.fromstring(fragment)
+    baseline = root.find(".//line[@class='information-logo-baseline']")
+
+    assert baseline is not None
+    assert baseline.attrib["x1"] == "298.000"
+    assert baseline.attrib["x2"] == "386.000"
 
 
 def test_long_candidate_review_preserves_horizontal_reading_width(
