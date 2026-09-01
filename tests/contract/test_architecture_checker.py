@@ -42,6 +42,17 @@ def test_projection_cannot_depend_on_renderers() -> None:
     assert any("inspection projector" in error and "render" in error for error in errors)
 
 
+def test_nested_projection_modules_cannot_depend_on_renderers() -> None:
+    checker = _checker()
+
+    errors = checker.violations_for_source(
+        Path("inspection/project/helpers.py"),
+        "from motif_balance.inspection.render import render_html\n",
+    )
+
+    assert any("inspection projector" in error and "render" in error for error in errors)
+
+
 def test_nested_modules_inherit_their_declared_top_level_layer() -> None:
     checker = _checker()
 

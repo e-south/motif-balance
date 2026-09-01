@@ -158,7 +158,11 @@ def inspection_boundary_violations(
             for module in sorted(modules)
             if not any(module == prefix or module.startswith(prefix + ".") for prefix in allowed)
         ]
-    if relative_path == Path("inspection/project.py"):
+    is_projector = relative_path == Path("inspection/project.py") or relative_path.parts[:2] == (
+        "inspection",
+        "project",
+    )
+    if is_projector:
         return [
             f"{relative_path}:{node.lineno}: inspection projector must not import {module!r}"
             for module in sorted(modules)
