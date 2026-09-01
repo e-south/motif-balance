@@ -8,7 +8,7 @@ audience:
   - downstream integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-29
+last_verified: 2026-08-31
 doc_type: reference
 journey:
   - inspect
@@ -35,7 +35,8 @@ motif-balance inspect result/ --format json
 # One vector computational review artifact.
 motif-balance inspect result/ \
   --format svg --view candidate --candidate 3 \
-  --out candidate-003.svg
+  --out candidate-003.svg \
+  --receipt-out candidate-003.receipt.json
 motif-balance inspect result/ \
   --format svg --view portfolio --out portfolio.svg
 motif-balance inspect result/ \
@@ -49,6 +50,14 @@ HTML and SVG require a new output path outside the inspected result. They are
 script-free, self-contained, and use no remote resource. SVG text remains text,
 dimensions and `viewBox` are explicit, and semantic group IDs support later
 Inkscape composition.
+
+`--receipt-out` is optional and valid only for a candidate SVG written with
+`--out`. Its deterministic sidecar binds the exact emitted SVG digest to the
+verified bundle, selected candidate and match-projection digests, source-result
+package version, current renderer package version, and a digest of the exact
+renderer module bytes. Execution inspection also records the verified release
+identity. The sidecar is derived review custody; it does not enter or change the
+canonical result bundle.
 
 ## Reading order
 
@@ -70,17 +79,25 @@ For current bundles the portfolio view reports whether that sequence is a
 selected member and at which rank. Older readable bundles may provide only its
 recorded hard score when the sequence was never serialized.
 
-The candidate view shows each supplied motif as a fixed-size A/C/G/T glyph
-strip whose bar lengths encode the supplied probabilities, maps it to its
-selected match, and shows the
-supplied sequence 5′→3′ and its coordinate-aligned complement 3′→5′. Forward
-matches appear above the primary strand and reverse matches below the
-complement. Position-support cells are the observed-base log-likelihood
-contributions replayed by scoring; renderers do not rescan a motif or recompute
-a score. The linear HTML also provides the exact bounded motif-probability
-matrix as an accessible table; the glyph strip is an explanatory encoding, not
-a substitute for those numeric values. Shared coordinates are a union of positions covered by more than one
-representative window, not evidence of simultaneous occupancy.
+For uniform-background models, the candidate view shows each supplied motif as
+a coordinate-aligned 0–2 bit information logo over its selected match and shows
+the supplied sequence 5′→3′ with its coordinate-aligned complement 3′→5′.
+The observed base in each logo column uses the motif's categorical color;
+unobserved alternatives remain gray. Forward logos and matches appear above the
+primary strand and reverse logos and matches below the complement. Limiting
+motifs use an explicit bracket and label, while avoiders use a dashed outline
+and display their ceiling, so neither state depends on color alone.
+
+Position-support cells remain a separate encoding of the observed-base signed
+log-likelihood contributions replayed by scoring. Renderers use the projected
+matrix, coordinates, strand, and support records; they do not rescan a motif or
+recompute a score. Candidate SVG export fails clearly for a nonuniform scoring
+background because a 0–2 bit logo would imply the uniform-background convention;
+text and JSON inspection remain available. The linear HTML also provides the
+exact bounded motif-probability matrix as an accessible table; the logo is an
+explanatory encoding, not a substitute for those numeric values. Shared
+coordinates are a union of positions covered by more than one representative
+window, not evidence of simultaneous occupancy.
 
 Constraint-bearing results display avoider matches on separate lanes with
 their ceilings and feasibility state. The portfolio remains ranked by target

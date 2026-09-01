@@ -5,12 +5,19 @@ import hashlib
 import json
 import struct
 import zipfile
+from importlib import resources
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 import motif_balance
 from motif_balance.cli import app
+from motif_balance.constants import PACKAGE_VERSION
+from motif_balance.errors import ArtifactError
+from motif_balance.inspection import inspect_result
+from motif_balance.inspection.candidate_svg_receipt import render_candidate_svg_receipt
+from motif_balance.inspection.model import InspectionMatch
 
 runner = CliRunner()
 
@@ -44,9 +51,9 @@ def _write_runtime_equivalent_wheel(path: Path) -> None:
         entries[f"motif_balance/{source.relative_to(package_root).as_posix()}"] = (
             source.read_bytes()
         )
-    dist_info = "motif_balance-0.4.0a7.dist-info/"
+    dist_info = "motif_balance-0.4.0a8.dist-info/"
     entries[f"{dist_info}METADATA"] = (
-        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a7\n"
+        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.4.0a8\n"
     )
     entries[f"{dist_info}WHEEL"] = b"Wheel-Version: 1.0\n"
     entries[f"{dist_info}entry_points.txt"] = (
@@ -92,6 +99,7 @@ def test_cli_scores_one_sequence_and_exports_one_candidate_svg(tmp_path: Path) -
     spec = tmp_path / "design.yaml"
     bundle = tmp_path / "result"
     candidate_svg = tmp_path / "candidate.svg"
+    candidate_receipt = tmp_path / "candidate-receipt.json"
     spec.write_text(_DESIGN)
 
     scored = runner.invoke(app, ["score", str(spec), "AG"])
@@ -109,6 +117,8 @@ def test_cli_scores_one_sequence_and_exports_one_candidate_svg(tmp_path: Path) -
             "2",
             "--out",
             str(candidate_svg),
+            "--receipt-out",
+            str(candidate_receipt),
         ],
     )
 
@@ -120,6 +130,223 @@ def test_cli_scores_one_sequence_and_exports_one_candidate_svg(tmp_path: Path) -
     assert "Result written to" in designed.stdout
     assert rendered.exit_code == 0
     assert b'id="candidate-realization-view"' in candidate_svg.read_bytes()
+    receipt = json.loads(candidate_receipt.read_bytes())
+    assert receipt["schema_version"] == "motif-balance.candidate-svg-receipt/v1"
+    assert receipt["candidate"]["rank"] == 2
+    assert receipt["svg_sha256"] == hashlib.sha256(candidate_svg.read_bytes()).hexdigest()
+    assert receipt["renderer_identity"] == "motif-balance.candidate-information-logo-svg/v1"
+    assert receipt["renderer_package_version"] == PACKAGE_VERSION
+    assert receipt["subject"]["kind"] == "bundle"
+    assert receipt["subject"]["trust_basis"] == "self_consistent"
+    assert receipt["execution_release"] is None
+
+
+def test_candidate_svg_receipt_is_deterministic_and_replays_candidate_identity(
+    tmp_path: Path,
+) -> None:
+    spec = tmp_path / "design.yaml"
+    spec.write_text(_DESIGN)
+    receipts: list[bytes] = []
+    svgs: list[bytes] = []
+
+    for index in range(2):
+        bundle = tmp_path / f"result-{index}"
+        svg = tmp_path / f"candidate-{index}.svg"
+        receipt = tmp_path / f"candidate-{index}.json"
+        assert runner.invoke(app, ["design", str(spec), "--out", str(bundle)]).exit_code == 0
+        rendered = runner.invoke(
+            app,
+            [
+                "inspect",
+                str(bundle),
+                "--format",
+                "svg",
+                "--view",
+                "candidate",
+                "--out",
+                str(svg),
+                "--receipt-out",
+                str(receipt),
+            ],
+        )
+        assert rendered.exit_code == 0
+        receipts.append(receipt.read_bytes())
+        svgs.append(svg.read_bytes())
+
+    assert receipts[0] == receipts[1]
+    assert svgs[0] == svgs[1]
+    payload = json.loads(receipts[0])
+    assert payload["bundle_id"].startswith("bundle-")
+    assert payload["problem_id"].startswith("problem-")
+    assert payload["candidate"]["candidate_id"].startswith("candidate-")
+    assert len(payload["candidate"]["target_match_projection_sha256"]) == 64
+    assert len(payload["candidate"]["avoider_match_projection_sha256"]) == 64
+    inspection = inspect_result(tmp_path / "result-0", kind="bundle")
+    candidate = inspection.portfolio.candidates[0]
+
+    def projection_digest(matches: tuple[InspectionMatch, ...], role: str) -> str:
+        projection = tuple({"role": role, **match.model_dump(mode="json")} for match in matches)
+        canonical = json.dumps(
+            projection,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode()
+        return hashlib.sha256(canonical).hexdigest()
+
+    assert payload["candidate"]["target_match_projection_sha256"] == projection_digest(
+        candidate.matches,
+        "target",
+    )
+    assert payload["candidate"]["avoider_match_projection_sha256"] == projection_digest(
+        candidate.avoidance_matches,
+        "avoider",
+    )
+    implementation = hashlib.sha256()
+    package = resources.files("motif_balance.inspection.render")
+    for name in ("candidate.py", "information_logo.py", "svg_primitives.py"):
+        source = package.joinpath(name).read_bytes()
+        encoded_name = name.encode("ascii")
+        implementation.update(len(encoded_name).to_bytes(2, "big"))
+        implementation.update(encoded_name)
+        implementation.update(len(source).to_bytes(8, "big"))
+        implementation.update(source)
+    assert payload["renderer_implementation_sha256"] == implementation.hexdigest()
+
+
+def test_candidate_svg_receipt_rejects_noncanonical_svg_bytes(tmp_path: Path) -> None:
+    spec = tmp_path / "design.yaml"
+    bundle = tmp_path / "result"
+    spec.write_text(_DESIGN)
+    assert runner.invoke(app, ["design", str(spec), "--out", str(bundle)]).exit_code == 0
+    inspection = inspect_result(bundle, kind="bundle")
+
+    with pytest.raises(ArtifactError, match="canonical candidate renderer output"):
+        render_candidate_svg_receipt(
+            inspection,
+            candidate_rank=1,
+            svg=b"<svg>not the canonical candidate render</svg>",
+        )
+
+
+def test_candidate_svg_receipt_rejects_non_candidate_or_missing_output_contracts(
+    tmp_path: Path,
+) -> None:
+    spec = tmp_path / "design.yaml"
+    bundle = tmp_path / "result"
+    spec.write_text(_DESIGN)
+    assert runner.invoke(app, ["design", str(spec), "--out", str(bundle)]).exit_code == 0
+
+    invalid_commands = (
+        ["inspect", str(bundle), "--receipt-out", str(tmp_path / "text.json")],
+        [
+            "inspect",
+            str(bundle),
+            "--format",
+            "svg",
+            "--view",
+            "portfolio",
+            "--out",
+            str(tmp_path / "portfolio.svg"),
+            "--receipt-out",
+            str(tmp_path / "portfolio.json"),
+        ],
+        [
+            "inspect",
+            str(bundle),
+            "--format",
+            "svg",
+            "--view",
+            "candidate",
+            "--receipt-out",
+            str(tmp_path / "missing-output.json"),
+        ],
+    )
+    for command in invalid_commands:
+        result = runner.invoke(app, command)
+        assert result.exit_code == 2
+        assert "--receipt-out is valid only with candidate SVG --out" in result.stderr
+
+
+def test_candidate_svg_receipt_must_not_replace_or_alias_output(tmp_path: Path) -> None:
+    spec = tmp_path / "design.yaml"
+    bundle = tmp_path / "result"
+    output = tmp_path / "candidate.svg"
+    spec.write_text(_DESIGN)
+    assert runner.invoke(app, ["design", str(spec), "--out", str(bundle)]).exit_code == 0
+
+    aliased = runner.invoke(
+        app,
+        [
+            "inspect",
+            str(bundle),
+            "--format",
+            "svg",
+            "--view",
+            "candidate",
+            "--out",
+            str(output),
+            "--receipt-out",
+            str(output),
+        ],
+    )
+    assert aliased.exit_code == 2
+    assert "must use distinct paths" in aliased.stderr
+    assert not output.exists()
+
+    receipt = tmp_path / "candidate.json"
+    receipt.write_text("existing\n")
+    blocked = runner.invoke(
+        app,
+        [
+            "inspect",
+            str(bundle),
+            "--format",
+            "svg",
+            "--view",
+            "candidate",
+            "--out",
+            str(output),
+            "--receipt-out",
+            str(receipt),
+        ],
+    )
+    assert blocked.exit_code == 2
+    assert "Refusing to replace existing inspection output" in blocked.stderr
+    assert not output.exists()
+    assert receipt.read_text() == "existing\n"
+
+
+def test_candidate_svg_and_receipt_are_not_stranded_when_pair_publication_fails(
+    tmp_path: Path,
+) -> None:
+    spec = tmp_path / "design.yaml"
+    bundle = tmp_path / "result"
+    output = tmp_path / "candidate.svg"
+    receipt = tmp_path / "missing" / "candidate.json"
+    spec.write_text(_DESIGN)
+    assert runner.invoke(app, ["design", str(spec), "--out", str(bundle)]).exit_code == 0
+
+    result = runner.invoke(
+        app,
+        [
+            "inspect",
+            str(bundle),
+            "--format",
+            "svg",
+            "--view",
+            "candidate",
+            "--out",
+            str(output),
+            "--receipt-out",
+            str(receipt),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "Unable to write the candidate SVG publication pair" in result.stderr
+    assert not output.exists()
+    assert not receipt.exists()
 
 
 def test_cli_check_compiles_without_search_or_output(tmp_path: Path) -> None:
@@ -404,7 +631,7 @@ def test_cli_convert_motif_sanitizes_an_unwritable_destination(tmp_path: Path) -
 def test_cli_executes_and_verifies_an_atomic_execution_workspace(tmp_path: Path) -> None:
     spec = tmp_path / "design.yaml"
     workspace = tmp_path / "execution"
-    release = tmp_path / "motif_balance-0.4.0a7-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a8-py3-none-any.whl"
     spec.write_text(_DESIGN)
     _write_runtime_equivalent_wheel(release)
 
@@ -457,13 +684,51 @@ def test_cli_executes_and_verifies_an_atomic_execution_workspace(tmp_path: Path)
     assert index["workspace_id"] in verified.stdout
     assert "integrity externally verified" in verified.stdout
 
+    candidate_svg = tmp_path / "execution-candidate.svg"
+    candidate_receipt = tmp_path / "execution-candidate-receipt.json"
+    rendered = runner.invoke(
+        app,
+        [
+            "inspect",
+            str(workspace),
+            "--source",
+            "execution",
+            "--format",
+            "svg",
+            "--view",
+            "candidate",
+            "--out",
+            str(candidate_svg),
+            "--receipt-out",
+            str(candidate_receipt),
+            "--expected-workspace-id",
+            index["workspace_id"],
+            "--expected-receipt-sha256",
+            index["receipt"]["sha256"],
+            "--expected-release-sha256",
+            hashlib.sha256(release.read_bytes()).hexdigest(),
+            "--expected-producer-revision",
+            "a" * 40,
+        ],
+    )
+    assert rendered.exit_code == 0
+    svg_receipt = json.loads(candidate_receipt.read_bytes())
+    assert svg_receipt["subject"]["trust_basis"] == "external_execution_identities"
+    assert svg_receipt["execution_release"] == {
+        "workspace_id": index["workspace_id"],
+        "producer_revision": "a" * 40,
+        "release_artifact_name": release.name,
+        "release_artifact_sha256": hashlib.sha256(release.read_bytes()).hexdigest(),
+        "receipt_sha256": index["receipt"]["sha256"],
+    }
+
 
 def test_cli_rejects_a_wheel_with_a_corrupt_member_without_a_traceback(
     tmp_path: Path,
 ) -> None:
     spec = tmp_path / "design.yaml"
     workspace = tmp_path / "execution"
-    release = tmp_path / "motif_balance-0.4.0a7-py3-none-any.whl"
+    release = tmp_path / "motif_balance-0.4.0a8-py3-none-any.whl"
     spec.write_text(_DESIGN)
     _write_runtime_equivalent_wheel(release)
     _corrupt_stored_wheel_member(release, "motif_balance/__init__.py")

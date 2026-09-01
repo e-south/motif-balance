@@ -23,7 +23,7 @@ motif-balance design examples/production-pairwise/design.yaml --check
 motif-balance design examples/production-pairwise/design.yaml --out result
 motif-balance inspect result
 motif-balance orchestration execute examples/production-pairwise/design.yaml \
-  --release-artifact dist/motif_balance-0.4.0a7-py3-none-any.whl \
+  --release-artifact dist/motif_balance-0.4.0a8-py3-none-any.whl \
   --producer-revision <40-character-release-commit> \
   --out execution-workspace
 ```
