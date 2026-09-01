@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import math
+
 from motif_balance.errors import ArtifactError
 
 from ..limits import MAX_SVG_MATCHES
-from ..model import InspectionCandidate, InspectionMatch, InspectionMotif, ResultInspection
+from ..model import InspectionCandidate, InspectionMatch, InspectionProblem, ResultInspection
+from .information_logo import render_coordinate_aligned_information_logo
 from .svg_primitives import (
-    ACCENT,
     INK,
-    LINE,
     MUTED,
     NEGATIVE,
     PAPER,
@@ -15,15 +16,16 @@ from .svg_primitives import (
     SHARED,
     candidate_id,
     finish_svg,
+    motif_color,
     motif_id,
     safe_text,
     svg_start,
     text,
 )
 
-_BASE_COLORS = {"A": "#1B7F5A", "C": "#315F9E", "G": "#B7791F", "T": "#B64A3A"}
 _MONOSPACE_CHARACTER_WIDTH = 8
 _CELL_HORIZONTAL_PADDING = 12
+_BASE_INDEX = {base: index for index, base in enumerate("ACGT")}
 
 
 def _support_label(value: float) -> str:
@@ -68,6 +70,50 @@ def _shown_matches(candidate: InspectionCandidate) -> tuple[InspectionMatch, ...
     return ordered[:MAX_SVG_MATCHES]
 
 
+def _validate_candidate_projection(
+    problem: InspectionProblem,
+    candidate: InspectionCandidate,
+) -> None:
+    target_ids = {motif.motif_id for motif in problem.motifs}
+    avoider_ids = {motif.motif_id for motif in problem.avoiders}
+    if (
+        len(candidate.sequence) != problem.length
+        or {match.motif_id for match in candidate.matches} != target_ids
+        or {match.motif_id for match in candidate.avoidance_matches} != avoider_ids
+    ):
+        raise ArtifactError("candidate render projection does not match its problem")
+    motifs_by_id = {motif.motif_id: motif for motif in (*problem.motifs, *problem.avoiders)}
+    for match in (*candidate.matches, *candidate.avoidance_matches):
+        motif = motifs_by_id[match.motif_id]
+        if match.end - match.start != motif.width:
+            raise ArtifactError("candidate render projection does not match its problem")
+        for support in match.position_support:
+            base_index = _BASE_INDEX[support.observed_base]
+            expected_base = (
+                candidate.sequence[support.candidate_position]
+                if match.strand == "+"
+                else candidate.complement_sequence[support.candidate_position]
+            )
+            expected_probability = motif.probabilities[support.motif_position][base_index]
+            expected_background = motif.background[base_index]
+            if (
+                support.observed_base != expected_base
+                or not math.isclose(
+                    support.model_probability,
+                    expected_probability,
+                    rel_tol=0.0,
+                    abs_tol=1.0e-12,
+                )
+                or not math.isclose(
+                    support.background_probability,
+                    expected_background,
+                    rel_tol=0.0,
+                    abs_tol=1.0e-12,
+                )
+            ):
+                raise ArtifactError("candidate render projection does not match its problem")
+
+
 def _match_lane(
     match: InspectionMatch,
     *,
@@ -88,7 +134,7 @@ def _match_lane(
     else:
         y = complement_y + 10 + lane * 30
         label_y = y + 30
-    color = NEGATIVE if avoider else ACCENT if limiting else POSITIVE
+    color = motif_color(match.motif_id)
     ceiling_label = (
         f" · ceiling {score_ceiling:.6g}" if avoider and score_ceiling is not None else ""
     )
@@ -102,92 +148,31 @@ def _match_lane(
         else ""
     )
     role_attribute = 'data-role="avoider" ' if avoider else ""
+    limiting_attribute = f'data-limiting="{str(limiting).lower()}" '
+    dash_attribute = 'stroke-dasharray="6 4" ' if avoider else ""
+    limiting_label = " · LIMITING" if limiting else ""
+    match_label = text(
+        x,
+        label_y,
+        label + limiting_label,
+        size=12,
+        fill=INK,
+        family="ui-monospace,monospace",
+    )
     return (
         f'<g class="motif-match" data-motif-id="{motif_id(match.motif_id)}" '
+        f'data-motif-color="{color}" '
         f"{role_attribute}"
+        f"{limiting_attribute}"
         f"{ceiling_attribute}"
         f'data-start="{match.start}" data-end="{match.end}" data-strand="{match.strand}">'
         f'<rect x="{x}" y="{y}" width="{width}" height="16" rx="3" '
-        f'fill="{color}" fill-opacity=".18" stroke="{color}" stroke-width="1.5"/>'
-        f"{text(x, label_y, label, size=12, fill=INK, family='ui-monospace,monospace')}"
+        f'fill="{color}" fill-opacity=".18" stroke="{color}" '
+        f'stroke-width="{3 if limiting else 1.5}" '
+        f"{dash_attribute}/>"
+        f"{match_label}"
         "</g>"
     )
-
-
-def _motif_model(
-    motif: InspectionMotif,
-    match: InspectionMatch,
-    *,
-    top: int,
-    left: int,
-    cell: int,
-) -> str:
-    """Render one fixed-glyph probability strip beside its selected match contract."""
-
-    model_name = motif_id(motif.motif_id)
-    score_label = (
-        "normalized score"
-        if motif.score_reference_semantics == "null_mean_to_score_max_v1"
-        else "attainment"
-    )
-    matrix_top = top + 46
-    parts = [
-        f'<g class="motif-model" data-motif-id="{model_name}" '
-        'data-display-convention="fixed-glyph-probability-strip" '
-        f'data-model-digest="{motif.model_digest}" data-match-start="{match.start}" '
-        f'data-match-end="{match.end}" data-match-strand="{match.strand}" '
-        f'data-probability-consensus="{motif.probability_consensus}" '
-        f'data-score-maximizing-sequence="{motif.score_maximizing_sequence}" '
-        f'data-score-min="{motif.score_min:.17g}" data-score-max="{motif.score_max:.17g}">',
-        text(20, top + 18, model_name, size=12, weight=650),
-        text(
-            20,
-            top + 38,
-            f"width {motif.width} · {score_label} {match.normalized_score:.4g} · "
-            f"best [{match.start}, {match.end}) {match.strand}",
-            size=12,
-            fill=MUTED,
-        ),
-    ]
-    for position, row in enumerate(motif.probabilities):
-        x = left + position * cell
-        for base_index, (base, probability) in enumerate(zip("ACGT", row, strict=True)):
-            y = matrix_top + base_index * 14
-            parts.extend(
-                [
-                    f'<rect x="{x + 1}" y="{y - 10}" '
-                    f'width="{(cell - 2) * probability:.3f}" height="12" rx="2" '
-                    f'fill="{_BASE_COLORS[base]}" fill-opacity=".28" '
-                    f'data-motif-position="{position}" data-base="{base}" '
-                    f'data-probability="{probability:.17g}"/>',
-                    text(
-                        x + cell / 2,
-                        y,
-                        base,
-                        size=12,
-                        anchor="middle",
-                        weight=700,
-                        fill=INK,
-                        family="ui-monospace,monospace",
-                        extra=(
-                            f' data-motif-position="{position}" data-base="{base}" '
-                            f'data-probability="{probability:.17g}"'
-                        ),
-                    ),
-                ]
-            )
-        parts.append(
-            text(
-                left + (position + 0.5) * cell,
-                matrix_top + 59,
-                position,
-                size=12,
-                anchor="middle",
-                fill=MUTED,
-            )
-        )
-    parts.append("</g>")
-    return "".join(parts)
 
 
 def render_candidate_svg(
@@ -198,14 +183,19 @@ def render_candidate_svg(
     """Render the exact strand-aware realization for one selected candidate."""
 
     candidate = _candidate(inspection, candidate_rank)
+    return _render_candidate_projection_svg(inspection.problem, candidate)
+
+
+def _render_candidate_projection_svg(
+    problem: InspectionProblem,
+    candidate: InspectionCandidate,
+) -> bytes:
+    """Render a candidate selected from the same verified result inspection."""
+
+    _validate_candidate_projection(problem, candidate)
     shown = _shown_matches(candidate)
-    motifs_by_id = {
-        motif.motif_id: motif
-        for motif in (*inspection.problem.motifs, *inspection.problem.avoiders)
-    }
-    avoider_ceilings = {
-        motif.motif_id: motif.score_ceiling for motif in inspection.problem.avoiders
-    }
+    motifs_by_id = {motif.motif_id: motif for motif in (*problem.motifs, *problem.avoiders)}
+    avoider_ceilings = {motif.motif_id: motif.score_ceiling for motif in problem.avoiders}
     forward = tuple(match for match in shown if match.strand == "+")
     reverse = tuple(match for match in shown if match.strand == "-")
     cell = _candidate_cell_width(shown)
@@ -214,9 +204,10 @@ def render_candidate_svg(
     width = max(960, left + len(candidate.sequence) * cell + right)
     logo_top = 88
     logo_row_height = 128
-    primary_y = logo_top + logo_row_height * len(shown) + 42 + 30 * max(1, len(forward))
+    primary_y = logo_top + logo_row_height * len(forward) + 42 + 30 * max(1, len(forward))
     complement_y = primary_y + 44
-    support_y = complement_y + 44 + 30 * max(1, len(reverse))
+    reverse_logo_top = complement_y + 44 + 30 * max(1, len(reverse))
+    support_y = reverse_logo_top + logo_row_height * len(reverse) + 32
     height = support_y + 40 * len(shown) + 72
     parts = svg_start(
         width=width,
@@ -242,7 +233,7 @@ def render_candidate_svg(
             text(
                 20,
                 54,
-                f"rank {candidate.rank} · balance_score {candidate.balance_score:.6g} · "
+                f"rank {candidate.rank} · balance {candidate.balance_score:.6g} · "
                 f"limiting {limiting}",
                 size=13,
                 fill=MUTED,
@@ -252,19 +243,35 @@ def render_candidate_svg(
             text(
                 20,
                 78,
-                "Supplied motif models (fixed-glyph probability strips) → selected matches",
+                "Supplied motif models (0 to 2 bit information logos) → selected matches",
                 size=12,
                 weight=650,
             ),
             *(
-                _motif_model(
+                render_coordinate_aligned_information_logo(
                     motifs_by_id[match.motif_id],
                     match,
                     top=logo_top + index * logo_row_height,
                     left=left,
                     cell=cell,
+                    limiting=match.motif_id in candidate.limiting_motif_ids,
+                    avoider=match.motif_id in avoider_ceilings,
+                    score_ceiling=avoider_ceilings.get(match.motif_id),
                 )
-                for index, match in enumerate(shown)
+                for index, match in enumerate(forward)
+            ),
+            *(
+                render_coordinate_aligned_information_logo(
+                    motifs_by_id[match.motif_id],
+                    match,
+                    top=reverse_logo_top + index * logo_row_height,
+                    left=left,
+                    cell=cell,
+                    limiting=match.motif_id in candidate.limiting_motif_ids,
+                    avoider=match.motif_id in avoider_ceilings,
+                    score_ceiling=avoider_ceilings.get(match.motif_id),
+                )
+                for index, match in enumerate(reverse)
             ),
             "</g>",
             '<g id="shared-coordinates">',
@@ -388,6 +395,11 @@ def render_candidate_svg(
     )
     for row, match in enumerate(shown):
         y = support_y + row * 40
+        color = motif_color(match.motif_id)
+        parts.append(
+            f'<g class="position-support-row" data-motif-id="{motif_id(match.motif_id)}" '
+            f'data-motif-color="{color}">'
+        )
         parts.append(
             text(
                 20,
@@ -399,7 +411,7 @@ def render_candidate_svg(
         )
         parts.append(
             f'<line x1="{left}" y1="{y + 12}" x2="{left + len(candidate.sequence) * cell}" '
-            f'y2="{y + 12}" stroke="{LINE}"/>'
+            f'y2="{y + 12}" stroke="{color}" stroke-width="1.5"/>'
         )
         for support in match.position_support:
             x = left + support.candidate_position * cell
@@ -438,6 +450,7 @@ def render_candidate_svg(
                     ),
                 ]
             )
+        parts.append("</g>")
     parts.append("</g>")
     total_matches = len(candidate.matches) + len(candidate.avoidance_matches)
     if len(shown) < total_matches:
@@ -462,5 +475,5 @@ def render_candidate_svg(
                 fill=MUTED,
             )
         )
-    parts.append("</svg>")
+    parts.append("</svg>\n")
     return finish_svg(parts)

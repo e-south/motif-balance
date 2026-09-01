@@ -16,6 +16,7 @@ from motif_balance.execution import execute_design_workspace
 from motif_balance.formats import convert_jaspar
 from motif_balance.formats.design import load_design_spec
 from motif_balance.inspection import ResultInspection, inspect_result
+from motif_balance.inspection.candidate_svg_receipt import render_candidate_svg_receipt
 from motif_balance.inspection.render import (
     render_candidate_svg,
     render_html,
@@ -107,6 +108,24 @@ def _publish_or_emit(
     _write_new_file(out, payload, label="inspection output")
 
 
+def _validate_inspection_output_path(path: Path, *, subject: Path, field: str) -> None:
+    if path.resolve(strict=False).is_relative_to(subject.resolve()):
+        raise ArtifactError(
+            "Inspection output must remain outside every inspected result root.",
+            field=field,
+            hint="Choose a separate review or handoff directory.",
+        )
+
+
+def _require_new_inspection_output(path: Path, *, field: str) -> None:
+    if os.path.lexists(path):
+        raise ArtifactError(
+            f"Refusing to replace existing inspection output '{path.name}'.",
+            field=field,
+            hint="Choose a new output path.",
+        )
+
+
 def _write_new_file(path: Path, payload: bytes, *, label: str) -> None:
     temporary: Path | None = None
     try:
@@ -135,6 +154,59 @@ def _write_new_file(path: Path, payload: bytes, *, label: str) -> None:
         ) from exc
     finally:
         if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def _write_new_file_pair(
+    first_path: Path,
+    first_payload: bytes,
+    second_path: Path,
+    second_payload: bytes,
+) -> None:
+    """Publish two new files as one pair, rolling back only links created here."""
+
+    staged: list[tuple[Path, Path]] = []
+    created: list[tuple[Path, Path]] = []
+    try:
+        for path, payload in (
+            (first_path, first_payload),
+            (second_path, second_payload),
+        ):
+            descriptor, temporary_name = tempfile.mkstemp(
+                prefix=f".{path.name}.",
+                suffix=".tmp",
+                dir=path.parent,
+            )
+            temporary = Path(temporary_name)
+            staged.append((path, temporary))
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+        for path, temporary in staged:
+            os.link(temporary, path, follow_symlinks=False)
+            created.append((path, temporary))
+    except FileExistsError as exc:
+        raise ArtifactError(
+            "Refusing to replace an existing candidate SVG publication file.",
+            field="out",
+            hint="Choose new output and receipt paths.",
+        ) from exc
+    except OSError as exc:
+        raise ArtifactError(
+            "Unable to write the candidate SVG publication pair.",
+            field="out",
+            hint="Choose writable output paths whose parent directories exist.",
+        ) from exc
+    finally:
+        if len(created) != 2:
+            for path, temporary in created:
+                try:
+                    if os.path.samefile(path, temporary):
+                        path.unlink()
+                except (FileNotFoundError, OSError):
+                    pass
+        for _, temporary in staged:
             temporary.unlink(missing_ok=True)
 
 
@@ -304,6 +376,10 @@ def inspect_command(
         typer.Option("--candidate", min=1, help="Candidate rank for the candidate SVG."),
     ] = 1,
     out: Annotated[Path | None, typer.Option("--out", help="New derived output file.")] = None,
+    receipt_out: Annotated[
+        Path | None,
+        typer.Option("--receipt-out", help="New candidate SVG receipt file."),
+    ] = None,
     expected_bundle_id: Annotated[str | None, typer.Option("--expected-bundle-id")] = None,
     expected_workspace_id: Annotated[str | None, typer.Option("--expected-workspace-id")] = None,
     expected_receipt_sha256: Annotated[
@@ -320,6 +396,21 @@ def inspect_command(
     """Verify and review one immutable result."""
 
     try:
+        if receipt_out is not None and not (
+            format_name == "svg" and view == "candidate" and out is not None
+        ):
+            raise ArtifactError("--receipt-out is valid only with candidate SVG --out")
+        if receipt_out is not None and out is not None:
+            if receipt_out.resolve(strict=False) == out.resolve(strict=False):
+                raise ArtifactError("--out and --receipt-out must use distinct paths")
+            _validate_inspection_output_path(out, subject=subject, field="out")
+            _validate_inspection_output_path(
+                receipt_out,
+                subject=subject,
+                field="receipt_out",
+            )
+            _require_new_inspection_output(out, field="out")
+            _require_new_inspection_output(receipt_out, field="receipt_out")
         if format_name in {"html", "svg"} and out is None:
             raise ArtifactError(
                 f"--out is required for {format_name.upper()} inspection.",
@@ -339,16 +430,31 @@ def inspect_command(
             expected_release_sha256=expected_release_sha256,
             expected_producer_revision=expected_producer_revision,
         )
-        _publish_or_emit(
-            _inspection_payload(
-                result,
-                format_name=format_name,
-                view=view,
-                candidate_rank=candidate_rank,
-            ),
-            out,
-            subject_roots=(subject,),
+        payload = _inspection_payload(
+            result,
+            format_name=format_name,
+            view=view,
+            candidate_rank=candidate_rank,
         )
+        receipt = (
+            render_candidate_svg_receipt(
+                result,
+                candidate_rank=candidate_rank,
+                svg=payload,
+            )
+            if receipt_out is not None
+            else None
+        )
+        if receipt_out is not None:
+            assert receipt is not None
+            assert out is not None
+            _write_new_file_pair(out, payload, receipt_out, receipt)
+        else:
+            _publish_or_emit(
+                payload,
+                out,
+                subject_roots=(subject,),
+            )
     except (OSError, MotifBalanceError, ValidationError, ValueError) as exc:
         _emit_error(exc, debug=debug, domain="artifact")
 

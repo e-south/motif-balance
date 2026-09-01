@@ -141,6 +141,76 @@ def project_candidate(spec: DesignSpec, candidate: Candidate) -> InspectionCandi
     return _project_candidate(spec, candidate, compile_design(spec))
 
 
+def _project_problem(spec: DesignSpec, problem: CompiledProblem) -> InspectionProblem:
+    return InspectionProblem(
+        problem_id=problem.problem_id,
+        motifs=tuple(
+            InspectionMotif(
+                motif_id=motif.motif_id,
+                width=motif.width,
+                model_digest=motif.model_digest,
+                probabilities=motif.probabilities,
+                background=motif.background,
+                score_min=(
+                    compiled.null_mean
+                    if spec.scoring_semantics == "normalized_llr_v1"
+                    else compiled.score_min
+                ),
+                score_max=(
+                    compiled.consensus_score
+                    if spec.scoring_semantics == "normalized_llr_v1"
+                    else compiled.score_max
+                ),
+                score_reference_semantics=(
+                    "null_mean_to_score_max_v1"
+                    if spec.scoring_semantics == "normalized_llr_v1"
+                    else "attainable_min_max_v2"
+                ),
+                probability_consensus=compiled.probability_consensus,
+                score_maximizing_sequence=compiled.score_maximizing_sequence,
+                source_name=motif.source_name,
+                source_digest=motif.source_digest,
+                canonical_file_name=motif.canonical_file_name,
+                canonical_file_digest=motif.canonical_file_digest,
+                conversion=motif.conversion,
+            )
+            for motif, compiled in zip(spec.motifs, problem.motifs, strict=True)
+        ),
+        avoiders=tuple(
+            InspectionAvoider(
+                motif_id=item.motif.motif_id,
+                width=item.motif.width,
+                model_digest=item.motif.model_digest,
+                probabilities=item.motif.probabilities,
+                background=item.motif.background,
+                score_min=compiled.motif.score_min,
+                score_max=compiled.motif.score_max,
+                score_reference_semantics="attainable_min_max_v2",
+                probability_consensus=compiled.motif.probability_consensus,
+                score_maximizing_sequence=compiled.motif.score_maximizing_sequence,
+                source_name=item.motif.source_name,
+                source_digest=item.motif.source_digest,
+                canonical_file_name=item.motif.canonical_file_name,
+                canonical_file_digest=item.motif.canonical_file_digest,
+                conversion=item.motif.conversion,
+                score_ceiling=item.score_ceiling,
+            )
+            for item, compiled in zip(spec.avoiders, problem.avoiders, strict=True)
+        ),
+        length=spec.length,
+        strands=spec.strands,
+        scoring_semantics=spec.scoring_semantics,
+        objective_semantics=spec.objective_semantics,
+        tie_break_semantics=spec.tie_break_semantics,
+    )
+
+
+def project_problem(spec: DesignSpec) -> InspectionProblem:
+    """Project one design into the exact candidate-render problem contract."""
+
+    return _project_problem(spec, compile_design(spec))
+
+
 def _distance_values(
     candidates: tuple[Candidate, ...],
 ) -> tuple[DistanceInspection, dict[str, float | None]]:
@@ -304,67 +374,7 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
             trust_basis=source.trust_basis,
             checked_identities=source.checked_identities,
         ),
-        problem=InspectionProblem(
-            problem_id=portfolio.problem_id,
-            motifs=tuple(
-                InspectionMotif(
-                    motif_id=motif.motif_id,
-                    width=motif.width,
-                    model_digest=motif.model_digest,
-                    probabilities=motif.probabilities,
-                    background=motif.background,
-                    score_min=(
-                        compiled.null_mean
-                        if spec.scoring_semantics == "normalized_llr_v1"
-                        else compiled.score_min
-                    ),
-                    score_max=(
-                        compiled.consensus_score
-                        if spec.scoring_semantics == "normalized_llr_v1"
-                        else compiled.score_max
-                    ),
-                    score_reference_semantics=(
-                        "null_mean_to_score_max_v1"
-                        if spec.scoring_semantics == "normalized_llr_v1"
-                        else "attainable_min_max_v2"
-                    ),
-                    probability_consensus=compiled.probability_consensus,
-                    score_maximizing_sequence=compiled.score_maximizing_sequence,
-                    source_name=motif.source_name,
-                    source_digest=motif.source_digest,
-                    canonical_file_name=motif.canonical_file_name,
-                    canonical_file_digest=motif.canonical_file_digest,
-                    conversion=motif.conversion,
-                )
-                for motif, compiled in zip(spec.motifs, problem.motifs, strict=True)
-            ),
-            avoiders=tuple(
-                InspectionAvoider(
-                    motif_id=item.motif.motif_id,
-                    width=item.motif.width,
-                    model_digest=item.motif.model_digest,
-                    probabilities=item.motif.probabilities,
-                    background=item.motif.background,
-                    score_min=compiled.motif.score_min,
-                    score_max=compiled.motif.score_max,
-                    score_reference_semantics="attainable_min_max_v2",
-                    probability_consensus=compiled.motif.probability_consensus,
-                    score_maximizing_sequence=compiled.motif.score_maximizing_sequence,
-                    source_name=item.motif.source_name,
-                    source_digest=item.motif.source_digest,
-                    canonical_file_name=item.motif.canonical_file_name,
-                    canonical_file_digest=item.motif.canonical_file_digest,
-                    conversion=item.motif.conversion,
-                    score_ceiling=item.score_ceiling,
-                )
-                for item, compiled in zip(spec.avoiders, problem.avoiders, strict=True)
-            ),
-            length=spec.length,
-            strands=spec.strands,
-            scoring_semantics=spec.scoring_semantics,
-            objective_semantics=spec.objective_semantics,
-            tie_break_semantics=spec.tie_break_semantics,
-        ),
+        problem=_project_problem(spec, problem),
         run=InspectionRun(
             run_id=portfolio.run_id,
             bundle_id=manifest.bundle_id,

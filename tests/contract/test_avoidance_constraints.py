@@ -297,6 +297,9 @@ def test_inspection_discloses_hard_avoidance_without_recasting_it_as_target_scor
     assert "avoider" in html
     assert 'data-role="avoider"' in candidate_svg
     assert 'data-score-ceiling="0"' in candidate_svg
+    assert 'class="motif-information-logo"' in candidate_svg
+    assert 'stroke-dasharray="6 4"' in candidate_svg
+    assert "ceiling 0" in candidate_svg
     assert 'data-constraint-status="feasible"' in portfolio_svg
 
 

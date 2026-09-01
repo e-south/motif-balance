@@ -15,7 +15,7 @@ def test_execution_receipt_binds_the_actual_execution_interval_and_release(
         portfolio,
         manifest_payload=b"canonical manifest\n",
         producer_revision="a" * 40,
-        release_artifact_name="motif_balance-0.4.0a7-py3-none-any.whl",
+        release_artifact_name="motif_balance-0.4.0a8-py3-none-any.whl",
         release_artifact_sha256="b" * 64,
         runtime_package_tree_sha256="d" * 64,
         normalized_design_sha256="c" * 64,
