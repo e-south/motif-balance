@@ -95,6 +95,22 @@ def test_directional_manifest_still_has_a_pre_read_byte_bound(
         read_verified_portfolio(output)
 
 
+def test_large_directional_reservoir_is_refused_before_search() -> None:
+    specifications = tuple(
+        MotifSpecification(motif=_base_motif(f"synthetic_{index:04d}", "A"), direction="seek")
+        for index in range(1_200)
+    )
+    with pytest.raises(ValidationError, match="manifest-byte"):
+        DesignSpec(
+            schema_version="design-spec/v3",
+            specifications=specifications,
+            length=4,
+            count=1,
+            evaluations=256,
+            seed=7,
+        )
+
+
 def test_directional_satisfaction_is_computed_after_one_model_scan() -> None:
     seek_a = _base_motif("seek_a", "A")
     avoid_a = _base_motif("avoid_a", "A")
