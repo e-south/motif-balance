@@ -22,6 +22,7 @@ from motif_balance.constants import (
     MAX_BUNDLE_ARTIFACT_BYTES,
     MAX_BUNDLE_ROWS,
     MAX_INPUT_BYTES,
+    MAX_RUN_MANIFEST_BYTES,
     RNG_NAME,
     SEARCH_ENGINE,
     SEARCH_ENGINE_VERSION,
@@ -387,7 +388,13 @@ def _parse_manifest(payload: dict[str, Any]) -> RunManifest:
 
 
 def manifest_bytes(manifest: RunManifest) -> bytes:
-    return _json_bytes(_manifest_payload(manifest))
+    payload = _json_bytes(_manifest_payload(manifest))
+    limit = (
+        MAX_RUN_MANIFEST_BYTES if manifest.schema_version == "run-manifest/v6" else MAX_INPUT_BYTES
+    )
+    if len(payload) > limit:
+        raise ArtifactError(f"bundle member 'manifest.json' exceeds the {limit}-byte limit")
+    return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -732,9 +739,17 @@ def read_bundle_snapshot(directory: str | Path) -> BundleSnapshot:
         canonical_manifest = _read_snapshot_member(
             directory_descriptor,
             "manifest.json",
-            limit=MAX_INPUT_BYTES,
+            limit=MAX_RUN_MANIFEST_BYTES,
         )
-        manifest = _parse_manifest(_json_object(canonical_manifest, label="manifest.json"))
+        manifest_payload = _json_object(canonical_manifest, label="manifest.json")
+        if (
+            manifest_payload.get("schema_version") != "run-manifest/v6"
+            and len(canonical_manifest) > MAX_INPUT_BYTES
+        ):
+            raise ArtifactError(
+                f"bundle member 'manifest.json' exceeds the {MAX_INPUT_BYTES}-byte limit"
+            )
+        manifest = _parse_manifest(manifest_payload)
         expected_files = _schema_files(manifest)
         if files != expected_files:
             missing = sorted(expected_files - files)
