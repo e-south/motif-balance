@@ -88,6 +88,14 @@ of at most 256 unique elites. External
 systems may register their locations and digests without changing the software
 artifact identity.
 
+Directional v6 manifests have a 64 MiB transport ceiling, enforced before reads
+and before canonical manifest publication. This accommodates the bounded elite
+reservoir's per-specification realizations. Model/specification inputs and
+legacy manifests retain their 1 MB limits; all schema, row-count, and semantic
+replay checks remain independent of the transport ceiling. Version 0.5.0a2
+corrects the inherited input-sized manifest ceiling without changing scoring,
+search, elite retention, or the resource admission contract.
+
 Result inspections are derived after verification and are never inserted into
 `run-manifest/v2` through `run-manifest/v6`. Inspection accepts one explicit result;
 cross-result joining remains a caller responsibility. Exact
