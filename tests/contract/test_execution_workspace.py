@@ -11,7 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 import motif_balance
-import motif_balance.artifacts as artifacts_module
+import motif_balance.artifacts.publication as artifacts_module
 import motif_balance.execution as execution_module
 from motif_balance import DesignSpec
 from motif_balance.errors import ArtifactError
@@ -629,7 +629,7 @@ def test_no_replace_publication_fails_closed_on_unsupported_platform(
     source = tmp_path / "temporary"
     destination = tmp_path / "published"
     source.mkdir()
-    monkeypatch.setattr("motif_balance.artifacts.sys.platform", "freebsd")
+    monkeypatch.setattr("motif_balance.artifacts.publication.sys.platform", "freebsd")
 
     with pytest.raises(OSError, match="unavailable"):
         execution_module._publish_directory_no_replace(source, destination)

@@ -81,7 +81,7 @@ def test_twelve_specification_full_elite_reservoir_round_trips(tmp_path: Path) -
 def test_directional_manifest_still_has_a_pre_read_byte_bound(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import motif_balance.artifacts as artifacts
+    import motif_balance.artifacts.snapshot as artifacts
 
     result = design(
         _directional_spec(

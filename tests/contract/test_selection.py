@@ -137,7 +137,9 @@ def test_zero_distance_portfolio_validation_skips_pairwise_work(
     def fail_if_called(_left: str, _right: str) -> float:
         raise AssertionError("zero distance must not trigger pairwise validation")
 
-    monkeypatch.setattr("motif_balance.model._normalized_hamming_distance", fail_if_called)
+    monkeypatch.setattr(
+        "motif_balance.model.portfolio._normalized_hamming_distance", fail_if_called
+    )
 
     try:
         Portfolio.model_validate(payload)

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import math
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -619,3 +622,42 @@ def test_sequence_space_is_computed_only_within_a_trusted_bound() -> None:
     assert sequence_space_at_most(4, 256) == 256
     assert sequence_space_at_most(4, 255) is None
     assert sequence_space_at_most(10_000, 1_000_000) is None
+
+
+def test_public_contract_schemas_survive_semantic_decomposition() -> None:
+    from motif_balance import model
+
+    expected = {
+        "MotifModel": "ffd3e785f8f6d44c7c36c4b444d29ed0e2834eab9d9d749ea2412174bdc90cea",
+        "DesignSpec": "81baefd8b5f295da629401b87767da78479dfee0b978ed248fbefb335a224e1d",
+        "Evaluation": "ab0bfd51af2fcd03546eef5e713d84d7d7d20be0149450f09f6020e473e074ea",
+        "Candidate": "1394929ba6d3a3524c6285c89ccbb2f2407091944454f5d39f657e849941ca51",
+        "SearchDiagnostics": "b853fd12b4d8d64d980c15dfffa5711fdae4ec05c89dfb47566a172bf3fbdcf2",
+        "RunManifest": "6fe6b72977dc036c3b6c369690a7d30a532bc63b7747dd3183617894004414dc",
+        "PortfolioRecord": "e90cc66c309e5621c8ddc3bbd57d0b7dc4ca609a7c08d2327132e135a0190b8d",
+        "ExecutionReceipt": "9637673465f1de551d006c9bd7e2c0ee1e4c865a9f1c239a6bc7cfcafee7198c",
+        "ExecutionWorkspace": "ad1dcbb4f33d5ea548fe8ac10455b46ea90642c6a3d3caf17503b96572461ccc",
+    }
+    for name, digest in expected.items():
+        schema = getattr(model, name).model_json_schema()
+        encoded = json.dumps(schema, sort_keys=True, separators=(",", ":")).encode()
+        assert hashlib.sha256(encoded).hexdigest() == digest
+
+
+def test_model_facade_routes_to_bounded_semantic_contract_modules() -> None:
+    from motif_balance import model
+
+    facade = Path(model.__file__)
+    assert facade.name == "__init__.py"
+    assert {p.stem for p in facade.parent.glob("*.py")} == {
+        "__init__",
+        "base",
+        "motif",
+        "design",
+        "evaluation",
+        "search",
+        "execution",
+        "manifest",
+        "portfolio",
+    }
+    assert all(len(p.read_text().splitlines()) < 400 for p in facade.parent.glob("*.py"))

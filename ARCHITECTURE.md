@@ -7,7 +7,7 @@ audience:
   - agent executors
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-06
+last_verified: 2026-09-07
 doc_type: explanation
 journey:
   - maintain
@@ -48,8 +48,12 @@ errors, constants, claim-language advisory, and model
   <- cli
 ```
 
-- `model.py` contains strict immutable public contracts and no higher-layer
-  imports.
+- `model/` contains strict immutable public contracts and no higher-layer
+  imports. Its facade preserves public imports; `base` owns canonical identity
+  primitives, `motif` owns source models, `design` owns input contracts,
+  `evaluation` owns scored candidates, `search` owns bounded diagnostics,
+  `execution` owns runtime receipts, `manifest` owns run records, and `portfolio`
+  owns cross-record consistency. These are contract domains, not plugin layers.
 - `constants.py` contains only shared literal constants and imports no other
   first-party layer.
 - `claim_language.py` is a pure, advanced wording-hazard seam for downstream
@@ -65,8 +69,12 @@ errors, constants, claim-language advisory, and model
   proposal but may not reinterpret a score.
 - `selection.py` chooses from already evaluated candidates and cannot mutate or
   rescore them.
-- `artifacts.py` serializes canonical bundles and replays their identities and
-  scientific records. It does not own downstream registration or presentation.
+- `artifacts/` serializes canonical bundles and replays their identities and
+  scientific records. `encoding` owns canonical bytes and identities; `decoding`
+  reconstructs strict records; `snapshot` pins bounded reads to file descriptors;
+  `verification` replays scientific semantics; `publication` owns atomic
+  no-replace writes. The facade preserves callers' existing imports. None of
+  these modules owns downstream registration or presentation.
 - `observation.py` owns the bounded, immutable complete evaluated-pool export
   for explicit legacy-v2 analysis consumers. Directional v3 runs use the
   manifest's bounded elite snapshot. Observation does not enlarge `Portfolio`, write into
