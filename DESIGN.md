@@ -7,7 +7,7 @@ audience:
   - API consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-30
+last_verified: 2026-09-06
 doc_type: explanation
 ---
 
@@ -15,8 +15,9 @@ doc_type: explanation
 
 ## Public contracts
 
-The public scientific vocabulary is `MotifModel`, `DesignSpec`, `MotifMatch`,
-`Candidate`, `Portfolio`, `design(spec) -> Portfolio`, and `score(...)`.
+The public scientific vocabulary is `MotifModel`, `MotifSpecification`,
+`DesignSpec`, `MotifMatch`, `Candidate`, `Portfolio`,
+`design(spec) -> Portfolio`, and `score(...)`.
 `Evaluation` and `ResultInspection` are internal or operational typed records,
 not additional top-level scientific nouns.
 Scientific inputs belong in an immutable `DesignSpec`; operational CLI options
@@ -39,13 +40,14 @@ may select output or validation behavior but cannot revise that specification.
   operations, distance comparisons, portfolio bases, and canonical match rows
   have explicit public upper bounds. Feasibility checks do not materialize or
   exponentiate beyond those bounds.
-- Each target motif contributes exactly one best match per candidate under
-  declared strand and deterministic tie-breaking rules. Versioned hard
-  avoidance constraints separately cap the best normalized match of each
-  avoider motif; avoider scores never enter the target hard minimum.
-- One scoring implementation is authoritative. The public balance score is the
-  hard minimum of per-motif normalized scores; any smooth surrogate is search-
-  internal and is never reported as the public score.
+- Each directional specification contributes exactly one best match per
+  candidate under declared strand and deterministic tie-breaking rules. A seek
+  satisfaction is the matched attainment; an avoid satisfaction is one minus
+  that attainment. Versioned v2 hard avoidance constraints remain a separate
+  legacy contract and are never silently converted to directions.
+- One scoring implementation is authoritative. The v3 public balance score is
+  the hard minimum of per-specification satisfaction; any smooth surrogate is
+  search-internal and is never reported as the public score.
 - Relative-attainment endpoints are exact extrema over one motif-width word.
   Best-window scanning preserves the reachable upper endpoint but can make the
   word-level lower endpoint unreachable as a sequence's reported match score.
@@ -55,6 +57,8 @@ may select output or validation behavior but cannot revise that specification.
   constraints cannot be silently relaxed.
 - The complete best observed evaluation remains distinct from the constrained
   selected portfolio and is bound into every newly written manifest.
+- Directional manifests record logarithmic satisfaction checkpoints, exact or
+  bounded completion status, and no more than 256 deterministic unique elites.
 - Candidate sequences and compact candidate identifiers are independently
   unique before construction, publication, and read-back.
 - Equal scores have a stable total ordering independent of process scheduling,
@@ -95,6 +99,9 @@ tables. Exact score replay pins the declared scoring, search, and selection
 semantics. V5 binds the `relative_pwm_attainment_v2` scoring contract, v2 input
 schemas, explicit target and avoider match roles, and avoider ceilings without
 changing the target hard-minimum score. New v1 publication is prohibited.
+Version `0.5` additionally reads v6. Directional `design-spec/v3` publication
+writes v6 with satisfaction traces, exact-completion proof fields, and a bounded
+elite reservoir; explicitly supplied v2 requests continue to write v5.
 Earlier schemas require an explicit compatibility dispatcher; they are never
 accepted through loosened validation.
 
@@ -104,10 +111,11 @@ Small sequence spaces use deterministic exhaustive enumeration. Larger spaces
 use `annealed_multistart_v1`, a bounded multi-start annealed stochastic local
 search. It combines perturbed starts, four-base single-position resampling,
 block and multi-base replacement, motif-guided proposals, and annealed
-acceptance under one exact evaluator-call budget. It is not an MCMC sampler, a
-posterior sampler, or a Gibbs sampler. It records bounded checkpoints,
-restart-final scores, and proposal counts rather than raw optimizer-state
-traces. A fixed number of evaluator calls is not fixed compute: evaluation cost
+acceptance under one exact evaluator-call budget. It is a bounded optimizer,
+not a probabilistic sampler. For directional runs it records logarithmic
+checkpoints, per-specification satisfactions, limiting specifications, a bounded
+elite reservoir, restart-final scores, and proposal counts rather than raw
+optimizer-state traces. A fixed number of evaluator calls is not fixed compute: evaluation cost
 still depends on sequence length, motif number and width, strand policy, and
 avoiders.
 
@@ -122,14 +130,16 @@ Complete enumeration can prove constraint infeasibility. A bounded heuristic
 run can report only that it exhausted its budget without finding enough
 feasible sequences.
 
-The public objective is a max-min formulation over feasible sequences: maximize
-the minimum target-motif attainment. In a larger space, the heuristic reports
+The directional public objective is a max-min formulation: maximize the minimum
+seek-or-avoid specification satisfaction. In a larger space, the heuristic reports
 the best evaluations it observed under its budget; it does not establish that
 the global max-min solution was reached.
 
-The advanced `motif_balance.observation` module can produce one bounded,
+For legacy v2 requests, the advanced `motif_balance.observation` module can produce one bounded,
 immutable, path-free record of the complete unique evaluated pool. It exists
 for explicit downstream analysis, is replay-verified, and is not part of
 `Portfolio`, the canonical bundle, or the top-level scientific facade. An
 advanced paired operation derives both the ordinary `Portfolio` and this
 observation from one authoritative search result when an analysis needs both.
+Directional v3 requests refuse complete-pool observation and use the manifest's
+bounded elite reservoir instead.

@@ -8,7 +8,7 @@ audience:
   - downstream integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-30
+last_verified: 2026-09-06
 doc_type: reference
 ---
 
@@ -27,22 +27,23 @@ operation.
 
 | Question | Authority | Versioned identity |
 | --- | --- | --- |
-| What is being requested? | `DesignSpec` | `design-spec/v2` (v1 read-only) |
+| What is being requested? | `DesignSpec` | `design-spec/v3` (v1/v2 preserved) |
+| Which way should a motif score move? | `MotifSpecification` | `seek` or `avoid` |
 | What does a motif mean? | `MotifModel` | `motif-model/v2` (v1 read-only) |
 | How did source values become positive probabilities? | `MotifConversion` | `motif-conversion/v1` or `motif-conversion/v2` |
 | How is a sequence scored? | compile and scoring | `relative_pwm_attainment_v2` |
 | Which match wins? | scoring | `leftmost_plus_first_v1` |
-| What is the joint score? | scoring | `weakest_score_v1` |
+| What is the joint score? | scoring | `weakest_directional_satisfaction_v1` |
 | How are sequences proposed? | `SearchEngine` | engine name and version |
 | Which evaluated sequences ship? | selection | exact count and declared distance |
-| What crosses a repository boundary? | canonical bundle | `run-manifest/v5` |
+| What crosses a repository boundary? | canonical bundle | `run-manifest/v6` (v5 for legacy v2) |
 | Which released bytes performed a run? | execution workspace | `motif-balance.execution-workspace/v1` |
 | How is one result explained without mutation? | `ResultInspection` | `motif-balance.result-inspection/v4` |
 
 ## Ontology
 
 ```text
-target MotifModel[] + optional avoider ceilings + design fields
+MotifSpecification[] + design fields
                                 │
                                 ▼
                            DesignSpec
@@ -86,8 +87,10 @@ sequence-attainable while the upper endpoint remains attainable by embedding a
 maximizing word. The
 conventional probability consensus is recorded separately from the
 score-maximizing reference because they can differ under a nonuniform
-background. The lowest relative attainment is `balance_score`. Avoider motifs
-use the same scanner but have
+background. For v3, a seek specification retains attainment while an avoid
+specification transforms it to one minus attainment after the scan. The lowest
+specification satisfaction is `balance_score`. Under the preserved v2 contract,
+avoider motifs use the same scanner but have
 explicit upper ceilings; their scores and violations are separate records and
 never enter the target hard minimum. V2 snaps only endpoint-scale numerical
 excursions within tolerance and fails closed beyond it.
@@ -112,8 +115,10 @@ conversion rationale remain caller-owned.
 `evaluations` counts calls to the authoritative evaluator. Tractable spaces use
 complete enumeration. Larger spaces use versioned multi-start annealed search
 with single-base, block, multi-base, and motif-insertion proposals. The engine
-records bounded checkpoints, restart-final scores, and proposal summaries; raw
-state traces are not product artifacts. Complete enumeration establishes an
+records logarithmic checkpoints with per-specification satisfactions,
+restart-final scores, proposal summaries, and at most 256 deterministic
+score-ranked unique elites; raw state traces and the complete v3 proposal pool
+are not product artifacts. Complete enumeration establishes an
 optimum only when the admitted sequence space is fully covered. Annealed runs
 publish the best result observed under their declared evaluator-call budget,
 not a convergence or global-optimality claim.
@@ -161,7 +166,8 @@ manifest.json
 `candidates.fasta` is a derived, verified bundle member. Every member except
 the manifest is bound by relative path, byte count, and SHA-256 digest.
 The bundle identity binds scientific inputs, the complete best observed
-evaluation, search provenance, bounded diagnostics, and artifact records.
+evaluation, search provenance, bounded diagnostics, retained elites, exact or
+bounded completion metadata, and artifact records.
 Publication is atomic and refuses an existing destination.
 
 An attested execution wraps the resolved specification, exact wheel,

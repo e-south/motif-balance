@@ -21,7 +21,7 @@ def _resolve_motif(
     source: Path,
     *,
     directory_fd: int,
-    motif_id: str,
+    motif_id: str | None,
     payload: object,
 ) -> MotifModel:
     if isinstance(payload, str):
@@ -48,8 +48,10 @@ def _resolve_motif(
             raise InvalidDesign(
                 f"Inline motif '{motif_id}' must declare schema_version explicitly."
             )
-        return MotifModel.model_validate({**payload, "motif_id": payload.get("motif_id", motif_id)})
-    raise InvalidDesign(f"Motif '{motif_id}' must be a path or model mapping.")
+        resolved_id = payload.get("motif_id", motif_id)
+        return MotifModel.model_validate({**payload, "motif_id": resolved_id})
+    label = motif_id or "specification"
+    raise InvalidDesign(f"Motif '{label}' must be a path or model mapping.")
 
 
 def _load_design_snapshot(source: Path, raw: bytes, *, directory_fd: int) -> DesignSpec:
@@ -63,8 +65,34 @@ def _load_design_snapshot(source: Path, raw: bytes, *, directory_fd: int) -> Des
         raise InvalidDesign(
             "Serialized design specifications must declare schema_version explicitly; "
             "use 'design-spec/v1' for historical scoring or 'design-spec/v2' for "
-            "relative PWM attainment."
+            "relative PWM attainment, or 'design-spec/v3' for directional specifications."
         )
+    if payload.get("schema_version") == "design-spec/v3":
+        specifications = payload.get("specifications")
+        if not isinstance(specifications, list) or not specifications:
+            raise InvalidDesign("Design specification specifications must be a nonempty list.")
+        resolved_specifications: list[dict[str, object]] = []
+        for item in specifications:
+            if not isinstance(item, dict):
+                raise InvalidDesign("Each motif specification must be a mapping.")
+            if "motif" not in item:
+                raise InvalidDesign("Each motif specification must declare a motif.")
+            declared_id = item.get("motif_id")
+            if declared_id is not None and not isinstance(declared_id, str):
+                raise InvalidDesign("Specification motif_id must be a string when declared.")
+            resolved_specifications.append(
+                {
+                    **{key: value for key, value in item.items() if key != "motif_id"},
+                    "motif": _resolve_motif(
+                        source,
+                        directory_fd=directory_fd,
+                        motif_id=declared_id,
+                        payload=item["motif"],
+                    ),
+                }
+            )
+        payload["specifications"] = resolved_specifications
+        return DesignSpec.model_validate(payload)
     motifs = payload.get("motifs")
     if not isinstance(motifs, dict):
         raise InvalidDesign("Design specification motifs must be a name-to-model mapping.")

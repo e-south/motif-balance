@@ -60,7 +60,7 @@ uv venv --python 3.12 "$smoke_root/venv"
 uv pip install --python "$smoke_root/venv/bin/python" "$wheel_path"
 uv pip check --python "$smoke_root/venv/bin/python"
 
-contract_program='import inspect,json; import motif_balance as m; names=("MotifModel","DesignSpec","MotifMatch","Candidate","Portfolio"); operations=("design","score"); assert set(m.__all__) == set(names + operations); print(json.dumps({"models":{n:getattr(m,n).model_json_schema() for n in names},"operations":{n:str(inspect.signature(getattr(m,n))) for n in operations}},sort_keys=True))'
+contract_program='import inspect,json; import motif_balance as m; names=("MotifModel","MotifSpecification","DesignSpec","MotifMatch","Candidate","Portfolio"); operations=("design","score"); assert set(m.__all__) == set(names + operations); print(json.dumps({"models":{n:getattr(m,n).model_json_schema() for n in names},"operations":{n:str(inspect.signature(getattr(m,n))) for n in operations}},sort_keys=True))'
 source_contract="$(uv run --locked python -c "$contract_program")"
 wheel_contract="$("$smoke_root/venv/bin/python" -c "$contract_program")"
 if [[ "$source_contract" != "$wheel_contract" ]]; then

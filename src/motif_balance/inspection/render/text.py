@@ -13,6 +13,7 @@ def render_text(inspection: ResultInspection) -> str:
     best = inspection.portfolio.candidates[0]
     best_observed = inspection.portfolio.best_observed
     motif_count = len(inspection.problem.motifs)
+    directional = all(motif.direction is not None for motif in inspection.problem.motifs)
     if best_observed is None:
         observed_lede = (
             f"The selected rank-one candidate balances {motif_count} motif "
@@ -55,7 +56,11 @@ def render_text(inspection: ResultInspection) -> str:
         f"Best observed balance_score: {inspection.portfolio.best_observed_score:.17g}",
         f"Top candidate: rank {best.rank}, {best.candidate_id}",
         f"Top balance_score: {best.balance_score:.17g}",
-        f"Limiting motif: {', '.join(best.limiting_motif_ids)}",
+        (
+            f"Limiting specification: {', '.join(best.limiting_motif_ids)}"
+            if directional
+            else f"Limiting motif: {', '.join(best.limiting_motif_ids)}"
+        ),
         "",
         "Use --format svg --view candidate|portfolio|search for a figure, or",
         "--format html --out FILE for the self-contained shareable review.",
@@ -89,4 +94,14 @@ def render_text(inspection: ResultInspection) -> str:
             f"{item.motif_id} <= {item.score_ceiling:.6g}" for item in inspection.problem.avoiders
         )
         lines.insert(12, f"Hard avoidance: {constraints}")
+    if directional:
+        specifications = ", ".join(
+            f"{item.motif_id}: {item.direction}" for item in inspection.problem.motifs
+        )
+        lines.insert(12, f"Specifications: {specifications}")
+        lines.insert(
+            13,
+            "Avoid satisfaction is 1 - attainment on the same model-relative scale; "
+            "it does not establish biological absence.",
+        )
     return "\n".join(lines) + "\n"

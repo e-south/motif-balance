@@ -16,13 +16,14 @@ expected = {
     "DesignSpec",
     "MotifMatch",
     "MotifModel",
+    "MotifSpecification",
     "Portfolio",
     "design",
     "score",
 }
 if set(mb.__all__) != expected:
     raise SystemExit(
-        "top-level scientific surface differs from the documented five nouns and two verbs: "
+        "top-level scientific surface differs from the documented six nouns and two verbs: "
         f"{sorted(mb.__all__)}"
     )
 print("Documented scientific surface: ok")

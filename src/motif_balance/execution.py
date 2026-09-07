@@ -44,8 +44,11 @@ from motif_balance.receipt import (
 
 
 def _resolved_spec_bytes(spec: DesignSpec) -> bytes:
-    payload = spec.model_dump(mode="json", exclude={"motifs"})
-    payload["motifs"] = {motif.motif_id: motif.model_dump(mode="json") for motif in spec.motifs}
+    if spec.schema_version == "design-spec/v3":
+        payload = spec.model_dump(mode="json", exclude={"motifs", "avoiders"})
+    else:
+        payload = spec.model_dump(mode="json", exclude={"motifs", "specifications"})
+        payload["motifs"] = {motif.motif_id: motif.model_dump(mode="json") for motif in spec.motifs}
     return (json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=True) + "\n").encode()
 
 

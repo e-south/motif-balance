@@ -78,7 +78,7 @@ def render_coordinate_aligned_information_logo(
         if motif.score_reference_semantics == "null_mean_to_score_max_v1"
         else "attainment"
     )
-    role = "avoider" if avoider else "target"
+    role = match.spec_direction or ("avoider" if avoider else "target")
     ceiling_label = (
         f" · ceiling {score_ceiling:.6g}" if avoider and score_ceiling is not None else ""
     )
@@ -92,7 +92,13 @@ def render_coordinate_aligned_information_logo(
         f'data-duplex-side="{"primary" if match.strand == "+" else "complement"}" '
         f'data-motif-color="{color}" '
         f'data-role="{role}" data-limiting="{str(limiting).lower()}" '
-        f'data-model-digest="{motif.model_digest}" data-match-start="{match.start}" '
+        + (
+            f'data-direction="{match.spec_direction}" '
+            f'data-spec-satisfaction="{match.spec_satisfaction:.17g}" '
+            if match.spec_direction is not None and match.spec_satisfaction is not None
+            else ""
+        )
+        + f'data-model-digest="{motif.model_digest}" data-match-start="{match.start}" '
         f'data-match-end="{match.end}" data-match-strand="{match.strand}"'
         + (
             f' data-score-ceiling="{score_ceiling:.17g}"'
@@ -104,8 +110,14 @@ def render_coordinate_aligned_information_logo(
         text(
             20,
             top + 37,
-            f"{role} · {score_label} {match.normalized_score:.4g} · "
-            f"best [{match.start}, {match.end}) {match.strand}{ceiling_label}",
+            f"{role} · {score_label} {match.normalized_score:.4g}"
+            + (
+                f" · satisfaction {match.spec_satisfaction:.4g}"
+                if match.spec_satisfaction is not None
+                else ""
+            )
+            + " · "
+            + f"best [{match.start}, {match.end}) {match.strand}{ceiling_label}",
             size=12,
             fill=MUTED,
         ),

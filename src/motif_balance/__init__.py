@@ -7,6 +7,7 @@ from motif_balance.model import (
     DesignSpec,
     MotifMatch,
     MotifModel,
+    MotifSpecification,
 )
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "DesignSpec",
     "MotifMatch",
     "MotifModel",
+    "MotifSpecification",
     "Portfolio",
     "design",
     "score",
