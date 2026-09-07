@@ -7,7 +7,6 @@ from .encoding import candidates_fasta as candidates_fasta
 from .encoding import candidates_tsv as candidates_tsv
 from .encoding import manifest_bytes as manifest_bytes
 from .encoding import matches_tsv as matches_tsv
-from .publication import _publish_directory_no_replace as _publish_directory_no_replace
 from .publication import write_bundle as write_bundle
 from .snapshot import BundleSnapshot as BundleSnapshot
 from .snapshot import read_bundle_snapshot as read_bundle_snapshot

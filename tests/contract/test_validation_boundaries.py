@@ -7,7 +7,8 @@ from pydantic import ValidationError
 
 from motif_balance import DesignSpec, MotifModel, design
 from motif_balance.api import Portfolio
-from motif_balance.model import Evaluation, MotifMatch, _normalized_hamming_distance
+from motif_balance.model import Evaluation, MotifMatch
+from motif_balance.model.portfolio import _normalized_hamming_distance
 
 
 def _motif(**updates: object) -> dict[str, object]:

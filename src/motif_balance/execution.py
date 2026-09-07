@@ -18,10 +18,10 @@ from pathlib import Path, PurePosixPath
 
 from motif_balance.api import design
 from motif_balance.artifacts import (
-    _publish_directory_no_replace,
     manifest_bytes,
     read_verified_portfolio,
 )
+from motif_balance.artifacts.publication import _publish_directory_no_replace
 from motif_balance.constants import MAX_BUNDLE_ARTIFACT_BYTES, PACKAGE_VERSION
 from motif_balance.errors import ArtifactError
 from motif_balance.formats.design import load_design_spec
