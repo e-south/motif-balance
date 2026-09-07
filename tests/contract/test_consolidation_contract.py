@@ -39,6 +39,7 @@ def test_public_exports_are_deliberate_and_bounded() -> None:
         "DesignSpec",
         "MotifMatch",
         "MotifModel",
+        "MotifSpecification",
         "Portfolio",
         "design",
         "score",

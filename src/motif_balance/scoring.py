@@ -89,13 +89,29 @@ def evaluate(sequence: str, problem: CompiledProblem) -> Evaluation:
             "sequence must contain only A, C, G, and T",
             field="sequence",
         )
-    matches = tuple(
-        _best_match(
-            normalized,
-            motif,
-            both_strands=problem.spec.strands == "both",
-        )
+    plain_matches = tuple(
+        _best_match(normalized, motif, both_strands=problem.spec.strands == "both")
         for motif in problem.motifs
+    )
+    matches = (
+        tuple(
+            MotifMatch.model_validate(
+                {
+                    **match.model_dump(mode="python"),
+                    "spec_direction": direction,
+                    "spec_satisfaction": (
+                        match.normalized_score
+                        if direction == "seek"
+                        else 1.0 - match.normalized_score
+                    ),
+                }
+            )
+            for match, direction in zip(
+                plain_matches, problem.spec.specification_directions, strict=True
+            )
+        )
+        if problem.spec.schema_version == "design-spec/v3"
+        else plain_matches
     )
     avoidance_matches = tuple(
         _best_match(
@@ -105,7 +121,10 @@ def evaluate(sequence: str, problem: CompiledProblem) -> Evaluation:
         )
         for item in problem.avoiders
     )
-    balance_score = min(match.normalized_score for match in matches)
+    balance_score = min(
+        match.spec_satisfaction if match.spec_satisfaction is not None else match.normalized_score
+        for match in matches
+    )
     if not math.isfinite(balance_score):
         raise ValueError("evaluation produced a nonfinite balance score")
     excesses = tuple(

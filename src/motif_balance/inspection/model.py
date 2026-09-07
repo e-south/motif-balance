@@ -37,6 +37,7 @@ class InspectionMotif(FrozenModel):
     canonical_file_name: str | None = None
     canonical_file_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     conversion: MotifConversion | None = None
+    direction: Literal["seek", "avoid"] | None = None
 
     @model_validator(mode="after")
     def validate_width(self) -> Self:
@@ -86,6 +87,11 @@ class InspectionProblem(FrozenModel):
             for motif in (*self.motifs, *self.avoiders)
         ):
             raise ValueError("inspection score references do not match scoring semantics")
+        directions = tuple(motif.direction for motif in self.motifs)
+        if any(direction is not None for direction in directions) and any(
+            direction is None for direction in directions
+        ):
+            raise ValueError("directional inspection requires a direction for every specification")
         return self
 
 
@@ -194,6 +200,8 @@ class InspectionMatch(FrozenModel):
     matched_sequence: str
     raw_score: float = Field(allow_inf_nan=False)
     normalized_score: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
+    spec_direction: Literal["seek", "avoid"] | None = None
+    spec_satisfaction: Annotated[float, Field(ge=0.0, le=1.0, allow_inf_nan=False)] | None = None
     position_support: tuple[PositionSupport, ...]
 
     @model_validator(mode="after")
@@ -220,6 +228,16 @@ class InspectionMatch(FrozenModel):
         )
         if tuple(item.candidate_position for item in self.position_support) != expected_positions:
             raise ValueError("position support does not follow strand-aware candidate coordinates")
+        if (self.spec_direction is None) != (self.spec_satisfaction is None):
+            raise ValueError("inspection direction and satisfaction must be declared together")
+        if self.spec_satisfaction is not None:
+            expected_satisfaction = (
+                self.normalized_score
+                if self.spec_direction == "seek"
+                else 1.0 - self.normalized_score
+            )
+            if not math.isclose(self.spec_satisfaction, expected_satisfaction, abs_tol=1.0e-12):
+                raise ValueError("inspection satisfaction does not match direction and attainment")
         return self
 
 
@@ -246,14 +264,25 @@ class InspectionCandidate(FrozenModel):
             raise ValueError("complement sequence must be coordinate-aligned to the primary strand")
         if not self.matches:
             raise ValueError("inspection candidate requires motif matches")
-        weakest = min(match.normalized_score for match in self.matches)
+        weakest = min(
+            match.spec_satisfaction
+            if match.spec_satisfaction is not None
+            else match.normalized_score
+            for match in self.matches
+        )
         if not math.isclose(self.balance_score, weakest, abs_tol=1.0e-12):
             raise ValueError("balance_score must equal the weakest normalized score")
         limiting = tuple(
             sorted(
                 match.motif_id
                 for match in self.matches
-                if math.isclose(match.normalized_score, weakest, abs_tol=1.0e-12)
+                if math.isclose(
+                    match.spec_satisfaction
+                    if match.spec_satisfaction is not None
+                    else match.normalized_score,
+                    weakest,
+                    abs_tol=1.0e-12,
+                )
             )
         )
         if self.limiting_motif_ids != limiting:

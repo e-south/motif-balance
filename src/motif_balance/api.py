@@ -44,7 +44,7 @@ class Portfolio(PortfolioRecord):
 
     def write(self, path: str | Path) -> Path:
         if (
-            self.manifest.schema_version != "run-manifest/v5"
+            self.manifest.schema_version not in {"run-manifest/v5", "run-manifest/v6"}
             or self.manifest.package_version != PACKAGE_VERSION
             or self.manifest.runtime_contract != RUNTIME_CONTRACT
             or self.manifest.build_lock_sha256 != BUILD_LOCK_SHA256
@@ -65,11 +65,11 @@ def score(sequence: str, spec: DesignSpec) -> Evaluation:
 
 
 def _require_publishable_design(spec: DesignSpec) -> None:
-    if spec.schema_version != "design-spec/v2":
+    if spec.schema_version not in {"design-spec/v2", "design-spec/v3"}:
         raise IncompatibleDesign(
             "design-spec/v1 is read-only and cannot publish a new result",
             field="schema_version",
-            hint="Use design-spec/v2 and motif-model/v2 for new design runs.",
+            hint="Use design-spec/v2 or design-spec/v3 with motif-model/v2 for new runs.",
         )
 
 
@@ -147,9 +147,20 @@ def _portfolio_from_search_result(
         package_version=PACKAGE_VERSION,
     )
     artifacts = artifact_records(base_artifact_payloads(spec, candidates))
+    strand_factor = 2 if spec.strands == "both" else 1
+    score_operations_per_evaluation = sum(
+        (spec.length - motif.width + 1) * motif.width * strand_factor
+        for motif in (*spec.scored_motifs, *(item.motif for item in spec.avoiders))
+    )
+    is_directional = spec.schema_version == "design-spec/v3"
+    is_exact = result.completion_status == "exhaustive"
     provisional_manifest = RunManifest(
         schema_version=(
-            "run-manifest/v5" if spec.schema_version == "design-spec/v2" else "run-manifest/v4"
+            "run-manifest/v6"
+            if spec.schema_version == "design-spec/v3"
+            else "run-manifest/v5"
+            if spec.schema_version == "design-spec/v2"
+            else "run-manifest/v4"
         ),
         package_version=PACKAGE_VERSION,
         runtime_contract=RUNTIME_CONTRACT,
@@ -166,6 +177,18 @@ def _portfolio_from_search_result(
         search_validation_status=result.search_validation_status,
         search_diagnostics=result.diagnostics,
         best_observed=best_observed,
+        exact_completion_status=(
+            ("complete" if is_exact else "not_exact") if is_directional else None
+        ),
+        state_space_size=result.evaluations_used if is_directional and is_exact else None,
+        expected_candidate_count=result.evaluations_used if is_directional and is_exact else None,
+        completed_candidate_count=result.evaluations_used if is_directional and is_exact else None,
+        score_operation_count=(
+            result.evaluations_used * score_operations_per_evaluation if is_directional else None
+        ),
+        elite_capacity=result.elite_capacity if is_directional else None,
+        elite_fill_count=len(result.elites) if is_directional else None,
+        elites=result.elites if is_directional else (),
         artifacts=artifacts,
     )
     manifest = provisional_manifest.model_copy(

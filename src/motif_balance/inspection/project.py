@@ -73,6 +73,8 @@ def _support(motif: MotifModel, candidate: Candidate, match: MotifMatch) -> Insp
         matched_sequence=match.matched_sequence,
         raw_score=match.raw_score,
         normalized_score=match.normalized_score,
+        spec_direction=match.spec_direction,
+        spec_satisfaction=match.spec_satisfaction,
         position_support=tuple(rows),
     )
 
@@ -90,7 +92,7 @@ def _project_candidate(
         or authoritative.matches != candidate.matches
     ):
         raise ArtifactError(f"inspection score replay failed for '{candidate.candidate_id}'")
-    motifs = {motif.motif_id: motif for motif in spec.motifs}
+    motifs = {motif.motif_id: motif for motif in spec.scored_motifs}
     matches = tuple(
         _support(motifs[match.motif_id], candidate, match) for match in candidate.matches
     )
@@ -107,7 +109,13 @@ def _project_candidate(
         sorted(
             match.motif_id
             for match in matches
-            if math.isclose(match.normalized_score, candidate.balance_score, abs_tol=1.0e-12)
+            if math.isclose(
+                match.spec_satisfaction
+                if match.spec_satisfaction is not None
+                else match.normalized_score,
+                candidate.balance_score,
+                abs_tol=1.0e-12,
+            )
         )
     )
     return InspectionCandidate(
@@ -129,7 +137,7 @@ def _project_candidate(
 def project_candidate(spec: DesignSpec, candidate: Candidate) -> InspectionCandidate:
     """Replay and project one candidate into renderer-ready computational score support."""
 
-    support_rows = sum(motif.width for motif in spec.motifs) + sum(
+    support_rows = sum(motif.width for motif in spec.scored_motifs) + sum(
         item.motif.width for item in spec.avoiders
     )
     if support_rows > MAX_INSPECTION_SUPPORT_ROWS:
@@ -173,8 +181,15 @@ def _project_problem(spec: DesignSpec, problem: CompiledProblem) -> InspectionPr
                 canonical_file_name=motif.canonical_file_name,
                 canonical_file_digest=motif.canonical_file_digest,
                 conversion=motif.conversion,
+                direction=(
+                    spec.specification_directions[index]
+                    if spec.schema_version == "design-spec/v3"
+                    else None
+                ),
             )
-            for motif, compiled in zip(spec.motifs, problem.motifs, strict=True)
+            for index, (motif, compiled) in enumerate(
+                zip(spec.scored_motifs, problem.motifs, strict=True)
+            )
         ),
         avoiders=tuple(
             InspectionAvoider(
@@ -289,7 +304,7 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
         else 0
     )
     support_rows = (len(portfolio.candidates) + extra_best) * (
-        sum(motif.width for motif in portfolio.spec.motifs)
+        sum(motif.width for motif in portfolio.spec.scored_motifs)
         + sum(item.motif.width for item in portfolio.spec.avoiders)
     )
     if support_rows > MAX_INSPECTION_SUPPORT_ROWS:
@@ -408,7 +423,8 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
             restart_final_scores=manifest.search_diagnostics.restart_final_scores,
             restart_final_constraint_statuses=(
                 manifest.search_diagnostics.restart_final_constraint_statuses
-                if manifest.search_diagnostics.schema_version == "search-diagnostics/v2"
+                if manifest.search_diagnostics.schema_version
+                in {"search-diagnostics/v2", "search-diagnostics/v3"}
                 else tuple("feasible" for _ in range(manifest.search_diagnostics.restarts))
             ),
             proposals=manifest.search_diagnostics.proposals,

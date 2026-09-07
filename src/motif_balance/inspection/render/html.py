@@ -428,6 +428,25 @@ def _avoidance_contract(inspection: ResultInspection) -> str:
     )
 
 
+def _directional_contract(inspection: ResultInspection) -> str:
+    if not all(item.direction is not None for item in inspection.problem.motifs):
+        return ""
+    rows = "".join(
+        "<tr>"
+        f"<td>{escape(item.motif_id)}</td>"
+        f"<td>{escape(item.direction or '')}</td>"
+        f"<td><code>{item.model_digest}</code></td>"
+        "</tr>"
+        for item in inspection.problem.motifs
+    )
+    return (
+        "<h3>Directional motif specifications</h3>"
+        "<p>Seek satisfaction equals model-relative attainment. Avoid satisfaction equals "
+        "1 - attainment after the same strongest-hit scan; this does not establish biological "
+        "absence.</p>" + _table(("Motif", "Direction", "Model digest"), rows)
+    )
+
+
 def render_html(
     inspection: ResultInspection,
     *,
@@ -446,10 +465,12 @@ def render_html(
         if best_observed.selected_rank is None
         else f"It is selected at portfolio rank {best_observed.selected_rank}."
     )
+    directional = all(item.direction is not None for item in inspection.problem.motifs)
     lede = (
         f"Returned {inspection.delivery.delivered_count} of "
         f"{inspection.delivery.requested_count} requested sequences. Best observed "
-        "weakest target attainment (balance_score) was "
+        f"weakest {'specification satisfaction' if directional else 'target attainment'} "
+        "(balance_score) was "
         f"{inspection.portfolio.best_observed_score:.6g}. "
         f"{best_observed_state} The selected rank {selected.rank} candidate balances "
         f"{len(inspection.problem.motifs)} motif models at {selected.balance_score:.6g}."
@@ -460,8 +481,12 @@ def render_html(
         if inspection.run.min_distance_requested is None
         else f"minimum distance {inspection.run.min_distance_requested:.6g}"
     )
+    specification_labels = " + ".join(
+        f"{motif.motif_id}:{motif.direction}" if directional else motif.motif_id
+        for motif in inspection.problem.motifs
+    )
     contract = (
-        f"{' + '.join(m.motif_id for m in inspection.problem.motifs)} · "
+        f"{specification_labels} · "
         f"{inspection.problem.length} nt · {inspection.problem.strands} strands · "
         f"{inspection.delivery.requested_count} candidates · {distance}"
     )
@@ -472,10 +497,12 @@ def render_html(
             _best_observed_record(inspection),
             _status_line(inspection),
             f'<h2>Design contract</h2><p class="contract">{escape(contract)}</p>',
+            _directional_contract(inspection),
             _avoidance_contract(inspection),
             "<h2>Portfolio balance</h2>",
             "<p>Rows retain deterministic rank order and columns retain canonical motif order. "
-            "The weakest target attainment is recorded as <code>balance_score</code>. "
+            f"The weakest {'specification satisfaction' if directional else 'target attainment'} "
+            "is recorded as <code>balance_score</code>. "
             "Numeric values are authoritative; color is only a reading aid.</p>",
             '<div class="figure-scroll" aria-label="Portfolio balance figure">',
             f"{portfolio_svg}</div>",

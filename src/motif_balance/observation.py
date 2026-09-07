@@ -116,6 +116,11 @@ def _observed_rows(result: SearchResult) -> tuple[ObservedEvaluation, ...]:
 
 
 def _require_observation_capacity(spec: DesignSpec) -> None:
+    if spec.schema_version == "design-spec/v3":
+        raise ArtifactError(
+            "directional runs retain the bounded elite snapshot in run-manifest/v6; "
+            "the legacy complete evaluated-pool export is unavailable"
+        )
     if spec.evaluations > MAX_EVALUATED_POOL_RECORDS:
         raise ArtifactError(
             "evaluated-pool observation exceeds its record limit; "

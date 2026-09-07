@@ -177,10 +177,6 @@ def _digest(payload: bytes) -> str:
 def _design_payload(spec: DesignSpec) -> dict[str, object]:
     payload: dict[str, object] = {
         "schema_version": spec.schema_version,
-        "motifs": [
-            {"motif_id": motif.motif_id, "model_digest": motif.model_digest}
-            for motif in spec.motifs
-        ],
         "length": spec.length,
         "count": spec.count,
         "strands": spec.strands,
@@ -191,6 +187,20 @@ def _design_payload(spec: DesignSpec) -> dict[str, object]:
         "objective_semantics": spec.objective_semantics,
         "tie_break_semantics": spec.tie_break_semantics,
     }
+    if spec.schema_version == "design-spec/v3":
+        payload["specifications"] = [
+            {
+                "motif_id": item.motif.motif_id,
+                "model_digest": item.motif.model_digest,
+                "direction": item.direction,
+            }
+            for item in spec.specifications
+        ]
+    else:
+        payload["motifs"] = [
+            {"motif_id": motif.motif_id, "model_digest": motif.model_digest}
+            for motif in spec.motifs
+        ]
     if spec.avoiders:
         payload["avoiders"] = [
             {
@@ -205,7 +215,7 @@ def _design_payload(spec: DesignSpec) -> dict[str, object]:
 
 def _motifs_payload(spec: DesignSpec) -> dict[str, object]:
     motifs = []
-    all_motifs = (*spec.motifs, *(item.motif for item in spec.avoiders))
+    all_motifs = (*spec.scored_motifs, *(item.motif for item in spec.avoiders))
     for motif in sorted(all_motifs, key=lambda item: item.motif_id):
         payload = motif.model_dump(mode="json")
         payload["width"] = motif.width
@@ -254,7 +264,14 @@ def matches_tsv(spec: DesignSpec, candidates: tuple[Candidate, ...]) -> bytes:
                 "raw_score": format(match.raw_score, ".17g"),
                 "normalized_score": format(match.normalized_score, ".17g"),
             }
-            if spec.schema_version == "design-spec/v2":
+            if spec.schema_version == "design-spec/v3":
+                row = {
+                    **row,
+                    "role": "specification",
+                    "direction": match.spec_direction,
+                    "spec_satisfaction": format(match.spec_satisfaction, ".17g"),
+                }
+            elif spec.schema_version == "design-spec/v2":
                 row = {**row, "role": "target", "score_ceiling": ""}
             rows.append(row)
         if spec.schema_version == "design-spec/v2":
@@ -275,6 +292,20 @@ def matches_tsv(spec: DesignSpec, candidates: tuple[Candidate, ...]) -> bytes:
                 )
     fields = (
         (
+            "candidate_id",
+            "role",
+            "direction",
+            "motif_id",
+            "start",
+            "end",
+            "strand",
+            "matched_sequence",
+            "raw_score",
+            "normalized_score",
+            "spec_satisfaction",
+        )
+        if spec.schema_version == "design-spec/v3"
+        else (
             "candidate_id",
             "role",
             "motif_id",
@@ -404,21 +435,57 @@ def _read_spec(members: dict[str, bytes]) -> DesignSpec:
             raise ArtifactError("motifs.json contains duplicate motif identifiers")
         motifs[motif.motif_id] = motif
     design_payload = _json_object(members["design.json"], label="design.json")
-    references = design_payload.pop("motifs", None)
-    if not isinstance(references, list):
-        raise ArtifactError("design.json motifs must be a list")
-    expected: list[dict[str, str]] = []
-    for item in references:
-        if not isinstance(item, dict):
-            raise ArtifactError("design.json contains a malformed target motif reference")
-        motif_id = item.get("motif_id")
-        if not isinstance(motif_id, str) or motif_id not in motifs:
-            raise ArtifactError("design.json target motif does not reference motifs.json")
-        expected.append({"motif_id": motif_id, "model_digest": motifs[motif_id].model_digest})
-    if references != expected:
-        raise ArtifactError("design.json motif references do not match motifs.json")
-    target_models = tuple(motifs[item["motif_id"]] for item in references)
     schema_version = design_payload.get("schema_version")
+    references = design_payload.pop("motifs", None)
+    specification_references = design_payload.pop("specifications", None)
+    target_models: tuple[MotifModel, ...] = ()
+    specifications: tuple[dict[str, object], ...] = ()
+    referenced_ids: set[str] = set()
+    if schema_version == "design-spec/v3":
+        if references is not None:
+            raise ArtifactError("design-spec/v3 cannot contain legacy motif references")
+        if not isinstance(specification_references, list) or not specification_references:
+            raise ArtifactError("design.json specifications must be a nonempty list")
+        parsed_specifications: list[dict[str, object]] = []
+        expected_specifications: list[dict[str, object]] = []
+        for item in specification_references:
+            if not isinstance(item, dict):
+                raise ArtifactError("design.json contains a malformed motif specification")
+            motif_id = item.get("motif_id")
+            direction = item.get("direction")
+            if not isinstance(motif_id, str) or motif_id not in motifs:
+                raise ArtifactError("design.json specification does not reference motifs.json")
+            if direction not in {"seek", "avoid"}:
+                raise ArtifactError("design.json specification has an unknown direction")
+            expected_specifications.append(
+                {
+                    "motif_id": motif_id,
+                    "model_digest": motifs[motif_id].model_digest,
+                    "direction": direction,
+                }
+            )
+            parsed_specifications.append({"motif": motifs[motif_id], "direction": direction})
+            referenced_ids.add(motif_id)
+        if specification_references != expected_specifications:
+            raise ArtifactError("design.json specifications do not match motifs.json")
+        specifications = tuple(parsed_specifications)
+    else:
+        if specification_references is not None:
+            raise ArtifactError("legacy design schema cannot contain specifications")
+        if not isinstance(references, list):
+            raise ArtifactError("design.json motifs must be a list")
+        expected: list[dict[str, str]] = []
+        for item in references:
+            if not isinstance(item, dict):
+                raise ArtifactError("design.json contains a malformed target motif reference")
+            motif_id = item.get("motif_id")
+            if not isinstance(motif_id, str) or motif_id not in motifs:
+                raise ArtifactError("design.json target motif does not reference motifs.json")
+            expected.append({"motif_id": motif_id, "model_digest": motifs[motif_id].model_digest})
+            referenced_ids.add(motif_id)
+        if references != expected:
+            raise ArtifactError("design.json motif references do not match motifs.json")
+        target_models = tuple(motifs[item["motif_id"]] for item in references)
     avoiders_payload = design_payload.pop("avoiders", [])
     avoiders: list[dict[str, object]] = []
     referenced_avoider_ids: set[str] = set()
@@ -435,13 +502,18 @@ def _read_spec(members: dict[str, bytes]) -> DesignSpec:
                 raise ArtifactError("design.json avoider digest does not match motifs.json")
             avoiders.append({"motif": motifs[motif_id], "score_ceiling": item.get("score_ceiling")})
             referenced_avoider_ids.add(motif_id)
-        referenced_ids = {item["motif_id"] for item in references} | referenced_avoider_ids
+        referenced_ids |= referenced_avoider_ids
         if referenced_ids != set(motifs):
             raise ArtifactError("motifs.json contains unreferenced motif models")
-    elif {item["motif_id"] for item in references} != set(motifs):
+    elif referenced_ids != set(motifs):
         raise ArtifactError("motifs.json contains unreferenced motif models")
     spec = DesignSpec.model_validate(
-        {**design_payload, "motifs": target_models, "avoiders": tuple(avoiders)}
+        {
+            **design_payload,
+            "motifs": target_models,
+            "specifications": specifications,
+            "avoiders": tuple(avoiders),
+        }
     )
     expected_collection = (
         "motif-collection/v1" if spec.schema_version == "design-spec/v1" else "motif-collection/v2"
@@ -454,7 +526,7 @@ def _read_spec(members: dict[str, bytes]) -> DesignSpec:
 def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candidate, ...]:
     matches_by_candidate: dict[str, list[MotifMatch]] = defaultdict(list)
     avoidance_by_candidate: dict[str, list[MotifMatch]] = defaultdict(list)
-    expected_match_rows = spec.count * (len(spec.motifs) + len(spec.avoiders))
+    expected_match_rows = spec.count * (len(spec.scored_motifs) + len(spec.avoiders))
     if spec.count > MAX_BUNDLE_ROWS or expected_match_rows > MAX_BUNDLE_ROWS:
         raise ArtifactError("design exceeds the canonical table row limit")
     try:
@@ -465,9 +537,23 @@ def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candi
             candidate_id = row.pop("candidate_id")
             role = row.pop("role", "target")
             ceiling = row.pop("score_ceiling", "")
-            destination = matches_by_candidate if role == "target" else avoidance_by_candidate
-            if role not in {"target", "avoider"}:
-                raise ArtifactError("matches.tsv contains an unknown motif role")
+            direction = row.pop("direction", "")
+            satisfaction = row.pop("spec_satisfaction", "")
+            if spec.schema_version == "design-spec/v3":
+                if role != "specification":
+                    raise ArtifactError("directional matches must use the specification role")
+                declared_directions = {
+                    item.motif.motif_id: item.direction for item in spec.specifications
+                }
+                if direction != declared_directions.get(row["motif_id"]):
+                    raise ArtifactError("match direction does not agree with design.json")
+                if ceiling or not satisfaction:
+                    raise ArtifactError("directional match has malformed satisfaction evidence")
+                destination = matches_by_candidate
+            else:
+                destination = matches_by_candidate if role == "target" else avoidance_by_candidate
+                if role not in {"target", "avoider"}:
+                    raise ArtifactError("matches.tsv contains an unknown motif role")
             if role == "target" and ceiling:
                 raise ArtifactError("target match cannot declare an avoider ceiling")
             expected_ceiling = {
@@ -486,6 +572,14 @@ def _read_candidates(members: dict[str, bytes], spec: DesignSpec) -> tuple[Candi
                     matched_sequence=row["matched_sequence"],
                     raw_score=float(row["raw_score"]),
                     normalized_score=float(row["normalized_score"]),
+                    spec_direction=(
+                        cast(Literal["seek", "avoid"], direction)
+                        if spec.schema_version == "design-spec/v3"
+                        else None
+                    ),
+                    spec_satisfaction=(
+                        float(satisfaction) if spec.schema_version == "design-spec/v3" else None
+                    ),
                 )
             )
         candidates: list[Candidate] = []
@@ -760,6 +854,13 @@ def verify_portfolio_record(portfolio: PortfolioRecord) -> None:
                 "scientific replay found scoring drift for the best observed candidate"
             )
 
+    for elite in portfolio.manifest.elites:
+        authoritative_elite = evaluate(elite.sequence, problem)
+        if authoritative_elite != elite:
+            raise ArtifactError(
+                f"scientific replay found scoring drift for retained elite '{elite.sequence}'"
+            )
+
     seen_ids: set[str] = set()
     for candidate in portfolio.candidates:
         if candidate.candidate_id in seen_ids:
@@ -839,8 +940,8 @@ def write_bundle(
         output.parent.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         raise ArtifactError("unable to create the bundle publication directory") from exc
-    if portfolio.manifest.schema_version != "run-manifest/v5":
-        raise ArtifactError("new bundle publication requires run-manifest/v5")
+    if portfolio.manifest.schema_version not in {"run-manifest/v5", "run-manifest/v6"}:
+        raise ArtifactError("new bundle publication requires run-manifest/v5 or v6")
     if set(payloads) != _V5_FILES - {"manifest.json"}:
         raise ArtifactError("bundle payload inventory is incomplete")
     records = artifact_records(payloads)

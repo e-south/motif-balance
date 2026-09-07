@@ -7,7 +7,7 @@ audience:
   - agent executors
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-29
+last_verified: 2026-09-06
 doc_type: explanation
 journey:
   - maintain
@@ -28,7 +28,7 @@ The reusable product spine is:
 DesignSpec -> compile -> evaluate -> search -> select -> Portfolio -> artifact bundle
 ```
 
-Motif Balance owns strict motif and design contracts, deterministic motif
+Motif Balance owns strict motif, direction, and design contracts, deterministic motif
 matching and normalization, bounded candidate search, immutable evaluated
 candidates, deterministic portfolio selection, and verifiable artifacts. It
 does not own source-data curation, comparison design, claim acceptance,
@@ -68,7 +68,8 @@ errors, constants, claim-language advisory, and model
 - `artifacts.py` serializes canonical bundles and replays their identities and
   scientific records. It does not own downstream registration or presentation.
 - `observation.py` owns the bounded, immutable complete evaluated-pool export
-  for explicit analysis consumers. It does not enlarge `Portfolio`, write into
+  for explicit legacy-v2 analysis consumers. Directional v3 runs use the
+  manifest's bounded elite snapshot. Observation does not enlarge `Portfolio`, write into
   canonical bundles, discover storage, or enter the top-level facade.
   Its advanced paired operation may reuse the API shell's private portfolio
   construction from the same search result; it does not introduce another

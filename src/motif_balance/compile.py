@@ -23,6 +23,7 @@ class CompiledMotif:
     score_max: float
     probability_consensus: str
     score_maximizing_sequence: str
+    score_minimizing_sequence: str
 
     @property
     def normalization_denominator(self) -> float:
@@ -124,6 +125,7 @@ def _compile_motif(model: MotifModel) -> CompiledMotif:
         "ACGT"[int(index)] for index in np.argmax(probabilities, axis=1)
     )
     score_maximizing_sequence = "".join("ACGT"[int(index)] for index in np.argmax(log_odds, axis=1))
+    score_minimizing_sequence = "".join("ACGT"[int(index)] for index in np.argmin(log_odds, axis=1))
     null_mean = _null_mean(log_odds, background)
     compiled = CompiledMotif(
         model=model,
@@ -134,6 +136,7 @@ def _compile_motif(model: MotifModel) -> CompiledMotif:
         score_max=score_max,
         probability_consensus=probability_consensus,
         score_maximizing_sequence=score_maximizing_sequence,
+        score_minimizing_sequence=score_minimizing_sequence,
     )
     if not math.isfinite(compiled.normalization_denominator) or (
         compiled.normalization_denominator <= 0.0
@@ -147,17 +150,27 @@ def _compile_motif(model: MotifModel) -> CompiledMotif:
 
 
 def _problem_id(spec: DesignSpec) -> str:
-    payload = {
-        "motifs": [
-            {"motif_id": motif.motif_id, "model_digest": motif.model_digest}
-            for motif in spec.motifs
-        ],
+    payload: dict[str, object] = {
         "length": spec.length,
         "strands": spec.strands,
         "scoring_semantics": spec.scoring_semantics,
         "objective_semantics": spec.objective_semantics,
         "tie_break_semantics": spec.tie_break_semantics,
     }
+    if spec.schema_version == "design-spec/v3":
+        payload["specifications"] = [
+            {
+                "motif_id": item.motif.motif_id,
+                "model_digest": item.motif.model_digest,
+                "direction": item.direction,
+            }
+            for item in spec.specifications
+        ]
+    else:
+        payload["motifs"] = [
+            {"motif_id": motif.motif_id, "model_digest": motif.model_digest}
+            for motif in spec.motifs
+        ]
     if spec.avoiders:
         payload["avoiders"] = [
             {
@@ -174,7 +187,7 @@ def _problem_id(spec: DesignSpec) -> str:
 
 
 def compile_design(spec: DesignSpec) -> CompiledProblem:
-    all_motifs = (*spec.motifs, *(item.motif for item in spec.avoiders))
+    all_motifs = (*spec.scored_motifs, *(item.motif for item in spec.avoiders))
     if any(motif.width > spec.length for motif in all_motifs):
         widest = max(all_motifs, key=lambda motif: motif.width)
         raise IncompatibleDesign(
@@ -189,7 +202,7 @@ def compile_design(spec: DesignSpec) -> CompiledProblem:
             field="count",
             hint="Reduce count or increase sequence length.",
         )
-    compiled = tuple(_compile_motif(motif) for motif in spec.motifs)
+    compiled = tuple(_compile_motif(motif) for motif in spec.scored_motifs)
     avoiders = tuple(
         CompiledAvoider(motif=_compile_motif(item.motif), score_ceiling=item.score_ceiling)
         for item in spec.avoiders

@@ -10,8 +10,15 @@ from numpy.typing import NDArray
 
 from motif_balance.admissibility import is_preferred, preference_key
 from motif_balance.compile import CompiledMotif, CompiledProblem, sequence_space_at_most
-from motif_balance.constants import DNA_ALPHABET, RNG_NAME, SEARCH_ENGINE, SEARCH_ENGINE_VERSION
+from motif_balance.constants import (
+    DEFAULT_ELITE_CAPACITY,
+    DNA_ALPHABET,
+    RNG_NAME,
+    SEARCH_ENGINE,
+    SEARCH_ENGINE_VERSION,
+)
 from motif_balance.model import (
+    CheckpointSpecificationSatisfaction,
     Evaluation,
     MotifMatch,
     ProposalSummary,
@@ -32,6 +39,8 @@ class SearchResult:
     completion_status: Literal["exhaustive", "budget_exhausted"]
     search_validation_status: Literal["not_applicable", "contract_tested"]
     diagnostics: SearchDiagnostics
+    elite_capacity: int
+    elites: tuple[Evaluation, ...]
     engine: str = SEARCH_ENGINE
     engine_version: str = SEARCH_ENGINE_VERSION
     rng: str = RNG_NAME
@@ -43,6 +52,11 @@ class SearchResult:
             raise ValueError("first-evaluation indices must follow unique discovery order")
         if len(set(self.first_evaluation_indices)) != len(self.first_evaluation_indices):
             raise ValueError("first-evaluation indices must be unique")
+        if len(self.elites) > self.elite_capacity:
+            raise ValueError("retained elites cannot exceed the declared capacity")
+        sequences = tuple(item.sequence for item in self.elites)
+        if len(sequences) != len(set(sequences)):
+            raise ValueError("retained elite sequences must be unique")
 
 
 class SearchEngine(Protocol):
@@ -54,6 +68,7 @@ class SearchEngine(Protocol):
 @dataclass(slots=True)
 class _SearchLedger:
     budget: int
+    directional: bool
     evaluations: dict[str, Evaluation] = field(default_factory=dict)
     first_evaluation_indices: dict[str, int] = field(default_factory=dict)
     checkpoints: list[SearchCheckpoint] = field(default_factory=list)
@@ -73,14 +88,35 @@ class _SearchLedger:
         if result.constraint_feasible:
             self.best_feasible_score = max(self.best_feasible_score, result.balance_score)
         interval = max(1, self.budget // 20)
-        if (
-            self.evaluations_used == 1
-            or self.evaluations_used % interval == 0
-            or self.evaluations_used == self.budget
+        logarithmic_checkpoint = self.evaluations_used & (self.evaluations_used - 1) == 0
+        if self.evaluations_used == self.budget or (
+            logarithmic_checkpoint
+            if self.directional
+            else self.evaluations_used == 1 or self.evaluations_used % interval == 0
         ):
+            details = (
+                tuple(
+                    CheckpointSpecificationSatisfaction(
+                        motif_id=match.motif_id,
+                        direction=match.spec_direction,
+                        attainment=match.normalized_score,
+                        satisfaction=match.spec_satisfaction,
+                    )
+                    for match in self.best_evaluation.matches
+                    if match.spec_direction is not None and match.spec_satisfaction is not None
+                )
+                if self.directional and self.best_evaluation is not None
+                else ()
+            )
             checkpoint = SearchCheckpoint(
                 evaluations=self.evaluations_used,
                 best_score=self.best_feasible_score,
+                specification_satisfactions=details,
+                limiting_specification_ids=(
+                    self.best_evaluation.limiting_specification_ids
+                    if self.directional and self.best_evaluation is not None
+                    else ()
+                ),
             )
             if self.checkpoints and self.checkpoints[-1].evaluations == self.evaluations_used:
                 self.checkpoints[-1] = checkpoint
@@ -88,8 +124,24 @@ class _SearchLedger:
                 self.checkpoints.append(checkpoint)
 
 
+def _retained_elites(
+    evaluations: tuple[Evaluation, ...], *, capacity: int = DEFAULT_ELITE_CAPACITY
+) -> tuple[Evaluation, ...]:
+    return tuple(
+        sorted(evaluations, key=lambda item: (-item.balance_score, item.sequence))[:capacity]
+    )
+
+
 def _soft_min(result: Evaluation, *, beta: float) -> float:
-    scores = np.asarray([match.normalized_score for match in result.matches], dtype=float)
+    scores = np.asarray(
+        [
+            match.spec_satisfaction
+            if match.spec_satisfaction is not None
+            else match.normalized_score
+            for match in result.matches
+        ],
+        dtype=float,
+    )
     floor = float(np.min(scores))
     return floor - math.log(float(np.exp(-beta * (scores - floor)).sum())) / beta
 
@@ -98,7 +150,7 @@ def _sequence(values: np.ndarray) -> str:
     return "".join(DNA_ALPHABET[int(value)] for value in values)
 
 
-def _mcmc_beta(progress: float) -> float:
+def _annealing_beta(progress: float) -> float:
     if progress < 0.20:
         return 0.2
     if progress < 0.60:
@@ -118,7 +170,13 @@ def _move_probabilities(progress: float) -> NDArray[np.float64]:
 
 
 def _worst_match(result: Evaluation) -> MotifMatch:
-    return min(result.matches, key=lambda item: (item.normalized_score, item.motif_id))
+    return min(
+        result.matches,
+        key=lambda item: (
+            item.spec_satisfaction if item.spec_satisfaction is not None else item.normalized_score,
+            item.motif_id,
+        ),
+    )
 
 
 def _target_bounds(result: Evaluation, problem: CompiledProblem, *, length: int) -> tuple[int, int]:
@@ -160,16 +218,50 @@ def _motif_for_match(problem: CompiledProblem, motif_id: str) -> CompiledMotif:
     return next(motif for motif in problem.motifs if motif.model.motif_id == motif_id)
 
 
+def _motif_insertion_word(
+    motif: CompiledMotif,
+    *,
+    direction: Literal["seek", "avoid"],
+    rng: np.random.Generator,
+) -> str:
+    """Propose a word in the direction of the current limiting specification."""
+
+    if rng.random() < 0.65:
+        return (
+            motif.probability_consensus if direction == "seek" else motif.score_minimizing_sequence
+        )
+    if direction == "seek":
+        return "".join(
+            DNA_ALPHABET[int(rng.choice(4, p=np.asarray(row, dtype=float)))]
+            for row in motif.model.probabilities
+        )
+    words = []
+    for row in motif.log_odds:
+        logits = -np.asarray(row, dtype=float)
+        weights = np.exp(logits - logits.max())
+        weights /= weights.sum()
+        words.append(DNA_ALPHABET[int(rng.choice(4, p=weights))])
+    return "".join(words)
+
+
 @dataclass(frozen=True, slots=True)
 class ExhaustiveSearchEngine:
     def search(self, problem: CompiledProblem) -> SearchResult:
         sequence_space = sequence_space_at_most(problem.spec.length, problem.spec.evaluations)
         if sequence_space is None:
             raise ValueError("exhaustive search requires a budget covering the sequence space")
-        ledger = _SearchLedger(budget=sequence_space)
+        ledger = _SearchLedger(
+            budget=sequence_space,
+            directional=problem.spec.schema_version == "design-spec/v3",
+        )
         for bases in itertools.product(DNA_ALPHABET, repeat=problem.spec.length):
             ledger.record(evaluate("".join(bases), problem))
         diagnostics = SearchDiagnostics(
+            schema_version=(
+                "search-diagnostics/v3"
+                if problem.spec.schema_version == "design-spec/v3"
+                else "search-diagnostics/v2"
+            ),
             restarts=1,
             best_score=ledger.best_feasible_score,
             checkpoints=tuple(ledger.checkpoints),
@@ -181,14 +273,17 @@ class ExhaustiveSearchEngine:
             ),
             proposals=(),
         )
+        evaluations = tuple(ledger.evaluations.values())
         return SearchResult(
-            evaluations=tuple(ledger.evaluations.values()),
+            evaluations=evaluations,
             first_evaluation_indices=tuple(ledger.first_evaluation_indices.values()),
             evaluations_used=ledger.evaluations_used,
             unique_evaluations=len(ledger.evaluations),
             completion_status="exhaustive",
             search_validation_status="not_applicable",
             diagnostics=diagnostics,
+            elite_capacity=DEFAULT_ELITE_CAPACITY,
+            elites=_retained_elites(evaluations),
             engine="exhaustive_v1",
             engine_version="1",
             rng="none",
@@ -199,8 +294,8 @@ class ExhaustiveSearchEngine:
 class AnnealedSearchEngine:
     """Bounded production search under the public evaluation contract.
 
-    The fixed policy combines perturbed multi-chain starts, Gibbs-style single-base
-    updates, wider mutations, motif insertion, and annealed acceptance. It does
+    The fixed policy combines perturbed multi-chain starts, four-base single-position
+    resampling, wider mutations, motif insertion, and annealed acceptance. It does
     not mutate evaluated candidates, relax result constraints, or retain raw
     optimizer-state traces.
     """
@@ -279,7 +374,7 @@ class AnnealedSearchEngine:
             keys = tuple(preference_key(result) for _, result in candidates)
             ranks = {key: rank for rank, key in enumerate(sorted(set(keys)))}
             scores = np.asarray([float(ranks[key]) for key in keys])
-        logits = _mcmc_beta(progress) * scores
+        logits = _annealing_beta(progress) * scores
         logits -= logits.max()
         probabilities = np.exp(logits)
         probabilities /= probabilities.sum()
@@ -359,15 +454,11 @@ class AnnealedSearchEngine:
     ) -> tuple[np.ndarray, Evaluation]:
         worst = _worst_match(current)
         motif = _motif_for_match(problem, worst.motif_id)
-        if rng.random() < 0.65:
-            inserted = "".join(
-                DNA_ALPHABET[int(np.argmax(row))] for row in motif.model.probabilities
-            )
-        else:
-            inserted = "".join(
-                DNA_ALPHABET[int(rng.choice(4, p=np.asarray(row, dtype=float)))]
-                for row in motif.model.probabilities
-            )
+        inserted = _motif_insertion_word(
+            motif,
+            direction=worst.spec_direction or "seek",
+            rng=rng,
+        )
         if problem.spec.strands == "both" and rng.random() < 0.5:
             inserted = reverse_complement(inserted)
         bounds = (
@@ -391,7 +482,10 @@ class AnnealedSearchEngine:
         if sequence_space_at_most(problem.spec.length, problem.spec.evaluations) is not None:
             return ExhaustiveSearchEngine().search(problem)
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
-        ledger = _SearchLedger(budget=problem.spec.evaluations)
+        ledger = _SearchLedger(
+            budget=problem.spec.evaluations,
+            directional=problem.spec.schema_version == "design-spec/v3",
+        )
         states, current = self._initial_states(problem, rng=rng, ledger=ledger)
         attempted: dict[MoveName, int] = {
             "single": 0,
@@ -453,6 +547,11 @@ class AnnealedSearchEngine:
                 accepted[move] += 1
             chain = (chain + 1) % len(states)
         diagnostics = SearchDiagnostics(
+            schema_version=(
+                "search-diagnostics/v3"
+                if problem.spec.schema_version == "design-spec/v3"
+                else "search-diagnostics/v2"
+            ),
             restarts=len(states),
             best_score=ledger.best_feasible_score,
             checkpoints=tuple(ledger.checkpoints),
@@ -463,14 +562,17 @@ class AnnealedSearchEngine:
                 for move in move_names
             ),
         )
+        evaluations = tuple(ledger.evaluations.values())
         return SearchResult(
-            evaluations=tuple(ledger.evaluations.values()),
+            evaluations=evaluations,
             first_evaluation_indices=tuple(ledger.first_evaluation_indices.values()),
             evaluations_used=ledger.evaluations_used,
             unique_evaluations=len(ledger.evaluations),
             completion_status="budget_exhausted",
             search_validation_status="contract_tested",
             diagnostics=diagnostics,
+            elite_capacity=DEFAULT_ELITE_CAPACITY,
+            elites=_retained_elites(evaluations),
         )
 
     @staticmethod
@@ -501,7 +603,7 @@ class AnnealedSearchEngine:
         else:
             delta = proposed.balance_score - current.balance_score
         return delta >= 0.0 or math.log(max(float(rng.random()), 1.0e-300)) < (
-            _mcmc_beta(progress) * delta
+            _annealing_beta(progress) * delta
         )
 
 

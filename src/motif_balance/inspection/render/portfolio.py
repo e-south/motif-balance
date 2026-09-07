@@ -48,8 +48,13 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
         else str(inspection.portfolio.best_observed.selected_rank)
     )
     motif_ids = tuple(motif_id(motif.motif_id) for motif in motifs)
+    directional = all(motif.direction is not None for motif in canonical_motifs)
     observed_max = max(
-        match.normalized_score
+        (
+            match.spec_satisfaction
+            if directional and match.spec_satisfaction is not None
+            else match.normalized_score
+        )
         for candidate in candidates
         for match in candidate.matches
         if match.motif_id in motif_ids
@@ -57,12 +62,16 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
     display_max = max(1.0, observed_max)
     is_legacy = inspection.problem.scoring_semantics == "normalized_llr_v1"
     score_description = (
-        "normalized LLR from the clipped null-mean reference to the score maximum"
+        "directional specification satisfaction derived from model-relative attainment"
+        if directional
+        else "normalized LLR from the clipped null-mean reference to the score maximum"
         if is_legacy
         else "relative PWM attainment from the attainable raw-LLR minimum to maximum"
     )
     reference_label = (
-        "1.0 null-mean-to-score-maximum reference"
+        "1.0 fully satisfied directional specification"
+        if directional
+        else "1.0 null-mean-to-score-maximum reference"
         if is_legacy
         else "1.0 score-maximizing PWM reference"
     )
@@ -133,7 +142,11 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
             text(
                 left + column * cell_width + cell_width / 2,
                 116,
-                name,
+                (
+                    f"{name}:{next(m.direction for m in motifs if m.motif_id == name)}"
+                    if directional
+                    else name
+                ),
                 size=12,
                 anchor="middle",
                 weight=650,
@@ -142,7 +155,13 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
     parts.extend(
         [
             text(left + len(motifs) * cell_width + 16, 116, "balance_score", size=12, weight=650),
-            text(left + len(motifs) * cell_width + 120, 116, "limiting motif", size=12, weight=650),
+            text(
+                left + len(motifs) * cell_width + 120,
+                116,
+                "limiting specification" if directional else "limiting motif",
+                size=12,
+                weight=650,
+            ),
             text(left + len(motifs) * cell_width + 245, 116, "nearest", size=12, weight=650),
         ]
     )
@@ -161,18 +180,30 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
         for column, name in enumerate(motif_ids):
             match = by_motif[name]
             x = left + column * cell_width
-            intensity = 0.08 + 0.72 * min(1.0, match.normalized_score / display_max)
+            displayed_score = (
+                match.spec_satisfaction
+                if directional and match.spec_satisfaction is not None
+                else match.normalized_score
+            )
+            intensity = 0.08 + 0.72 * min(1.0, displayed_score / display_max)
             stroke = ACCENT if name in candidate.limiting_motif_ids else LINE
             parts.extend(
                 [
                     f'<rect x="{x}" y="{y}" width="{cell_width - 4}" height="{row_height - 4}" '
                     f'fill="{POSITIVE}" fill-opacity="{intensity:.3f}" stroke="{stroke}" '
                     f'data-candidate-rank="{candidate.rank}" data-motif-id="{name}" '
-                    f'data-normalized-score="{match.normalized_score:.17g}"/>',
+                    f'data-normalized-score="{match.normalized_score:.17g}"'
+                    + (
+                        f' data-direction="{match.spec_direction}" '
+                        f'data-spec-satisfaction="{match.spec_satisfaction:.17g}"'
+                        if directional and match.spec_satisfaction is not None
+                        else ""
+                    )
+                    + "/>",
                     text(
                         x + (cell_width - 4) / 2,
                         y + 20,
-                        f"{match.normalized_score:.6g}",
+                        f"{displayed_score:.6g}",
                         size=12,
                         anchor="middle",
                         weight=650,

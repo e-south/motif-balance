@@ -7,7 +7,7 @@ audience:
   - bundle consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-30
+last_verified: 2026-09-06
 doc_type: reference
 ---
 
@@ -82,12 +82,14 @@ and do not prevent the same user from tampering with accepted files later.
 Consumers must verify a bundle or execution workspace again at the point of
 use.
 
-Bulk traces and optimizer state are not canonical bundle members. External
+Bulk traces and optimizer state are not canonical bundle members. Directional
+v6 manifests retain only logarithmic checkpoints and a deterministic reservoir
+of at most 256 unique elites. External
 systems may register their locations and digests without changing the software
 artifact identity.
 
 Result inspections are derived after verification and are never inserted into
-`run-manifest/v2`, `run-manifest/v3`, `run-manifest/v4`, or `run-manifest/v5`. Inspection accepts one explicit result;
+`run-manifest/v2` through `run-manifest/v6`. Inspection accepts one explicit result;
 cross-result joining remains a caller responsibility. Exact
 pairwise distance inspection has an explicit base-comparison limit and reports
 `not_computed_limit` instead of entering unbounded quadratic work. HTML and SVG

@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from motif_balance.constants import (
+    DIRECTIONAL_OBJECTIVE_SEMANTICS,
     DNA_ALPHABET,
     LEGACY_SCORING_SEMANTICS,
     MAX_BUNDLE_ROWS,
@@ -332,10 +333,22 @@ class AvoidanceConstraint(FrozenModel):
     score_ceiling: Annotated[float, Field(strict=True, ge=0.0, le=1.0, allow_inf_nan=False)]
 
 
+class MotifSpecification(FrozenModel):
+    """One motif model and its directional design intent."""
+
+    motif: MotifModel
+    direction: Literal["seek", "avoid"]
+
+
 class DesignSpec(FrozenModel):
-    schema_version: Literal["design-spec/v1", "design-spec/v2"] = "design-spec/v2"
-    motifs: tuple[MotifModel, ...]
-    avoiders: tuple[AvoidanceConstraint, ...] = ()
+    schema_version: Literal["design-spec/v1", "design-spec/v2", "design-spec/v3"] = "design-spec/v2"
+    motifs: tuple[MotifModel, ...] = Field(default=(), exclude_if=lambda value: not value)
+    specifications: tuple[MotifSpecification, ...] = Field(
+        default=(), exclude_if=lambda value: not value
+    )
+    avoiders: tuple[AvoidanceConstraint, ...] = Field(
+        default=(), exclude_if=lambda value: not value
+    )
     length: Annotated[int, Field(strict=True, gt=0, le=MAX_SEQUENCE_LENGTH)]
     count: Annotated[int, Field(strict=True, gt=0, le=MAX_CANDIDATE_COUNT)]
     strands: Literal["forward", "both"] = "both"
@@ -345,7 +358,9 @@ class DesignSpec(FrozenModel):
     scoring_semantics: Literal["normalized_llr_v1", "relative_pwm_attainment_v2"] = (
         SCORING_SEMANTICS
     )
-    objective_semantics: Literal["weakest_score_v1"] = OBJECTIVE_SEMANTICS
+    objective_semantics: Literal["weakest_score_v1", "weakest_directional_satisfaction_v1"] = (
+        OBJECTIVE_SEMANTICS
+    )
     tie_break_semantics: Literal["leftmost_plus_first_v1"] = TIE_BREAK_SEMANTICS
 
     @model_validator(mode="before")
@@ -354,6 +369,10 @@ class DesignSpec(FrozenModel):
         if not isinstance(value, Mapping):
             return value
         result = dict(value)
+        if "schema_version" not in result and result.get("specifications"):
+            result["schema_version"] = "design-spec/v3"
+        if result.get("schema_version") == "design-spec/v3" and "objective_semantics" not in result:
+            result["objective_semantics"] = DIRECTIONAL_OBJECTIVE_SEMANTICS
         if "schema_version" not in result and result.get("avoiders"):
             result["schema_version"] = "design-spec/v2"
         motifs = result.get("motifs")
@@ -406,8 +425,6 @@ class DesignSpec(FrozenModel):
     @field_validator("motifs")
     @classmethod
     def validate_motifs(cls, value: tuple[MotifModel, ...]) -> tuple[MotifModel, ...]:
-        if not value:
-            raise ValueError("motifs must contain at least one model")
         ordered = tuple(sorted(value, key=lambda motif: motif.motif_id))
         ids = [motif.motif_id for motif in ordered]
         if len(ids) != len(set(ids)):
@@ -425,8 +442,45 @@ class DesignSpec(FrozenModel):
             raise ValueError("avoider motif identifiers must be unique")
         return ordered
 
+    @field_validator("specifications")
+    @classmethod
+    def validate_specifications(
+        cls, value: tuple[MotifSpecification, ...]
+    ) -> tuple[MotifSpecification, ...]:
+        ordered = tuple(sorted(value, key=lambda item: item.motif.motif_id))
+        ids = [item.motif.motif_id for item in ordered]
+        if len(ids) != len(set(ids)):
+            raise ValueError("specification motif identifiers must be unique")
+        return ordered
+
     @model_validator(mode="after")
     def validate_budget(self) -> Self:
+        if self.schema_version == "design-spec/v3":
+            if self.motifs:
+                raise ValueError(
+                    "design-spec/v3 uses specifications; migrate motifs to direction 'seek'"
+                )
+            if self.avoiders:
+                raise ValueError(
+                    "design-spec/v3 cannot mix directional specifications "
+                    "with legacy hard avoidance"
+                )
+            if not self.specifications:
+                raise ValueError("design-spec/v3 requires at least one motif specification")
+            if self.objective_semantics != DIRECTIONAL_OBJECTIVE_SEMANTICS:
+                raise ValueError(
+                    "design-spec/v3 requires objective_semantics "
+                    f"'{DIRECTIONAL_OBJECTIVE_SEMANTICS}'"
+                )
+        else:
+            if self.specifications:
+                raise ValueError("directional specifications require design-spec/v3")
+            if not self.motifs:
+                raise ValueError("motifs must contain at least one model")
+            if self.objective_semantics != OBJECTIVE_SEMANTICS:
+                raise ValueError(
+                    f"{self.schema_version} requires objective_semantics '{OBJECTIVE_SEMANTICS}'"
+                )
         if self.schema_version == "design-spec/v1" and self.avoiders:
             raise ValueError("design-spec/v1 cannot declare avoiders")
         expected_scoring = (
@@ -441,24 +495,24 @@ class DesignSpec(FrozenModel):
             raise ValueError(
                 f"{self.schema_version} requires scoring_semantics '{expected_scoring}'"
             )
-        all_motifs = (*self.motifs, *(item.motif for item in self.avoiders))
+        all_motifs = (*self.scored_motifs, *(item.motif for item in self.avoiders))
         if any(motif.schema_version != expected_motif_schema for motif in all_motifs):
             raise ValueError(
                 f"{self.schema_version} requires motifs using '{expected_motif_schema}'"
             )
-        target_ids = {motif.motif_id for motif in self.motifs}
+        target_ids = {motif.motif_id for motif in self.scored_motifs}
         avoider_ids = {item.motif.motif_id for item in self.avoiders}
         if target_ids & avoider_ids:
             raise ValueError("target and avoider motif identifiers must be disjoint")
         if self.count > self.evaluations:
             raise ValueError("evaluations must be at least count")
-        motif_count = len(self.motifs) + len(self.avoiders)
+        motif_count = len(self.scored_motifs) + len(self.avoiders)
         if self.count * motif_count > MAX_BUNDLE_ROWS:
             raise ValueError("count times motif count exceeds the canonical match-row limit")
         if self.count * self.length > MAX_PORTFOLIO_BASES:
             raise ValueError("count times length exceeds the canonical portfolio-base limit")
         strand_factor = 2 if self.strands == "both" else 1
-        scored_motifs = (*self.motifs, *(item.motif for item in self.avoiders))
+        scored_motifs = (*self.scored_motifs, *(item.motif for item in self.avoiders))
         score_operations = self.evaluations * sum(
             (self.length - motif.width + 1) * motif.width * strand_factor
             for motif in scored_motifs
@@ -474,6 +528,18 @@ class DesignSpec(FrozenModel):
                 raise ValueError("design exceeds the distance-comparison limit")
         return self
 
+    @property
+    def scored_motifs(self) -> tuple[MotifModel, ...]:
+        if self.schema_version == "design-spec/v3":
+            return tuple(item.motif for item in self.specifications)
+        return self.motifs
+
+    @property
+    def specification_directions(self) -> tuple[Literal["seek", "avoid"], ...]:
+        if self.schema_version == "design-spec/v3":
+            return tuple(item.direction for item in self.specifications)
+        return tuple("seek" for _ in self.motifs)
+
 
 class MotifMatch(FrozenModel):
     motif_id: str
@@ -483,6 +549,12 @@ class MotifMatch(FrozenModel):
     matched_sequence: str
     raw_score: Annotated[float, Field(strict=True)]
     normalized_score: Annotated[float, Field(strict=True, ge=0.0)]
+    spec_direction: Literal["seek", "avoid"] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    spec_satisfaction: (
+        Annotated[float, Field(strict=True, ge=0.0, le=1.0, allow_inf_nan=False)] | None
+    ) = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def validate_coordinates(self) -> Self:
@@ -494,6 +566,18 @@ class MotifMatch(FrozenModel):
             raise ValueError("matched_sequence must contain only A, C, G, and T")
         if not math.isfinite(self.raw_score) or not math.isfinite(self.normalized_score):
             raise ValueError("match scores must be finite")
+        if (self.spec_direction is None) != (self.spec_satisfaction is None):
+            raise ValueError("specification direction and satisfaction must be declared together")
+        if self.spec_satisfaction is not None:
+            expected = (
+                self.normalized_score
+                if self.spec_direction == "seek"
+                else 1.0 - self.normalized_score
+            )
+            if not math.isclose(self.spec_satisfaction, expected, abs_tol=1.0e-12):
+                raise ValueError(
+                    "specification satisfaction does not match direction and attainment"
+                )
         return self
 
 
@@ -512,9 +596,17 @@ class Evaluation(FrozenModel):
             raise ValueError("sequence must contain only A, C, G, and T")
         if not self.matches:
             raise ValueError("evaluation must contain at least one motif match")
-        weakest = min(match.normalized_score for match in self.matches)
+        has_directional = any(match.spec_satisfaction is not None for match in self.matches)
+        if has_directional and any(match.spec_satisfaction is None for match in self.matches):
+            raise ValueError("directional evaluations require satisfaction for every specification")
+        weakest = min(
+            match.spec_satisfaction
+            if match.spec_satisfaction is not None
+            else match.normalized_score
+            for match in self.matches
+        )
         if not math.isclose(self.balance_score, weakest, abs_tol=1.0e-12):
-            raise ValueError("balance_score must equal the weakest normalized motif score")
+            raise ValueError("balance_score must equal the weakest specification satisfaction")
         target_ids = {match.motif_id for match in self.matches}
         avoider_ids = {match.motif_id for match in self.avoidance_matches}
         if len(target_ids) != len(self.matches) or len(avoider_ids) != len(self.avoidance_matches):
@@ -532,6 +624,20 @@ class Evaluation(FrozenModel):
     @property
     def constraint_feasible(self) -> bool:
         return self.constraint_status == "feasible"
+
+    @property
+    def limiting_specification_ids(self) -> tuple[str, ...]:
+        return tuple(
+            match.motif_id
+            for match in self.matches
+            if math.isclose(
+                match.spec_satisfaction
+                if match.spec_satisfaction is not None
+                else match.normalized_score,
+                self.balance_score,
+                abs_tol=1.0e-12,
+            )
+        )
 
 
 class Candidate(FrozenModel):
@@ -562,6 +668,21 @@ class Candidate(FrozenModel):
     def constraint_feasible(self) -> bool:
         return self.constraint_status == "feasible"
 
+    @property
+    def limiting_specification_ids(self) -> tuple[str, ...]:
+        return self.as_evaluation().limiting_specification_ids
+
+    def as_evaluation(self) -> Evaluation:
+        return Evaluation(
+            sequence=self.sequence,
+            balance_score=self.balance_score,
+            matches=self.matches,
+            avoidance_matches=self.avoidance_matches,
+            constraint_status=self.constraint_status,
+            max_avoidance_excess=self.max_avoidance_excess,
+            total_avoidance_excess=self.total_avoidance_excess,
+        )
+
 
 class ArtifactDigest(FrozenModel):
     path: str
@@ -572,6 +693,26 @@ class ArtifactDigest(FrozenModel):
 class SearchCheckpoint(FrozenModel):
     evaluations: Annotated[int, Field(gt=0)]
     best_score: Annotated[float, Field(ge=0.0)]
+    specification_satisfactions: tuple[CheckpointSpecificationSatisfaction, ...] = Field(
+        default=(), exclude_if=lambda value: not value
+    )
+    limiting_specification_ids: tuple[str, ...] = Field(
+        default=(), exclude_if=lambda value: not value
+    )
+
+
+class CheckpointSpecificationSatisfaction(FrozenModel):
+    motif_id: str = Field(min_length=1)
+    direction: Literal["seek", "avoid"]
+    attainment: Annotated[float, Field(strict=True, ge=0.0, le=1.0, allow_inf_nan=False)]
+    satisfaction: Annotated[float, Field(strict=True, ge=0.0, le=1.0, allow_inf_nan=False)]
+
+    @model_validator(mode="after")
+    def validate_satisfaction(self) -> Self:
+        expected = self.attainment if self.direction == "seek" else 1.0 - self.attainment
+        if not math.isclose(self.satisfaction, expected, abs_tol=1.0e-12):
+            raise ValueError("checkpoint satisfaction does not match direction and attainment")
+        return self
 
 
 class ProposalSummary(FrozenModel):
@@ -587,9 +728,9 @@ class ProposalSummary(FrozenModel):
 
 
 class SearchDiagnostics(FrozenModel):
-    schema_version: Literal["search-diagnostics/v1", "search-diagnostics/v2"] = (
-        "search-diagnostics/v2"
-    )
+    schema_version: Literal[
+        "search-diagnostics/v1", "search-diagnostics/v2", "search-diagnostics/v3"
+    ] = "search-diagnostics/v2"
     restarts: Annotated[int, Field(gt=0)]
     best_score: Annotated[float, Field(ge=0.0)]
     checkpoints: tuple[SearchCheckpoint, ...]
@@ -619,6 +760,30 @@ class SearchDiagnostics(FrozenModel):
                 raise ValueError("search checkpoint best scores cannot decrease")
             previous_evaluations = checkpoint.evaluations
             previous_best = checkpoint.best_score
+            if self.schema_version == "search-diagnostics/v3":
+                if not checkpoint.specification_satisfactions:
+                    raise ValueError(
+                        "search-diagnostics/v3 checkpoints require specification satisfactions"
+                    )
+                if not checkpoint.limiting_specification_ids:
+                    raise ValueError(
+                        "search-diagnostics/v3 checkpoints require limiting specifications"
+                    )
+                motif_ids = tuple(item.motif_id for item in checkpoint.specification_satisfactions)
+                if motif_ids != tuple(sorted(motif_ids)) or len(motif_ids) != len(set(motif_ids)):
+                    raise ValueError(
+                        "checkpoint specification satisfactions must be unique and sorted"
+                    )
+                if not math.isclose(
+                    checkpoint.best_score,
+                    min(item.satisfaction for item in checkpoint.specification_satisfactions),
+                    abs_tol=1.0e-12,
+                ):
+                    raise ValueError(
+                        "checkpoint best score must equal its weakest specification satisfaction"
+                    )
+            elif checkpoint.specification_satisfactions or checkpoint.limiting_specification_ids:
+                raise ValueError("directional checkpoint details require search-diagnostics/v3")
         if not math.isclose(self.checkpoints[-1].best_score, self.best_score, abs_tol=1.0e-12):
             raise ValueError("final checkpoint must equal the diagnostic best score")
         moves = [proposal.move for proposal in self.proposals]
@@ -720,7 +885,11 @@ class ExecutionWorkspace(FrozenModel):
 
 class RunManifest(FrozenModel):
     schema_version: Literal[
-        "run-manifest/v2", "run-manifest/v3", "run-manifest/v4", "run-manifest/v5"
+        "run-manifest/v2",
+        "run-manifest/v3",
+        "run-manifest/v4",
+        "run-manifest/v5",
+        "run-manifest/v6",
     ] = "run-manifest/v5"
     package_version: str
     runtime_contract: str
@@ -737,6 +906,28 @@ class RunManifest(FrozenModel):
     search_validation_status: Literal["not_applicable", "contract_tested"]
     search_diagnostics: SearchDiagnostics
     best_observed: Evaluation | None = None
+    exact_completion_status: Literal["complete", "not_exact"] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    state_space_size: Annotated[int, Field(strict=True, gt=0)] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    expected_candidate_count: Annotated[int, Field(strict=True, gt=0)] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    completed_candidate_count: Annotated[int, Field(strict=True, gt=0)] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    score_operation_count: Annotated[int, Field(strict=True, gt=0)] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    elite_capacity: Annotated[int, Field(strict=True, gt=0)] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    elite_fill_count: Annotated[int, Field(strict=True, ge=0)] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    elites: tuple[Evaluation, ...] = Field(default=(), exclude_if=lambda value: not value)
     artifacts: tuple[ArtifactDigest, ...]
 
     @model_validator(mode="after")
@@ -746,7 +937,9 @@ class RunManifest(FrozenModel):
         if self.search_diagnostics.checkpoints[-1].evaluations != self.evaluation_count:
             raise ValueError("final search checkpoint must equal evaluation_count")
         expected_diagnostics = (
-            "search-diagnostics/v2"
+            "search-diagnostics/v3"
+            if self.schema_version == "run-manifest/v6"
+            else "search-diagnostics/v2"
             if self.schema_version == "run-manifest/v5"
             else "search-diagnostics/v1"
         )
@@ -756,10 +949,10 @@ class RunManifest(FrozenModel):
             self.unique_evaluations != self.evaluation_count
         ):
             raise ValueError("exhaustive manifests require one unique row per evaluation")
-        if self.schema_version in {"run-manifest/v4", "run-manifest/v5"}:
+        if self.schema_version in {"run-manifest/v4", "run-manifest/v5", "run-manifest/v6"}:
             if self.best_observed is None:
                 raise ValueError(
-                    "run-manifest/v4 and v5 require the complete best observed evaluation"
+                    "run-manifest/v4 through v6 require the complete best observed evaluation"
                 )
             if not math.isclose(
                 self.best_observed.balance_score,
@@ -769,6 +962,59 @@ class RunManifest(FrozenModel):
                 raise ValueError("best observed evaluation must match search diagnostics")
         elif self.best_observed is not None:
             raise ValueError("run-manifest/v2 and v3 cannot contain a best observed evaluation")
+        if self.schema_version == "run-manifest/v6":
+            if (
+                self.exact_completion_status is None
+                or self.score_operation_count is None
+                or self.elite_capacity is None
+                or self.elite_fill_count is None
+            ):
+                raise ValueError("run-manifest/v6 requires exact, operation, and elite metadata")
+            if self.elite_fill_count != len(self.elites):
+                raise ValueError("elite_fill_count must equal retained elite rows")
+            if self.elite_fill_count > self.elite_capacity:
+                raise ValueError("retained elites cannot exceed elite_capacity")
+            elite_sequences = tuple(item.sequence for item in self.elites)
+            if len(elite_sequences) != len(set(elite_sequences)):
+                raise ValueError("retained elite sequences must be unique")
+            if elite_sequences != tuple(
+                item.sequence
+                for item in sorted(
+                    self.elites, key=lambda item: (-item.balance_score, item.sequence)
+                )
+            ):
+                raise ValueError("retained elites must be sorted by score then sequence")
+            exact_counts = (
+                self.state_space_size,
+                self.expected_candidate_count,
+                self.completed_candidate_count,
+            )
+            if self.exact_completion_status == "complete":
+                if any(value is None for value in exact_counts):
+                    raise ValueError("exact completion requires complete candidate-count proof")
+                if not (
+                    self.state_space_size
+                    == self.expected_candidate_count
+                    == self.completed_candidate_count
+                    == self.evaluation_count
+                    == self.unique_evaluations
+                ):
+                    raise ValueError("exact candidate-count proof does not match evaluation counts")
+            elif any(value is not None for value in exact_counts):
+                raise ValueError("bounded runs cannot claim exact candidate-count proof")
+        elif (
+            any(
+                value is not None
+                for value in (
+                    self.exact_completion_status,
+                    self.score_operation_count,
+                    self.elite_capacity,
+                    self.elite_fill_count,
+                )
+            )
+            or self.elites
+        ):
+            raise ValueError("prospective run metadata requires run-manifest/v6")
         return self
 
 
@@ -790,7 +1036,12 @@ class PortfolioRecord(FrozenModel):
         current_contract = (
             self.manifest.schema_version == "run-manifest/v5"
             and self.spec.schema_version == "design-spec/v2"
+        ) and self.spec.scoring_semantics == SCORING_SEMANTICS
+        directional_contract = (
+            self.manifest.schema_version == "run-manifest/v6"
+            and self.spec.schema_version == "design-spec/v3"
             and self.spec.scoring_semantics == SCORING_SEMANTICS
+            and self.spec.objective_semantics == DIRECTIONAL_OBJECTIVE_SEMANTICS
         )
         legacy_contract = (
             self.manifest.schema_version
@@ -798,13 +1049,13 @@ class PortfolioRecord(FrozenModel):
             and self.spec.schema_version == "design-spec/v1"
             and self.spec.scoring_semantics == LEGACY_SCORING_SEMANTICS
         )
-        if not (current_contract or legacy_contract):
+        if not (current_contract or directional_contract or legacy_contract):
             raise ValueError("portfolio violates the manifest/design scoring version matrix")
         if self.problem_id != self.manifest.problem_id or self.run_id != self.manifest.run_id:
             raise ValueError("portfolio and manifest identities must agree")
         if len(self.candidates) != self.spec.count:
             raise ValueError("portfolio must contain exactly spec.count candidates")
-        expected_ids = {motif.motif_id for motif in self.spec.motifs}
+        expected_ids = {motif.motif_id for motif in self.spec.scored_motifs}
         expected_avoider_ids = {item.motif.motif_id for item in self.spec.avoiders}
         best_observed = self.manifest.best_observed
         if best_observed is not None:

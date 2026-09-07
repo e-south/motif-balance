@@ -40,9 +40,15 @@ def _match_lane(
     ceiling_label = (
         f" · ceiling {score_ceiling:.6g}" if avoider and score_ceiling is not None else ""
     )
+    score_label = (
+        f"{match.spec_direction} · attainment {match.normalized_score:.6g} · "
+        f"satisfaction {match.spec_satisfaction:.6g}"
+        if match.spec_direction is not None and match.spec_satisfaction is not None
+        else f"{match.normalized_score:.6g}"
+    )
     label = (
-        f"{motif_id(match.motif_id)} · {match.normalized_score:.6g} · "
-        f"{match.strand} · [{match.start}, {match.end}){ceiling_label}"
+        f"{motif_id(match.motif_id)} · {score_label} · {match.strand} · "
+        f"[{match.start}, {match.end}){ceiling_label}"
     )
     ceiling_attribute = (
         f'data-score-ceiling="{score_ceiling:.17g}" '
@@ -50,6 +56,12 @@ def _match_lane(
         else ""
     )
     role_attribute = 'data-role="avoider" ' if avoider else ""
+    direction_attribute = (
+        f'data-direction="{match.spec_direction}" '
+        f'data-spec-satisfaction="{match.spec_satisfaction:.17g}" '
+        if match.spec_direction is not None and match.spec_satisfaction is not None
+        else ""
+    )
     limiting_attribute = f'data-limiting="{str(limiting).lower()}" '
     dash_attribute = 'stroke-dasharray="6 4" ' if avoider else ""
     limiting_label = " · LIMITING" if limiting else ""
@@ -65,6 +77,7 @@ def _match_lane(
         f'<g class="motif-match" data-motif-id="{motif_id(match.motif_id)}" '
         f'data-motif-color="{color}" '
         f"{role_attribute}"
+        f"{direction_attribute}"
         f"{limiting_attribute}"
         f"{ceiling_attribute}"
         f'data-start="{match.start}" data-end="{match.end}" data-strand="{match.strand}">'

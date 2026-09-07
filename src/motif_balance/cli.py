@@ -47,7 +47,7 @@ def _validation_error(exc: ValidationError, *, domain: str) -> MotifBalanceError
     location = ".".join(str(part) for part in error.get("loc", ())) or None
     if domain == "design" and error.get("type") == "extra_forbidden":
         message = f"Unknown field '{location}'."
-        hint = "Remove the field or use a documented design-spec/v2 field."
+        hint = "Remove the field or use a documented DesignSpec field."
     else:
         message = f"Invalid {domain} value{f' for {location}' if location else ''}: {error['msg']}."
         hint = f"Correct the {domain} input and retry the operation."
@@ -226,9 +226,21 @@ def design_command(
         problem_id = compile_design(spec).problem_id
         if check:
             typer.echo(f"valid {problem_id}")
+            if spec.schema_version == "design-spec/v3":
+                specification_summary = " ".join(
+                    (
+                        f"specifications={len(spec.specifications)}",
+                        "directions="
+                        + ",".join(
+                            f"{item.motif.motif_id}:{item.direction}"
+                            for item in spec.specifications
+                        ),
+                    )
+                )
+            else:
+                specification_summary = f"motifs={len(spec.motifs)} avoiders={len(spec.avoiders)}"
             typer.echo(
-                f"motifs={len(spec.motifs)} avoiders={len(spec.avoiders)} "
-                f"length={spec.length} count={spec.count} "
+                f"{specification_summary} length={spec.length} count={spec.count} "
                 f"strands={spec.strands} evaluations={spec.evaluations} "
                 f"min_distance={spec.min_distance} search={planned_search_kind(spec)}"
             )
@@ -245,9 +257,15 @@ def design_command(
         best_observed = portfolio.best_observed
         if best_observed is None:  # pragma: no cover - required by current writer
             raise ArtifactError("current result is missing the best observed evaluation")
+        if spec.schema_version == "design-spec/v3":
+            motif_summary = ", ".join(
+                f"{item.motif.motif_id}:{item.direction}" for item in spec.specifications
+            )
+        else:
+            motif_summary = ", ".join(motif.motif_id for motif in spec.motifs)
         typer.echo(
             f"Returned {len(portfolio.candidates)} of {spec.count} candidates for "
-            f"{', '.join(motif.motif_id for motif in spec.motifs)}, each {spec.length} nt."
+            f"{motif_summary}, each {spec.length} nt."
         )
         typer.echo(f"Best observed balance score: {best_observed.balance_score:.6g}.")
         if best_observed.sequence not in {candidate.sequence for candidate in portfolio.candidates}:
@@ -297,12 +315,23 @@ def score_command(
         if format_name == "json":
             payload = (evaluation.model_dump_json(indent=2) + "\n").encode()
         else:
-            target_matches = "\n".join(
-                f"{match.motif_id}: normalized={match.normalized_score:.17g} "
-                f"raw={match.raw_score:.17g} strand={match.strand} "
-                f"coordinates=[{match.start}, {match.end})"
-                for match in evaluation.matches
-            )
+            if spec.schema_version == "design-spec/v3":
+                target_matches = "\n".join(
+                    f"{match.motif_id}: direction={match.spec_direction} "
+                    f"attainment={match.normalized_score:.17g} "
+                    f"satisfaction={match.spec_satisfaction:.17g} "
+                    f"raw={match.raw_score:.17g} strand={match.strand} "
+                    f"coordinates=[{match.start}, {match.end})"
+                    for match in evaluation.matches
+                    if match.spec_satisfaction is not None
+                )
+            else:
+                target_matches = "\n".join(
+                    f"{match.motif_id}: normalized={match.normalized_score:.17g} "
+                    f"raw={match.raw_score:.17g} strand={match.strand} "
+                    f"coordinates=[{match.start}, {match.end})"
+                    for match in evaluation.matches
+                )
             ceilings = {item.motif.motif_id: item.score_ceiling for item in spec.avoiders}
             avoidance_matches = "\n".join(
                 f"{match.motif_id}: avoidance normalized={match.normalized_score:.17g} "
