@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from motif_balance.constants import (
+    DEFAULT_ELITE_CAPACITY,
     DIRECTIONAL_OBJECTIVE_SEMANTICS,
     DNA_ALPHABET,
     LEGACY_SCORING_SEMANTICS,
@@ -19,6 +20,7 @@ from motif_balance.constants import (
     MAX_EVALUATED_BASES,
     MAX_EVALUATIONS,
     MAX_PORTFOLIO_BASES,
+    MAX_RUN_MANIFEST_BYTES,
     MAX_SCORE_BASE_OPERATIONS,
     MAX_SEQUENCE_LENGTH,
     OBJECTIVE_SEMANTICS,
@@ -522,6 +524,30 @@ class DesignSpec(FrozenModel):
             raise ValueError("design exceeds the score-operation limit")
         if self.evaluations * self.length > MAX_EVALUATED_BASES:
             raise ValueError("evaluations times length exceeds the evaluated-base limit")
+        if self.schema_version == "design-spec/v3":
+            elite_bound = min(DEFAULT_ELITE_CAPACITY, self.evaluations)
+            space_bound = 1
+            for _ in range(self.length):
+                space_bound *= 4
+                if space_bound >= elite_bound:
+                    break
+            elite_bound = min(elite_bound, space_bound)
+            identifier_sizes = [len(_canonical_json(motif.motif_id)) for motif in scored_motifs]
+            # Conservative pretty-JSON allowances include keys, indentation, finite
+            # float/integer spellings, and escaped identifiers. DNA words are ASCII.
+            match_bytes = sum(
+                1_024 + size + motif.width
+                for size, motif in zip(identifier_sizes, scored_motifs, strict=True)
+            )
+            checkpoint_bytes = 512 + sum(512 + 2 * size for size in identifier_sizes)
+            manifest_bound = (
+                65_536
+                + sum(1_024 + 3 * size for size in identifier_sizes)
+                + elite_bound * (768 + self.length + match_bytes)
+                + (self.evaluations.bit_length() + 1) * checkpoint_bytes
+            )
+            if manifest_bound > MAX_RUN_MANIFEST_BYTES:
+                raise ValueError("design exceeds the conservative retained manifest-byte limit")
         if self.min_distance is not None and self.min_distance > 0.0:
             distance_comparisons = self.count * (self.count - 1) // 2 * self.length
             if distance_comparisons > MAX_DISTANCE_BASE_COMPARISONS:

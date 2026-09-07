@@ -94,7 +94,11 @@ reservoir's per-specification realizations. Model/specification inputs and
 legacy manifests retain their 1 MB limits; all schema, row-count, and semantic
 replay checks remain independent of the transport ceiling. Version 0.5.0a2
 corrects the inherited input-sized manifest ceiling without changing scoring,
-search, elite retention, or the resource admission contract.
+search, or elite retention. Before search, v3 admission conservatively projects
+manifest bytes from the bounded elite count, specification identifiers and
+widths, sequence length, and logarithmic checkpoint count. Requests exceeding
+the transport ceiling are refused before evaluation; the actual serialized
+byte ceiling remains an independent publication check.
 
 Result inspections are derived after verification and are never inserted into
 `run-manifest/v2` through `run-manifest/v6`. Inspection accepts one explicit result;
