@@ -782,6 +782,20 @@ class SearchDiagnostics(FrozenModel):
                     raise ValueError(
                         "checkpoint best score must equal its weakest specification satisfaction"
                     )
+                expected_limiting = tuple(
+                    item.motif_id
+                    for item in checkpoint.specification_satisfactions
+                    if math.isclose(
+                        item.satisfaction,
+                        checkpoint.best_score,
+                        abs_tol=1.0e-12,
+                    )
+                )
+                if checkpoint.limiting_specification_ids != expected_limiting:
+                    raise ValueError(
+                        "checkpoint limiting specifications must exactly match its weakest "
+                        "specification satisfactions"
+                    )
             elif checkpoint.specification_satisfactions or checkpoint.limiting_specification_ids:
                 raise ValueError("directional checkpoint details require search-diagnostics/v3")
         if not math.isclose(self.checkpoints[-1].best_score, self.best_score, abs_tol=1.0e-12):
@@ -1007,6 +1021,9 @@ class RunManifest(FrozenModel):
                 value is not None
                 for value in (
                     self.exact_completion_status,
+                    self.state_space_size,
+                    self.expected_candidate_count,
+                    self.completed_candidate_count,
                     self.score_operation_count,
                     self.elite_capacity,
                     self.elite_fill_count,

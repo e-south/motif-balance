@@ -325,6 +325,14 @@ def test_directional_search_diagnostics_reject_incomplete_or_incoherent_traces()
                 "best_score": 0.25,
             }
         )
+    with pytest.raises(ValidationError, match="limiting specifications must exactly match"):
+        SearchDiagnostics.model_validate(
+            {
+                **payload,
+                "checkpoints": ({**first, "limiting_specification_ids": ("seek_a",)},),
+                "best_score": first["best_score"],
+            }
+        )
 
 
 def test_directional_manifest_rejects_false_exactness_and_invalid_elites() -> None:
@@ -353,6 +361,28 @@ def test_directional_manifest_rejects_false_exactness_and_invalid_elites() -> No
     for updates, message in invalid_updates:
         with pytest.raises(ValidationError, match=message):
             RunManifest.model_validate({**payload, **updates})
+
+
+@pytest.mark.parametrize(
+    "field",
+    ("state_space_size", "expected_candidate_count", "completed_candidate_count"),
+)
+def test_legacy_manifest_rejects_v6_exact_count_claims(field: str) -> None:
+    legacy_manifest = design(
+        DesignSpec(
+            motifs=(_base_motif("seek_a", "A"),),
+            length=1,
+            count=1,
+            strands="forward",
+            evaluations=4,
+            seed=7,
+        )
+    ).manifest
+
+    with pytest.raises(ValidationError, match="prospective run metadata requires run-manifest/v6"):
+        RunManifest.model_validate(
+            {**legacy_manifest.model_dump(mode="python"), field: legacy_manifest.evaluation_count}
+        )
 
 
 def test_directional_bounded_elite_reservoir_is_capacity_limited_and_deterministic() -> None:
