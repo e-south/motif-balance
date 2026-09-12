@@ -40,7 +40,20 @@ def test_occupied_destination_is_rejected_before_search(
     assert "error artifact_error:" in result.output
     assert "field: out" in result.output
     assert "hint: Choose a new output directory." in result.output
-    assert output.lstat() == identity
+    observed = output.lstat()
+    # Reading a symlink can update its access time on Linux.
+    for field in (
+        "st_dev",
+        "st_ino",
+        "st_mode",
+        "st_nlink",
+        "st_uid",
+        "st_gid",
+        "st_size",
+        "st_mtime_ns",
+        "st_ctime_ns",
+    ):
+        assert getattr(observed, field) == getattr(identity, field)
     if kind == "file":
         assert output.read_text() == "keep me"
 
