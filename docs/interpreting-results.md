@@ -7,7 +7,7 @@ audience:
   - bundle consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-30
+last_verified: 2026-09-08
 doc_type: explanation
 ---
 
@@ -22,8 +22,18 @@ Verify a bundle before reading it. Then use each file for one question:
 - `manifest.json`: which semantics, search provenance, diagnostics, and bytes
   form this result?
 
-The lowest per-motif relative PWM attainment is the candidate's `balance_score`.
-Inspect that limiting motif instead of reading the aggregate as a probability.
+## Find the limiting requirement
+
+For a directional design, `balance_score` is the lowest **specification
+satisfaction**. A seek requirement's satisfaction equals its relative PWM
+attainment; an avoid requirement's satisfaction is one minus its strongest
+attainment. `matches.tsv` retains both the direction and satisfaction alongside
+the normalized match score. Inspect the limiting requirement rather than
+reading the aggregate as a probability. A weak balance can reflect either a
+poor desired match or an unwanted match that remains too strong.
+
+## Read attainment on its declared scale
+
 Zero is the theoretical minimum raw LLR over one motif-width word, and one is
 the corresponding maximum. Both word-level extrema are attained by choosing a
 minimum- or maximum-scoring base at every motif position. Motif Balance reports
@@ -40,7 +50,10 @@ from a separately supplied motif-variant library. When representative windows
 overlap, they share candidate coordinates and bases; that geometry does not
 establish simultaneous occupancy, co-binding, or regulatory function.
 
-For constraint-bearing designs, target and avoider evidence answer different
+## Keep hard thresholds separate
+
+Explicit legacy `design-spec/v2` requests with hard ceilings use a different
+contract. For these constraint-bearing designs, target and avoider evidence answer different
 questions. `balance_score` remains the minimum target-motif score. Every
 avoider reports its own best normalized match and declared upper ceiling; the
 candidate is feasible only when all avoider scores satisfy those ceilings.
@@ -52,13 +65,24 @@ ceilings. A budget-limited feasibility failure does not. Portfolio
 infeasibility and the independent distance-selection traversal limit are also
 reported separately and publish no partial bundle.
 
-Best-score checkpoints describe computational progress. Restart-final scores
+## Distinguish search recovery from alternatives
+
+Best-score checkpoints describe computational progress at recorded evaluator
+counts, not the exact time of every improvement. A held-step display does not
+reconstruct events between checkpoints. Restart-final scores
 describe variation among starts. Proposal summaries describe search execution.
 They are not posterior samples, biological replicates, or a global-optimality
 certificate. Complete enumeration establishes an optimum only when the admitted
 sequence space is fully covered. Otherwise the result records the best
 evaluation observed under the declared evaluator-call budget separately from
 the exact portfolio selected under any distance constraint.
+
+The selected portfolio and retained elite archive are not interchangeable.
+The former satisfies the requested count and distance rule; the latter is a
+bounded high-scoring collection encountered during search. Neither alone
+establishes solution-space size or diversity at matched quality across runs.
+Use explicit [search observations](reference/search-observations.md) if those
+caller-owned comparisons need bounded samples at declared score thresholds.
 
 The package establishes a self-consistent computational result under declared
 inputs. Binding, expression, fitness, cross-context portability, or superiority

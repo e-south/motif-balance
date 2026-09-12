@@ -3,14 +3,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from motif_balance import design
-from motif_balance.formats.design import load_design_spec
+from motif_balance import DesignSpec, design
 
 
-def test_annealed_search_snapshot_is_stable_under_current_semantics() -> None:
+def test_explicit_v2_search_preserves_frozen_semantics() -> None:
     root = Path(__file__).resolve().parents[2]
     fixture = json.loads((root / "tests/fixtures/search/annealed-multistart-v1.json").read_text())
-    portfolio = design(load_design_spec(root / fixture["fixture"]))
+    assert fixture["schema_version"] == "annealed-search-regression/v2"
+    spec = DesignSpec.model_validate(fixture["specification"])
+    assert spec.schema_version == "design-spec/v2"
+    portfolio = design(spec)
     expected = fixture["expected"]
 
     candidates = [

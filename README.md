@@ -1,17 +1,15 @@
 # ![Motif Balance — balanced motif design](assets/motif-balance-banner.svg)
 
-Design DNA against directional motif specifications. Motif models are usually
-used to scan existing DNA for matches. Motif Balance reverses that operation:
-given explicit models, seek or avoid directions, and a fixed sequence length,
-it searches for sequences that make the weakest model-relative specification
-satisfaction as strong as possible. For a seek specification satisfaction is
-attainment; for an avoid specification it is one minus attainment. The
-best-scoring sequence realization for each motif—its matched word, placement,
-strand, and any shared coordinates—emerges from the candidate instead of being
-prescribed. The result is an exact-size ranked portfolio with a minimum-distance
-constraint for sequence-distinct alternatives. The earlier v2 hard-ceiling
-avoider contract remains readable and runnable but is not silently reinterpreted
-as directional avoidance.
+Design fixed-length DNA to satisfy several motif requirements, then inspect
+which requirement limits each sequence. Supply motif models with `seek` or
+`avoid` directions; Motif Balance searches for sequences that improve the
+weakest requirement. Matching words, positions, strands, and overlap emerge
+from the sequence rather than being prescribed.
+
+The result is an exact-size ranked portfolio, optionally constrained to contain
+sequence-distinct alternatives. Each candidate retains its sequence, strongest
+motif matches, directional satisfactions, and limiting requirement. One verified
+result supports terminal review, machine-readable tables, and static SVG figures.
 
 This repository is a public prerelease and is not approved for PyPI publication.
 The `0.5` alpha supports CPython 3.12–3.14 on Linux and macOS. Linux is the
@@ -33,13 +31,12 @@ uv run motif-balance design examples/synthetic-pairwise/design.yaml \
   --out /tmp/motif-balance-result
 uv run motif-balance inspect /tmp/motif-balance-result
 uv run motif-balance inspect /tmp/motif-balance-result \
-  --format html --out /tmp/motif-balance-review.html
-uv run motif-balance inspect /tmp/motif-balance-result \
   --format svg --view candidate --candidate 1 \
   --out /tmp/motif-balance-candidate.svg
 ```
 
-The sanitized [committed candidate review](examples/synthetic-pairwise/candidate-review.svg)
+This synthetic example uses the current directional design contract and complete
+enumeration of 16 sequences. The [committed candidate review](examples/synthetic-pairwise/candidate-review.svg)
 connects each supplied motif model to its selected strand-aware match, shared
 sequence coordinates, and base-level score support without requiring a browser
 application.
@@ -55,18 +52,25 @@ outside the bundle and do not change its identity.
 | Goal | Route |
 | --- | --- |
 | Install, design, and inspect | [Quickstart](docs/quickstart.md) |
+| Design from Python | [Self-contained Python tutorial](docs/python-api.md) |
+| Assess a pair before search | [Length-aware pair assessment](docs/pair-assessment.md) (unreleased API and CLI) |
 | Understand the method | [Concepts](docs/concepts.md) and [methods](docs/methods.md) |
+| Seek or avoid a match | [Directional inputs](docs/design-spec.md); hard thresholds are a separate explicit contract |
 | Author inputs | [Motif models](docs/motif-models.md) and [DesignSpec](docs/design-spec.md) |
 | Score an existing sequence | [Sequence scoring](docs/score-sequences.md) |
 | See and read a result | [Inspection and visual review](docs/reference/result-inspection.md) |
+| Choose different arrangements from an explicit sequence pool | [Alternative selection](docs/choose-alternatives.md) (unreleased Python API) |
 | Integrate the package | [Public contract](docs/reference/public-contract.md) |
 | Maintain or change it | [Architecture](ARCHITECTURE.md), [engineering contracts](DESIGN.md), and [documentation index](docs/index.md) |
 
-The public Python surface is six nouns—`MotifModel`, `MotifSpecification`,
+The top-level Python facade is six nouns—`MotifModel`, `MotifSpecification`,
 `DesignSpec`, `MotifMatch`, `Candidate`, and `Portfolio`—and two verbs: `design`
-and `score`.
-The ordinary CLI has three journeys: `design`, `score`, and `inspect`. The
+and `score`. Pair assessment and architecture selection are explicit submodule
+APIs, reached through the task guides above; they do not expand that facade.
+The ordinary CLI has four journeys: `assess`, `design`, `score`, and `inspect`. The
 package fetches no motif database, discovers no result workspace, and assigns
-no experiment or publication meaning to an output.
+no experiment or publication meaning to an output. Cross-request compression,
+quality-matched diversity, predictive validation, and cohort figures belong
+to callers, not the product's single-request interface.
 
 Run `bash ./scripts/agent-verify` for the same package gate used by CI.

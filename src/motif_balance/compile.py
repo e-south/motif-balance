@@ -186,7 +186,7 @@ def _problem_id(spec: DesignSpec) -> str:
     return f"problem-{digest[:24]}"
 
 
-def compile_design(spec: DesignSpec) -> CompiledProblem:
+def _validate_motif_widths(spec: DesignSpec) -> None:
     all_motifs = (*spec.scored_motifs, *(item.motif for item in spec.avoiders))
     if any(motif.width > spec.length for motif in all_motifs):
         widest = max(all_motifs, key=lambda motif: motif.width)
@@ -196,12 +196,9 @@ def compile_design(spec: DesignSpec) -> CompiledProblem:
             motif_id=widest.motif_id,
             hint="Increase length or supply a narrower canonical motif model.",
         )
-    if sequence_space_at_most(spec.length, spec.count - 1) is not None:
-        raise IncompatibleDesign(
-            "The requested candidate count exceeds the complete sequence space.",
-            field="count",
-            hint="Reduce count or increase sequence length.",
-        )
+
+
+def _compile_problem(spec: DesignSpec) -> CompiledProblem:
     compiled = tuple(_compile_motif(motif) for motif in spec.scored_motifs)
     avoiders = tuple(
         CompiledAvoider(motif=_compile_motif(item.motif), score_ceiling=item.score_ceiling)
@@ -213,3 +210,23 @@ def compile_design(spec: DesignSpec) -> CompiledProblem:
         avoiders=avoiders,
         problem_id=_problem_id(spec),
     )
+
+
+def compile_scoring(spec: DesignSpec) -> CompiledProblem:
+    """Prepare scoring for a supplied pool without testing portfolio-count feasibility."""
+
+    _validate_motif_widths(spec)
+    return _compile_problem(spec)
+
+
+def compile_design(spec: DesignSpec) -> CompiledProblem:
+    """Admit a design's dimensions and portfolio count before matrix compilation."""
+
+    _validate_motif_widths(spec)
+    if sequence_space_at_most(spec.length, spec.count - 1) is not None:
+        raise IncompatibleDesign(
+            "The requested candidate count exceeds the complete sequence space.",
+            field="count",
+            hint="Reduce count or increase sequence length.",
+        )
+    return _compile_problem(spec)

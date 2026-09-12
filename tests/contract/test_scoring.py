@@ -6,7 +6,7 @@ import math
 import numpy as np
 import pytest
 
-from motif_balance import DesignSpec, MotifModel, score
+from motif_balance import DesignSpec, MotifModel, MotifSpecification, score
 from motif_balance.compile import _null_mean, compile_design
 from motif_balance.errors import IncompatibleDesign, InvalidSequence
 from motif_balance.scoring import evaluate
@@ -182,6 +182,61 @@ def test_reverse_match_reports_candidate_coordinates_and_motif_orientation() -> 
 def test_public_score_uses_same_authoritative_evaluator(pairwise_spec: DesignSpec) -> None:
     evaluation = score("ACGT", pairwise_spec)
     assert evaluation.balance_score == min(match.normalized_score for match in evaluation.matches)
+
+
+@pytest.mark.parametrize(
+    ("schema", "direction", "expected"),
+    [
+        ("design-spec/v2", "seek", 0.0),
+        ("design-spec/v3", "seek", 0.0),
+        ("design-spec/v3", "avoid", 1.0),
+    ],
+)
+def test_scoring_does_not_require_a_feasible_portfolio(
+    schema: str, direction: str, expected: float
+) -> None:
+    from motif_balance import design
+
+    models = tuple(
+        MotifModel(
+            motif_id=name,
+            probabilities=(tuple(0.7 if base == preferred else 0.1 for base in "ACGT"),),
+            background=(0.25,) * 4,
+        )
+        for name, preferred in (("a", "A"), ("c", "C"))
+    )
+    requirements = (
+        {"motifs": models}
+        if schema == "design-spec/v2"
+        else {
+            "specifications": (
+                MotifSpecification(motif=models[0], direction="seek"),
+                MotifSpecification(motif=models[1], direction=direction),
+            )
+        }
+    )
+    spec = DesignSpec.model_validate(
+        {
+            "schema_version": schema,
+            **requirements,
+            "length": 2,
+            "count": 17,
+            "evaluations": 17,
+            "strands": "forward",
+            "seed": 7,
+            "min_distance": 0.5,
+        }
+    )
+    before = spec.model_dump_json()
+    # AA contains an optimal A match and no preferred C. The 17-candidate
+    # portfolio is impossible in the 16-sequence space, but scoring is not search.
+    evaluation = score("aa", spec)
+    assert evaluation.sequence == "AA"
+    assert [match.normalized_score for match in evaluation.matches] == [1.0, 0.0]
+    assert evaluation.balance_score == expected
+    assert spec.model_dump_json() == before
+    with pytest.raises(IncompatibleDesign, match="count exceeds the complete sequence space"):
+        design(spec)
 
 
 def test_scoring_rejects_wrong_length_and_alphabet(pairwise_spec: DesignSpec) -> None:

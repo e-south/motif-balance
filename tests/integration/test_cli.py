@@ -82,10 +82,11 @@ def _corrupt_stored_wheel_member(path: Path, member_name: str) -> None:
     path.write_bytes(payload)
 
 
-def test_primary_cli_help_exposes_only_the_three_product_journeys() -> None:
+def test_primary_cli_help_exposes_only_the_four_product_journeys() -> None:
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
+    assert "assess" in result.stdout
     assert "design" in result.stdout
     assert "score" in result.stdout
     assert "inspect" in result.stdout
@@ -134,7 +135,7 @@ def test_cli_scores_one_sequence_and_exports_one_candidate_svg(tmp_path: Path) -
     assert receipt["schema_version"] == "motif-balance.candidate-svg-receipt/v1"
     assert receipt["candidate"]["rank"] == 2
     assert receipt["svg_sha256"] == hashlib.sha256(candidate_svg.read_bytes()).hexdigest()
-    assert receipt["renderer_identity"] == "motif-balance.candidate-information-logo-svg/v1"
+    assert receipt["renderer_identity"] == "motif-balance.candidate-duplex-svg/v2"
     assert receipt["renderer_package_version"] == PACKAGE_VERSION
     assert receipt["subject"]["kind"] == "bundle"
     assert receipt["subject"]["trust_basis"] == "self_consistent"
@@ -209,8 +210,8 @@ def test_candidate_svg_receipt_is_deterministic_and_replays_candidate_identity(
         "candidate_layout.py",
         "candidate_projection.py",
         "candidate_sections.py",
-        "candidate_support.py",
         "information_logo.py",
+        "logo_glyphs.py",
         "svg_primitives.py",
     ):
         source = package.joinpath(name).read_bytes()

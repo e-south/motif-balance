@@ -52,6 +52,7 @@ from motif_balance.model import (
     MotifModel,
     RunManifest,
     SearchCheckpoint,
+    candidate_id_for_sequence,
 )
 from motif_balance.search import search
 from motif_balance.selection import select_candidates
@@ -60,7 +61,7 @@ from motif_balance.selection import select_candidates
 def _candidate_for(sequence: str, spec: DesignSpec) -> Candidate:
     evaluation = score(sequence, spec)
     return Candidate(
-        candidate_id="candidate-0000000000000000",
+        candidate_id=candidate_id_for_sequence(evaluation.sequence),
         rank=1,
         sequence=evaluation.sequence,
         balance_score=evaluation.balance_score,
@@ -363,7 +364,7 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
     assert b'data-probability="0.69999999999999996"' in candidate
     assert b'data-display-convention="coordinate-aligned-information-logo"' in candidate
     _assert_candidate_text_is_legible(candidate)
-    assert b'id="position-support"' in candidate
+    assert b'data-visual-contract="motif-balance.candidate-duplex/v2"' in candidate
     assert "5\u2032\u21923\u2032".encode() in candidate
     assert "3\u2032\u21925\u2032".encode() in candidate
     assert b"score-maximizing PWM reference" in balance
@@ -374,7 +375,7 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
     assert b"global optimality" in search_record
 
 
-def test_candidate_support_labels_remain_readable_for_realistic_long_motifs(
+def test_candidate_molecular_cells_remain_readable_for_realistic_long_motifs(
     tmp_path: Path,
 ) -> None:
     word = "ACGTACGTACGTACGTACGTAC"
@@ -393,15 +394,13 @@ def test_candidate_support_labels_remain_readable_for_realistic_long_motifs(
     payload = render_candidate_svg(inspect_result(bundle, kind="bundle"))
     root = ET.fromstring(payload)
     namespace = "{http://www.w3.org/2000/svg}"
-    support = root.find(f".//{namespace}g[@id='position-support']")
-    assert support is not None
-    cell_width = float(support.attrib["data-cell-width"])
-    labels = support.findall(f".//{namespace}text[@class='llr-contribution-label']")
+    strand = root.find(f".//{namespace}g[@id='primary-sequence']")
+    assert strand is not None
+    labels = strand.findall(f"{namespace}text[@data-candidate-position]")
     assert len(labels) == len(word)
-    assert cell_width >= 44
     assert (
         min(float(right.attrib["x"]) - float(left.attrib["x"]) for left, right in pairwise(labels))
-        >= cell_width
+        >= 24
     )
     _assert_candidate_text_is_legible(payload)
 
@@ -501,7 +500,7 @@ def test_realistic_width_overlapping_both_strand_fixture_is_legible(
     assert candidate.shared_coordinates == tuple(range(8))
     payload = render_candidate_svg(inspection)
     _assert_candidate_text_is_legible(payload)
-    assert b"Shared-coordinate union: 8 positions" in payload
+    assert b"Model preferences, not measured binding" in payload
 
     root = ET.fromstring(payload)
     namespace = "{http://www.w3.org/2000/svg}"
@@ -534,7 +533,7 @@ def test_realistic_width_overlapping_both_strand_fixture_is_legible(
         )
         for column in columns:
             assert 0.0 <= float(column.attrib["data-information-bits"]) <= 2.0
-            letters = column.findall(f"{namespace}text[@class='information-logo-letter']")
+            letters = column.findall(f"{namespace}path[@class='information-logo-letter']")
             assert len(letters) == 4
             observed = [letter for letter in letters if letter.attrib["data-observed"] == "true"]
             alternatives = [
@@ -542,7 +541,7 @@ def test_realistic_width_overlapping_both_strand_fixture_is_legible(
             ]
             assert len(observed) == 1
             candidate_position = int(column.attrib["data-candidate-position"])
-            assert observed[0].text == duplex_sequence[candidate_position]
+            assert observed[0].attrib["data-base"] == duplex_sequence[candidate_position]
             assert observed[0].attrib["fill"] == motif_color
             assert {letter.attrib["fill"] for letter in alternatives} == {"#D1D5DB"}
 
@@ -550,15 +549,9 @@ def test_realistic_width_overlapping_both_strand_fixture_is_legible(
         match_group = root.find(
             f".//{namespace}g[@class='motif-match'][@data-motif-id='{motif_id}']"
         )
-        support_row = root.find(
-            f".//{namespace}g[@class='position-support-row'][@data-motif-id='{motif_id}']"
-        )
         assert match_group is not None
-        assert support_row is not None
         assert match_group.attrib["data-motif-color"] == motif_color
-        assert support_row.attrib["data-motif-color"] == motif_color
         assert match_group.find(f"{namespace}rect").attrib["stroke"] == motif_color
-        assert support_row.find(f"{namespace}line").attrib["stroke"] == motif_color
 
     limiting = root.findall(
         f".//{namespace}g[@class='motif-information-logo'][@data-limiting='true']"
@@ -567,7 +560,7 @@ def test_realistic_width_overlapping_both_strand_fixture_is_legible(
     assert all(
         logo.find(f"{namespace}path[@class='limiting-marker']") is not None for logo in limiting
     )
-    assert root.find(f".//{namespace}g[@id='position-support']") is not None
+    assert root.find(f".//{namespace}g[@id='position-support']") is None
 
 
 def test_information_logo_fails_clearly_for_nonuniform_scoring_background(
@@ -673,7 +666,7 @@ def test_long_candidate_review_preserves_horizontal_reading_width(
 
     candidate = render_candidate_svg(inspection)
     root = ET.fromstring(candidate)
-    assert int(root.attrib["width"]) >= 1_212
+    assert int(root.attrib["width"]) >= 40 * 24 + 180 + 42
     _assert_candidate_text_is_legible(candidate)
     html = render_html(inspection).decode()
     compact = "".join(html.split())

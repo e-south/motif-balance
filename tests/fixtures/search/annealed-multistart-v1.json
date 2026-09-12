@@ -25,8 +25,41 @@
     "search_engine_version": "1",
     "unique_evaluations": 2913
   },
-  "fixture": "examples/production-pairwise/design.yaml",
-  "schema_version": "annealed-search-regression/v1",
+  "specification": {
+    "schema_version": "design-spec/v2",
+    "motifs": [
+      {
+        "schema_version": "motif-model/v2",
+        "motif_id": "motif_a",
+        "probabilities": [[0.7, 0.1, 0.1, 0.1], [0.1, 0.7, 0.1, 0.1], [0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.1, 0.7]],
+        "background": [0.25, 0.25, 0.25, 0.25],
+        "source_digest": "1e5018635f6141e84215bac7e75aa4f5886b50b9286f40fc6baeea1417d68294",
+        "source_name": "motif-a.yaml",
+        "canonical_file_digest": "1e5018635f6141e84215bac7e75aa4f5886b50b9286f40fc6baeea1417d68294",
+        "canonical_file_name": "motif-a.yaml"
+      },
+      {
+        "schema_version": "motif-model/v2",
+        "motif_id": "motif_b",
+        "probabilities": [[0.1, 0.1, 0.7, 0.1], [0.7, 0.1, 0.1, 0.1], [0.1, 0.1, 0.1, 0.7], [0.1, 0.7, 0.1, 0.1]],
+        "background": [0.25, 0.25, 0.25, 0.25],
+        "source_digest": "bd69fa1848582fa5e93ed8bc035785f6a82028b8726e875c7aef3eeb53187bcc",
+        "source_name": "motif-b.yaml",
+        "canonical_file_digest": "bd69fa1848582fa5e93ed8bc035785f6a82028b8726e875c7aef3eeb53187bcc",
+        "canonical_file_name": "motif-b.yaml"
+      }
+    ],
+    "length": 12,
+    "count": 8,
+    "strands": "both",
+    "evaluations": 4096,
+    "seed": 42,
+    "min_distance": 0.25,
+    "scoring_semantics": "relative_pwm_attainment_v2",
+    "objective_semantics": "weakest_score_v1",
+    "tie_break_semantics": "leftmost_plus_first_v1"
+  },
+  "schema_version": "annealed-search-regression/v2",
   "semantics": {
     "objective": "weakest_score_v1",
     "scoring": "relative_pwm_attainment_v2",

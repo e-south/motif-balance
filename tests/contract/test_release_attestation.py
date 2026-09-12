@@ -338,3 +338,33 @@ def test_release_preparation_rejects_relative_output_before_build() -> None:
 
     assert completed.returncode == 2
     assert "absolute path outside the repository" in completed.stderr
+
+
+def test_release_preparation_rejects_dirty_source_without_creating_output(tmp_path: Path) -> None:
+    import shutil
+
+    checkout = tmp_path / "checkout"
+    (checkout / "scripts").mkdir(parents=True)
+    shutil.copy2(REPO_ROOT / "scripts/prepare-prerelease", checkout / "scripts/prepare-prerelease")
+    subprocess.run(["git", "init", "--quiet", str(checkout)], check=True, capture_output=True)
+    # The copied, untracked script makes this isolated source tree dirty.
+    output = tmp_path / "release"
+    completed = subprocess.run(
+        [
+            "bash",
+            "./scripts/prepare-prerelease",
+            "--out",
+            str(output),
+            "--builder-kind",
+            "maintainer_local",
+            "--limitation",
+            "independent_rebuild_not_performed",
+        ],
+        cwd=checkout,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 1
+    assert "release checkout is not clean" in completed.stderr
+    assert not output.exists()

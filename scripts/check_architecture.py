@@ -27,6 +27,8 @@ _FALLBACK_IGNORED_PARTS = {
 
 KNOWN_LAYERS = {
     "admissibility",
+    "alternatives",
+    "assessment",
     "api",
     "artifacts",
     "cli",
@@ -53,6 +55,8 @@ ALLOWED_IMPORTS = {
     "compile": {"constants", "errors", "model"},
     "scoring": {"compile", "constants", "errors", "model"},
     "admissibility": {"compile", "model"},
+    "assessment": {"compile", "constants", "errors", "model"},
+    "alternatives": {"compile", "constants", "model", "scoring"},
     "search": {"admissibility", "compile", "constants", "errors", "model", "scoring"},
     "selection": {"constants", "errors", "model", "scoring"},
     "artifacts": {"compile", "constants", "errors", "model", "scoring", "selection"},
@@ -71,6 +75,7 @@ ALLOWED_IMPORTS = {
     "observation": {"api", "compile", "constants", "errors", "model", "scoring", "search"},
     "execution": {"api", "artifacts", "constants", "errors", "formats", "model", "receipt"},
     "inspection": {
+        "assessment",
         "artifacts",
         "compile",
         "constants",
@@ -80,7 +85,7 @@ ALLOWED_IMPORTS = {
         "receipt",
         "scoring",
     },
-    "cli": {"api", "compile", "errors", "execution", "formats", "inspection"},
+    "cli": {"api", "assessment", "compile", "errors", "execution", "formats", "inspection"},
 }
 
 
@@ -151,6 +156,8 @@ def inspection_boundary_violations(
             "motif_balance.errors",
             "motif_balance.inspection.limits",
             "motif_balance.inspection.model",
+            "motif_balance.inspection.candidate_model",
+            "motif_balance.inspection.assessment.model",
             "motif_balance.inspection.render",
         )
         return [
@@ -158,11 +165,21 @@ def inspection_boundary_violations(
             for module in sorted(modules)
             if not any(module == prefix or module.startswith(prefix + ".") for prefix in allowed)
         ]
-    is_projector = relative_path == Path("inspection/project.py") or relative_path.parts[:2] == (
-        "inspection",
-        "project",
-    )
-    if is_projector:
+    if relative_path == Path("inspection/candidate_model.py"):
+        return [
+            f"{relative_path}:{node.lineno}: candidate inspection model must not import {module!r}"
+            for module in sorted(modules)
+            if not (
+                module == "motif_balance.model"
+                or module.startswith("motif_balance.model.")
+                or module == "motif_balance.inspection.model"
+            )
+        ]
+    is_projector = relative_path in {
+        Path("inspection/project.py"),
+        Path("inspection/supplied.py"),
+    } or relative_path.parts[:2] == ("inspection", "project")
+    if is_projector or relative_path.parts[:2] == ("inspection", "assessment"):
         return [
             f"{relative_path}:{node.lineno}: inspection projector must not import {module!r}"
             for module in sorted(modules)

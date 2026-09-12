@@ -31,6 +31,21 @@ def test_renderer_cannot_import_scoring_or_verified_source_layers() -> None:
     assert any("inspection renderer" in error and "verify" in error for error in verified_source)
 
 
+def test_pair_assessment_uses_compilation_but_cannot_invoke_search_or_selection() -> None:
+    checker = _checker()
+    assert (
+        checker.violations_for_source(
+            Path("assessment.py"), "from motif_balance.compile import _compile_motif\n"
+        )
+        == []
+    )
+    for layer in ("search", "selection", "api", "artifacts"):
+        errors = checker.violations_for_source(
+            Path("assessment.py"), f"from motif_balance.{layer} import operation\n"
+        )
+        assert any(f"must not import '{layer}'" in error for error in errors)
+
+
 def test_projection_cannot_depend_on_renderers() -> None:
     checker = _checker()
 
@@ -40,6 +55,75 @@ def test_projection_cannot_depend_on_renderers() -> None:
     )
 
     assert any("inspection projector" in error and "render" in error for error in errors)
+
+
+def test_supplied_projection_preserves_the_data_only_renderer_boundary() -> None:
+    checker = _checker()
+    assert (
+        checker.violations_for_source(
+            Path("inspection/render/candidate.py"),
+            "from ..candidate_model import CandidateInspection\n",
+        )
+        == []
+    )
+    assert checker.violations_for_source(
+        Path("inspection/render/candidate.py"),
+        "from ..supplied import inspect_candidate\n",
+    )
+    assert checker.violations_for_source(
+        Path("inspection/supplied.py"),
+        "from .render import render_candidate_svg\n",
+    )
+    assert checker.violations_for_source(
+        Path("inspection/candidate_model.py"),
+        "from motif_balance.scoring import evaluate\n",
+    )
+
+
+def test_assessment_projection_and_render_keep_the_calculation_boundary() -> None:
+    checker = _checker()
+    assert (
+        checker.violations_for_source(
+            Path("inspection/assessment/project.py"),
+            "from motif_balance.assessment import assess_pair\n",
+        )
+        == []
+    )
+    assert (
+        checker.violations_for_source(
+            Path("inspection/render/assessment.py"),
+            "from motif_balance.inspection.assessment.model import PairAssessmentInspection\n",
+        )
+        == []
+    )
+    for module in (
+        "motif_balance.assessment",
+        "motif_balance.inspection.assessment",
+        "motif_balance.inspection.assessment.project",
+    ):
+        assert checker.violations_for_source(
+            Path("inspection/render/assessment.py"), f"from {module} import operation\n"
+        )
+    assert checker.violations_for_source(
+        Path("inspection/assessment/project.py"),
+        "from motif_balance.inspection.render import render_pair_assessment_svg\n",
+    )
+
+
+def test_architecture_ranking_can_score_but_cannot_search_or_publish() -> None:
+    checker = _checker()
+    for layer in ("compile", "constants", "model", "scoring"):
+        assert (
+            checker.violations_for_source(
+                Path("alternatives/api.py"), f"from motif_balance.{layer} import operation\n"
+            )
+            == []
+        )
+    for layer in ("search", "api", "artifacts", "inspection", "cli"):
+        errors = checker.violations_for_source(
+            Path("alternatives/api.py"), f"from motif_balance.{layer} import operation\n"
+        )
+        assert any(f"must not import '{layer}'" in error for error in errors)
 
 
 def test_nested_projection_modules_cannot_depend_on_renderers() -> None:

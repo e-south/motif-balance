@@ -45,7 +45,12 @@ def test_public_exports_are_deliberate_and_bounded() -> None:
         "score",
     ]
     assert api.__all__ == ["design", "score"]
-    assert inspection.__all__ == ["ResultInspection", "inspect_result"]
+    assert inspection.__all__ == [
+        "CandidateInspection",
+        "ResultInspection",
+        "inspect_candidate",
+        "inspect_result",
+    ]
 
 
 @pytest.mark.parametrize(

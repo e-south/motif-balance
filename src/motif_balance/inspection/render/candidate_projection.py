@@ -22,7 +22,7 @@ def select_candidate(inspection: ResultInspection, rank: int) -> InspectionCandi
 
 
 def shown_matches(candidate: InspectionCandidate) -> tuple[InspectionMatch, ...]:
-    """Return the bounded deterministic match projection used by the SVG."""
+    """Return complete deterministic lanes or refuse an incomplete molecular view."""
 
     ordered = tuple(
         sorted(
@@ -35,7 +35,12 @@ def shown_matches(candidate: InspectionCandidate) -> tuple[InspectionMatch, ...]
             ),
         )
     )
-    return ordered[:MAX_SVG_MATCHES]
+    if len(ordered) > MAX_SVG_MATCHES:
+        raise ArtifactError(
+            f"candidate visual has {len(ordered)} matches, exceeding limit {MAX_SVG_MATCHES}; "
+            "use inspection JSON for complete records"
+        )
+    return ordered
 
 
 def validate_candidate_projection(

@@ -61,13 +61,11 @@ out_parent="$(dirname "$out_dir")"
   echo "output parent must be an existing regular directory: $out_parent" >&2
   exit 2
 }
-mkdir -- "$out_dir"
 output_identity() {
   python3 -c \
     'import os,stat,sys; value=os.lstat(sys.argv[1]); assert stat.S_ISDIR(value.st_mode); print(f"{value.st_dev}:{value.st_ino}")' \
     "$out_dir"
 }
-out_identity="$(output_identity)"
 
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] || {
   echo "release checkout is not clean" >&2
@@ -95,6 +93,9 @@ if git rev-parse --verify --quiet "refs/tags/${tag}" >/dev/null; then
     exit 1
   }
 fi
+
+mkdir -- "$out_dir"
+out_identity="$(output_identity)"
 
 bash ./scripts/agent-verify
 [[ "$(git rev-parse HEAD)" == "$release_revision" ]] || {

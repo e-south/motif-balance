@@ -24,7 +24,7 @@ from motif_balance.inspection.render import (
 )
 from motif_balance.model import Evaluation, RunManifest, SearchDiagnostics
 from motif_balance.observation import observe_evaluated_pool
-from motif_balance.search import _motif_insertion_word
+from motif_balance.search.moves import _motif_insertion_word
 
 
 def _base_motif(motif_id: str, preferred: str) -> MotifModel:
@@ -497,6 +497,9 @@ def test_directional_bundle_round_trips_and_inspection_discloses_model_relative_
     assert "model-relative" in text
     assert "Directional motif specifications" in html
     assert "does not establish biological absence" in html
+    assert '<th scope="row">seek_a</th><td>seek</td>' in html
+    assert '<th scope="row">avoid_a</th><td>avoid</td>' in html
+    assert '<th scope="row">avoid_a</th><td>target</td>' not in html
     assert 'data-direction="avoid"' in candidate_svg
     assert 'data-spec-satisfaction="0"' in candidate_svg
     assert 'data-direction="avoid"' in portfolio_svg

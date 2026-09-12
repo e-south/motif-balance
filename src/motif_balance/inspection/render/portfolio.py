@@ -173,7 +173,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                 y + 21,
                 f"rank {candidate.rank} · {candidate.candidate_id[-8:]}",
                 size=12,
-                family="ui-monospace,monospace",
+                family="Arial",
             )
         )
         by_motif = {match.motif_id: match for match in candidate.matches}
@@ -207,7 +207,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                         size=12,
                         anchor="middle",
                         weight=650,
-                        family="ui-monospace,monospace",
+                        family="Arial",
                     ),
                 ]
             )
@@ -219,7 +219,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                     y + 20,
                     f"{candidate.balance_score:.6g}",
                     size=12,
-                    family="ui-monospace,monospace",
+                    family="Arial",
                 ),
                 text(end + 120, y + 20, ", ".join(candidate.limiting_motif_ids), size=12),
                 text(
@@ -229,7 +229,7 @@ def render_portfolio_svg(inspection: ResultInspection) -> bytes:
                     if candidate.nearest_neighbor_distance is None
                     else f"{candidate.nearest_neighbor_distance:.4g}",
                     size=12,
-                    family="ui-monospace,monospace",
+                    family="Arial",
                 ),
             ]
         )

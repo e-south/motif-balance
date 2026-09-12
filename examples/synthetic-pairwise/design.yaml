@@ -1,7 +1,9 @@
-schema_version: design-spec/v2
-motifs:
-  motif_a: motifs/motif-a.yaml
-  motif_b: motifs/motif-b.yaml
+schema_version: design-spec/v3
+specifications:
+  - motif: motifs/motif-a.yaml
+    direction: seek
+  - motif: motifs/motif-b.yaml
+    direction: seek
 length: 2
 count: 3
 strands: forward

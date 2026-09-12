@@ -6,6 +6,10 @@ from pathlib import Path
 
 from motif_balance.compile import build_run_id, compile_design, sequence_space_at_most
 from motif_balance.constants import (
+    GREEDY_INDEPENDENT_SEARCH_ENGINE,
+    GREEDY_SEARCH_ENGINE,
+    INDEPENDENT_SEARCH_ENGINE,
+    RANDOM_SEARCH_ENGINE,
     RNG_NAME,
     SEARCH_ENGINE,
     SEARCH_ENGINE_VERSION,
@@ -37,7 +41,11 @@ def verify_portfolio_record(portfolio: PortfolioRecord) -> None:
         raise ArtifactError("scientific replay found a run identity mismatch")
 
     sequence_space = sequence_space_at_most(portfolio.spec.length, portfolio.spec.evaluations)
-    if sequence_space is not None:
+    random_directional = (
+        portfolio.manifest.search_engine == RANDOM_SEARCH_ENGINE
+        and portfolio.spec.schema_version == "design-spec/v3"
+    )
+    if sequence_space is not None and not random_directional:
         expected_metadata = (
             "exhaustive_v1",
             SEARCH_ENGINE_VERSION,
@@ -48,7 +56,16 @@ def verify_portfolio_record(portfolio: PortfolioRecord) -> None:
         )
     else:
         expected_metadata = (
-            SEARCH_ENGINE,
+            portfolio.manifest.search_engine
+            if portfolio.manifest.search_engine
+            in (
+                INDEPENDENT_SEARCH_ENGINE,
+                GREEDY_SEARCH_ENGINE,
+                GREEDY_INDEPENDENT_SEARCH_ENGINE,
+                RANDOM_SEARCH_ENGINE,
+            )
+            and portfolio.spec.schema_version == "design-spec/v3"
+            else SEARCH_ENGINE,
             SEARCH_ENGINE_VERSION,
             RNG_NAME,
             "budget_exhausted",
@@ -67,6 +84,11 @@ def verify_portfolio_record(portfolio: PortfolioRecord) -> None:
         raise ArtifactError("scientific replay found inconsistent search provenance")
     if portfolio.manifest.unique_evaluations > portfolio.manifest.evaluation_count:
         raise ArtifactError("scientific replay found impossible evaluation counts")
+    if random_directional and (
+        portfolio.manifest.exact_completion_status != "not_exact"
+        or (sequence_space is not None and portfolio.manifest.unique_evaluations > sequence_space)
+    ):
+        raise ArtifactError("scientific replay found impossible random coverage metadata")
 
     best_observed = portfolio.manifest.best_observed
     if best_observed is not None:

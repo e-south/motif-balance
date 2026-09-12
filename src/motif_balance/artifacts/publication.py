@@ -129,6 +129,10 @@ def write_bundle(
     output: Path,
     payloads: dict[str, bytes],
 ) -> Path:
+    requested_output = output
+    # mkdtemp returns an absolute path; use the same lexical basis for both
+    # siblings without resolving symlinks or weakening no-replace publication.
+    output = output.absolute()
     if output.exists() or output.is_symlink():
         raise ArtifactError(f"output directory already exists or is unsafe: '{output.name}'")
     try:
@@ -174,4 +178,4 @@ def write_bundle(
         if temporary.exists():
             shutil.rmtree(temporary)
         raise
-    return output
+    return requested_output

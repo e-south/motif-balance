@@ -10,11 +10,18 @@ from motif_balance.artifacts import (
     verify_portfolio_record,
     write_bundle,
 )
-from motif_balance.compile import CompiledProblem, build_run_id, compile_design
+from motif_balance.compile import CompiledProblem, build_run_id, compile_design, compile_scoring
 from motif_balance.constants import (
     BUILD_LOCK_SHA256,
+    GREEDY_INDEPENDENT_SEARCH_ENGINE,
+    GREEDY_SEARCH_ENGINE,
+    INDEPENDENT_SEARCH_ENGINE,
+    MAX_SEARCH_OBSERVATION_BYTES,
     PACKAGE_VERSION,
+    RANDOM_SEARCH_ENGINE,
     RUNTIME_CONTRACT,
+    SEARCH_ENGINE,
+    SEARCH_ENGINE_VERSION,
 )
 from motif_balance.errors import (
     ArtifactError,
@@ -29,10 +36,21 @@ from motif_balance.model import (
     PortfolioRecord,
     RunManifest,
 )
+from motif_balance.model.search import SearchInitialization, SearchMethod
+from motif_balance.model.search_observation import ObservationSpec, SearchObservation
 from motif_balance.scoring import evaluate
-from motif_balance.search import SearchResult, search
+from motif_balance.search import (
+    AnnealedSearchEngine,
+    GreedySearchEngine,
+    SearchEngine,
+    SearchResult,
+    UniformRandomSearchEngine,
+    search,
+)
+from motif_balance.search.observation import SearchRecorder
 from motif_balance.selection import select_candidates
 
+# Advanced observation helpers are explicit submodule imports, not scientific facade verbs.
 __all__ = ["design", "score"]
 
 
@@ -59,9 +77,9 @@ class Portfolio(PortfolioRecord):
 
 
 def score(sequence: str, spec: DesignSpec) -> Evaluation:
-    """Evaluate one sequence under the same authority used by design."""
+    """Evaluate one supplied sequence without testing portfolio-count feasibility."""
 
-    return evaluate(sequence, compile_design(spec))
+    return evaluate(sequence, compile_scoring(spec))
 
 
 def _require_publishable_design(spec: DesignSpec) -> None:
@@ -203,10 +221,99 @@ def _portfolio_from_search_result(
     )
 
 
-def design(spec: DesignSpec) -> Portfolio:
+def _search_engine(
+    method: SearchMethod,
+    initialization: SearchInitialization,
+    observer: SearchRecorder | None = None,
+) -> SearchEngine:
+    if method not in ("annealed", "greedy", "random"):
+        raise ValueError("method must be annealed, greedy, or random")
+    if method == "random":
+        if initialization != "related":
+            raise ValueError("random search has no chain initialization; omit initialization")
+        return UniformRandomSearchEngine(observer=observer)
+    engine = AnnealedSearchEngine if method == "annealed" else GreedySearchEngine
+    return engine(observer=observer, initialization=initialization)
+
+
+def design(
+    spec: DesignSpec,
+    *,
+    initialization: SearchInitialization = "related",
+    method: SearchMethod = "annealed",
+) -> Portfolio:
     """Return one exact immutable portfolio or raise a typed failure."""
 
     _require_publishable_design(spec)
+    engine = _search_engine(method, initialization)
     problem = compile_design(spec)
-    result = search(problem)
+    result = search(problem, engine=engine)
     return _portfolio_from_search_result(spec, problem, result)
+
+
+def design_observed(
+    spec: DesignSpec,
+    observation_spec: ObservationSpec,
+    *,
+    initialization: SearchInitialization = "related",
+    method: SearchMethod = "annealed",
+) -> tuple[Portfolio, SearchObservation]:
+    """Design once with passive diagnostics, leaving the canonical portfolio unchanged."""
+
+    spec = DesignSpec.model_validate(spec.model_dump(mode="python"))
+    observation_spec = ObservationSpec.model_validate(observation_spec.model_dump(mode="python"))
+    _require_publishable_design(spec)
+    recorder = SearchRecorder(spec, observation_spec)
+    engine = _search_engine(method, initialization, recorder)
+    problem = compile_design(spec)
+    result = engine.search(problem)
+    observation = recorder.finish(
+        engine=result.engine,
+        engine_version=result.engine_version,
+        evaluation_count=result.evaluations_used,
+    )
+    if len(observation.model_dump_json().encode()) > MAX_SEARCH_OBSERVATION_BYTES:
+        raise ValueError("search observation exceeds the 64 MiB byte limit")
+    return _portfolio_from_search_result(spec, problem, result), observation
+
+
+def verify_search_observation(observation: SearchObservation) -> None:
+    """Replay a bounded observation, including exact hit times and chain identities."""
+
+    checked = SearchObservation.model_validate(observation.model_dump(mode="python"))
+    if checked.engine_version != SEARCH_ENGINE_VERSION or checked.engine not in (
+        SEARCH_ENGINE,
+        INDEPENDENT_SEARCH_ENGINE,
+        GREEDY_SEARCH_ENGINE,
+        GREEDY_INDEPENDENT_SEARCH_ENGINE,
+        RANDOM_SEARCH_ENGINE,
+        "exhaustive_v1",
+    ):
+        raise ValueError("unsupported search engine identity for observation replay")
+    initialization: SearchInitialization = (
+        "independent"
+        if checked.engine in (INDEPENDENT_SEARCH_ENGINE, GREEDY_INDEPENDENT_SEARCH_ENGINE)
+        else "related"
+    )
+    method: SearchMethod = (
+        "random"
+        if checked.engine == RANDOM_SEARCH_ENGINE
+        else "greedy"
+        if checked.engine in (GREEDY_SEARCH_ENGINE, GREEDY_INDEPENDENT_SEARCH_ENGINE)
+        else "annealed"
+    )
+    _, replayed = design_observed(
+        checked.spec, checked.observation_spec, initialization=initialization, method=method
+    )
+    if replayed != checked:
+        raise ValueError("search observation replay differs from recorded search")
+
+
+def read_search_observation(payload: bytes) -> SearchObservation:
+    """Read caller-owned bytes with a transport bound and full deterministic replay."""
+
+    if len(payload) > MAX_SEARCH_OBSERVATION_BYTES:
+        raise ValueError("search observation exceeds the 64 MiB byte limit")
+    observation = SearchObservation.model_validate_json(payload)
+    verify_search_observation(observation)
+    return observation

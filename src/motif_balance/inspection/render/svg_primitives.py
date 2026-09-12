@@ -22,14 +22,14 @@ _DOMAIN_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
 _CANDIDATE_ID = re.compile(r"^candidate-[0-9a-f]{16}$")
 _MOTIF_PALETTE = (
     "#4477AA",
-    "#EE6677",
-    "#228833",
-    "#CCBB44",
-    "#66CCEE",
-    "#AA3377",
-    "#EE7733",
-    "#009988",
-    "#CC3311",
+    "#A63D57",
+    "#216B39",
+    "#75631A",
+    "#007589",
+    "#882255",
+    "#A64B12",
+    "#006B60",
+    "#AA3322",
 )
 
 
@@ -90,7 +90,7 @@ def text(
     fill: str = INK,
     anchor: str | None = None,
     weight: int | None = None,
-    family: str = "system-ui,sans-serif",
+    family: str = "Arial",
     extra: str = "",
 ) -> str:
     anchor_attr = f' text-anchor="{anchor}"' if anchor else ""

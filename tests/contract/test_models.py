@@ -651,11 +651,14 @@ def test_model_facade_routes_to_bounded_semantic_contract_modules() -> None:
     assert facade.name == "__init__.py"
     assert {p.stem for p in facade.parent.glob("*.py")} == {
         "__init__",
+        "alternatives",
+        "assessment",
         "base",
         "motif",
         "design",
         "evaluation",
         "search",
+        "search_observation",
         "execution",
         "manifest",
         "portfolio",

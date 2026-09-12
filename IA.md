@@ -8,7 +8,7 @@ audience:
   - downstream integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-06
+last_verified: 2026-09-09
 doc_type: reference
 ---
 
@@ -36,9 +36,11 @@ operation.
 | What is the joint score? | scoring | `weakest_directional_satisfaction_v1` |
 | How are sequences proposed? | `SearchEngine` | engine name and version |
 | Which evaluated sequences ship? | selection | exact count and declared distance |
+| Which distinct architectures can a supplied pool offer? | alternatives | `architecture-ranking/v2` |
 | What crosses a repository boundary? | canonical bundle | `run-manifest/v6` (v5 for legacy v2) |
 | Which released bytes performed a run? | execution workspace | `motif-balance.execution-workspace/v1` |
 | How is one result explained without mutation? | `ResultInspection` | `motif-balance.result-inspection/v4` |
+| How is a supplied candidate explained without inventing a run? | `CandidateInspection` | `motif-balance.candidate-inspection/v1` |
 
 ## Ontology
 
@@ -112,7 +114,7 @@ conversion rationale remain caller-owned.
 
 ### Search
 
-`evaluations` counts calls to the authoritative evaluator. Tractable spaces use
+`evaluations` counts calls to the authoritative evaluator. By default, tractable spaces use
 complete enumeration. Larger spaces use versioned multi-start annealed search
 with single-base, block, multi-base, and motif-insertion proposals. The engine
 records logarithmic checkpoints with per-specification satisfactions,
@@ -122,6 +124,13 @@ are not product artifacts. Complete enumeration establishes an
 optimum only when the admitted sequence space is fully covered. Annealed runs
 publish the best result observed under their declared evaluator-call budget,
 not a convergence or global-optimality claim.
+
+Explicit Python method choices keep the same design problem: `greedy` uses
+strict single-coordinate improvement; `random` draws independent whole
+sequences with replacement. The latter never substitutes enumeration.
+Method identity belongs to the run, not a new scientific task hierarchy.
+The [method reference](docs/methods.md#explicit-comparison-methods) owns their
+exact policies; comparison cohorts and conclusions remain caller-owned.
 
 Hard avoidance is feasibility-first: feasible evaluations outrank infeasible
 evaluations before target score is considered. Among infeasible evaluations,
@@ -150,6 +159,14 @@ distance constraint excludes that sequence from the exact selected set.
 `candidates.tsv`, `matches.tsv`, and FASTA contain only selected portfolio
 members. Older readable manifests may expose only the best observed score
 because they did not retain the corresponding sequence and matches.
+
+The explicit [architecture-ranking API](docs/choose-alternatives.md) is a
+separate supplied-pool operation. It scores canonical sequences, retains one
+best representative per selected-match architecture, and exposes every ranked
+prefix with separate quality and distance measurements. Its exact-count
+selection neither applies nor relaxes the portfolio's distance constraint.
+The input pool and full scoring specification remain explicit; no search,
+artifact discovery, source cohort, or acceptance policy enters this seam.
 
 ## Artifact contract
 
@@ -187,12 +204,16 @@ checkpoints, and diagnostics. The advanced paired operation can derive it and
 the ordinary portfolio from the same search result. It is not a bundle
 member, public `Portfolio` field, ordinary CLI journey, or top-level noun.
 
-Inspection is one immutable typed projection over a verified bundle or
-execution. Verification and score replay produce `ResultInspection`; every
-renderer consumes only that projection. A renderer cannot read a workspace,
+Bundle or execution verification and score replay produce `ResultInspection`.
+The explicit `inspect_candidate` operation instead replays one caller-supplied
+directional candidate under its supplied specification, producing
+`CandidateInspection` without run, bundle or artifact-trust fields. Its rank
+remains caller-assigned; inspection does not verify a collection's ordering or
+source history. Both use the same candidate projection and duplex/logo renderer.
+A renderer cannot read a workspace,
 rescan a sequence, recompute a score, contact a network, compare runs, or
 accept evidence. It therefore cannot create a circular artifact identity.
-Inspection is deliberately limited to one explicit result. Joining results,
+Inspection is deliberately limited to one explicit result or supplied candidate. Joining results,
 discovering Storage, choosing a benchmark cohort, and accepting evidence remain
 outside the package.
 

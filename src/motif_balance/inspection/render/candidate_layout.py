@@ -4,25 +4,9 @@ from dataclasses import dataclass
 
 from ..model import InspectionCandidate, InspectionMatch
 
-_MONOSPACE_CHARACTER_WIDTH = 8
-_CELL_HORIZONTAL_PADDING = 12
-
-
-def support_label(value: float) -> str:
-    return f"{value:+.2g}"
-
-
-def _candidate_cell_width(shown: tuple[InspectionMatch, ...]) -> int:
-    """Keep exact support labels readable, even for realistic long motifs."""
-
-    labels = tuple(
-        support_label(support.llr_contribution)
-        for match in shown
-        for support in match.position_support
-    )
-    longest_label = max((len(label) for label in labels), default=0)
-    label_width = longest_label * _MONOSPACE_CHARACTER_WIDTH + _CELL_HORIZONTAL_PADDING
-    return max(44, label_width)
+DNA_FONT_SIZE = 16
+DNA_FONT_FAMILY = "Arial"
+VISUAL_CONTRACT = "motif-balance.candidate-duplex/v2"
 
 
 @dataclass(frozen=True)
@@ -38,7 +22,6 @@ class CandidateLayout:
     primary_y: int
     complement_y: int
     reverse_logo_top: int
-    support_y: int
     height: int
 
 
@@ -46,21 +29,19 @@ def build_candidate_layout(
     candidate: InspectionCandidate,
     shown: tuple[InspectionMatch, ...],
 ) -> CandidateLayout:
-    """Derive deterministic geometry without changing projected scientific state."""
+    """Lay out molecular lanes; exact per-base score tables belong to JSON/HTML."""
 
     forward = tuple(match for match in shown if match.strand == "+")
     reverse = tuple(match for match in shown if match.strand == "-")
-    cell = _candidate_cell_width(shown)
-    left = 210
-    right = 42
-    width = max(960, left + len(candidate.sequence) * cell + right)
-    logo_top = 88
-    logo_row_height = 128
-    primary_y = logo_top + logo_row_height * len(forward) + 42 + 30 * max(1, len(forward))
-    complement_y = primary_y + 44
-    reverse_logo_top = complement_y + 44 + 30 * max(1, len(reverse))
-    support_y = reverse_logo_top + logo_row_height * len(reverse) + 32
-    height = support_y + 40 * len(shown) + 72
+    cell = 24
+    left = max(180, max((len(match.motif_id) for match in shown), default=0) * 8 + 40)
+    width = max(600, left + len(candidate.sequence) * cell + 42)
+    logo_top = 86
+    logo_row_height = 142
+    primary_y = logo_top + logo_row_height * len(forward) + 12
+    complement_y = primary_y + 32
+    reverse_logo_top = complement_y + 48
+    height = reverse_logo_top + logo_row_height * len(reverse) + 28
     return CandidateLayout(
         shown=shown,
         forward=forward,
@@ -73,6 +54,5 @@ def build_candidate_layout(
         primary_y=primary_y,
         complement_y=complement_y,
         reverse_logo_top=reverse_logo_top,
-        support_y=support_y,
         height=height,
     )

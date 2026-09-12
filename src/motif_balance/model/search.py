@@ -9,6 +9,9 @@ from pydantic import Field, model_validator
 
 from .base import FrozenModel
 
+SearchInitialization = Literal["related", "independent"]
+SearchMethod = Literal["annealed", "greedy", "random"]
+
 
 class SearchCheckpoint(FrozenModel):
     evaluations: Annotated[int, Field(gt=0)]

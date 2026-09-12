@@ -9,12 +9,12 @@ from .svg_primitives import ACCENT, INK, MUTED, PAPER, finish_svg, svg_start, te
 
 def _shown(
     inspection: ResultInspection,
-) -> tuple[tuple[tuple[int, float], ...], Literal["exact_step", "sampled_markers"]]:
+) -> tuple[tuple[tuple[int, float], ...], Literal["checkpoint_step", "sampled_markers"]]:
     checkpoints = inspection.search.checkpoints
     if len(checkpoints) <= MAX_SVG_CHECKPOINTS:
         return (
             tuple((item.evaluations, item.best_score) for item in checkpoints),
-            "exact_step",
+            "checkpoint_step",
         )
     changes = {
         index
@@ -30,7 +30,7 @@ def _shown(
                 (checkpoints[index].evaluations, checkpoints[index].best_score)
                 for index in sorted(essential)
             ),
-            "exact_step",
+            "checkpoint_step",
         )
     last = len(checkpoints) - 1
     indices = tuple(
@@ -55,8 +55,8 @@ def render_search_svg(inspection: ResultInspection) -> bytes | None:
     shown, display_mode = _shown(inspection)
     total = len(inspection.search.checkpoints)
     width = 960
-    height = 350
-    left, right, top, bottom = 88, 36, 82, 72
+    height = 374
+    left, right, top, bottom = 88, 36, 106, 72
     plot_width = width - left - right
     plot_height = height - top - bottom
     x_max = inspection.search.evaluator_calls
@@ -81,7 +81,7 @@ def render_search_svg(inspection: ResultInspection) -> bytes | None:
             '<desc id="search-record-desc">Running maximum of the published hard minimum '
             "balance score at recorded evaluator calls. This is not accepted-state history, "
             "literal hill climbing, chain dynamics, convergence evidence, or a "
-            "global-optimality claim.</desc>",
+            "global-optimality claim. Improvement times between checkpoints are unknown.</desc>",
             f'<rect width="{width}" height="{height}" fill="{PAPER}"/>',
             '<g id="search-record">',
             text(20, 30, "Search record", size=18, weight=650),
@@ -90,12 +90,19 @@ def render_search_svg(inspection: ResultInspection) -> bytes | None:
                 54,
                 f"running maximum · {len(shown)} of {total} recorded checkpoints · "
                 + (
-                    "exact recorded step boundaries · "
-                    if display_mode == "exact_step"
-                    else "sampled markers; omitted intervals are not connected · "
-                )
-                + f"stop: {inspection.search.stop_reason}",
+                    "checkpoint-held steps"
+                    if display_mode == "checkpoint_step"
+                    else "sampled markers; omitted intervals are not connected"
+                ),
                 size=13,
+                fill=MUTED,
+            ),
+            text(
+                20,
+                76,
+                "Improvement times between checkpoints are unknown; "
+                "monotonicity is by construction.",
+                size=12,
                 fill=MUTED,
             ),
             f'<line x1="{left}" y1="{top + plot_height}" '
@@ -123,7 +130,7 @@ def render_search_svg(inspection: ResultInspection) -> bytes | None:
             ),
         ]
     )
-    if display_mode == "exact_step":
+    if display_mode == "checkpoint_step":
         points: list[tuple[float, float]] = []
         for evaluations, best_score in shown:
             current = (x(evaluations), y(best_score))
@@ -136,7 +143,7 @@ def render_search_svg(inspection: ResultInspection) -> bytes | None:
         )
         parts.append(
             f'<path id="best-observed-step" d="{path}" fill="none" '
-            f'stroke="{ACCENT}" stroke-width="3" data-display-mode="exact-step" '
+            f'stroke="{ACCENT}" stroke-width="3" data-display-mode="checkpoint-held-step" '
             f'data-checkpoint-count="{total}" data-displayed-checkpoints="{len(shown)}"/>'
         )
     else:
