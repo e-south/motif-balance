@@ -31,10 +31,20 @@ REQUIRED_KEYS = {
 DOC_TYPES = {"tutorial", "how-to", "reference", "explanation", "decision", "index"}
 STATUSES = {"active", "accepted"}
 LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
-KNOWN_JOURNEYS = {"install", "design", "score", "verify", "inspect", "integrate", "maintain"}
+KNOWN_JOURNEYS = {
+    "install",
+    "assess",
+    "design",
+    "score",
+    "verify",
+    "inspect",
+    "integrate",
+    "maintain",
+}
 REQUIRED_JOURNEY_DOCS = {
     "docs/quickstart.md": ("tutorial", {"install", "design", "verify"}),
     "docs/score-sequences.md": ("how-to", {"score"}),
+    "docs/pair-assessment.md": ("how-to", {"assess"}),
     "docs/reference/result-inspection.md": ("reference", {"inspect"}),
     "docs/reference/public-contract.md": ("reference", {"integrate"}),
     "ARCHITECTURE.md": ("explanation", {"maintain"}),

@@ -7,7 +7,7 @@ audience:
   - security reviewers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-26
+last_verified: 2026-09-08
 doc_type: how-to
 ---
 
@@ -27,21 +27,25 @@ owns the draft, independent download verification, and final publication gate.
 
 ## Prepare exact assets
 
-Start from a clean checkout whose `HEAD` is contained in `origin/main`. Record
-why any normal automation was unavailable as an explicit limitation:
+Start from a clean checkout whose `HEAD` is contained in `origin/main`. If a
+version has already been published, select a new version before preparing changed
+bytes. Record actual verification limitations, not assumptions copied from an
+earlier release. For a local build without an independent rebuild:
 
 ```bash
 bash ./scripts/prepare-prerelease \
   --out /absolute/path/outside/repository/dist-release \
   --builder-kind maintainer_local \
-  --limitation hosted_ci_unavailable_account_billing \
-  --limitation codeql_not_executed \
-  --limitation github_dependency_review_not_executed \
   --limitation independent_rebuild_not_performed
 ```
 
+Supply only limitations that apply to this build, as safe descriptive tokens;
+repeat `--limitation` when needed. The command requires at least one. Account,
+runner, and security-check status must be verified for the release being prepared.
+
 The output path must be absolute, outside the repository, and nonexistent. The
-command also refuses a dirty checkout. It produces exactly four release assets:
+command refuses dirty or inadmissible source revisions before creating the output
+directory. It produces exactly four release assets:
 
 - the versioned wheel;
 - the versioned source distribution;

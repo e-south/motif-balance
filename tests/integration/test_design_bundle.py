@@ -106,6 +106,19 @@ def test_bundle_refuses_overwrite_and_detects_tampering(
         verify_bundle(output)
 
 
+def test_relative_bundle_publication_preserves_atomic_no_replace_contract(
+    pairwise_spec: DesignSpec, tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    output = Path("nested/result")
+    portfolio = design(pairwise_spec)
+    assert portfolio.write(output) == output
+    assert verify_bundle(output) == portfolio.manifest.bundle_id
+    with pytest.raises(ArtifactError, match="already exists"):
+        portfolio.write(output)
+    assert not list(output.parent.glob(".result.tmp-*"))
+
+
 def test_manifest_provenance_is_bound_into_bundle_identity(
     pairwise_spec: DesignSpec,
     tmp_path: Path,

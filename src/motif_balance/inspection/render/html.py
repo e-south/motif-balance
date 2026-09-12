@@ -145,7 +145,7 @@ def _motif_probability_table(inspection: ResultInspection) -> tuple[str, str]:
                 rows.append(
                     "<tr>"
                     f'<th scope="row">{escape(motif.motif_id)}</th>'
-                    f"<td>{role}</td><td>{position}</td>"
+                    f"<td>{motif.direction or role}</td><td>{position}</td>"
                     + "".join(f"<td>{value:.17g}</td>" for value in probabilities)
                     + f"<td>{motif.probability_consensus[position]}</td>"
                     f"<td>{motif.score_maximizing_sequence[position]}</td>"
@@ -231,7 +231,7 @@ def _styles() -> str:
 html, body { max-width:100%; }
 body {
   margin:0; background:var(--paper); color:var(--ink);
-  font:16px/1.5 system-ui,sans-serif;
+  font:16px/1.5 Arial;
 }
 main { width:100%; min-width:0; max-width:1180px; margin:auto; padding:2.5rem 1.1rem 5rem; }
 h1 { font-size:clamp(2rem,5vw,3.2rem); line-height:1.05; margin:0 0 .8rem; overflow-wrap:anywhere; }
@@ -252,7 +252,7 @@ h3 { margin-top:1.6rem; }
 table { border-collapse:collapse; width:max-content; min-width:48rem; font-size:.9rem; }
 th { text-align:left; color:var(--muted); }
 th,td { border-bottom:1px solid var(--line); padding:.58rem; vertical-align:top; }
-code { font:.82rem/1.4 ui-monospace,monospace; }
+code { font:.82rem/1.4 Arial; }
 .sequence { letter-spacing:.05em; white-space:nowrap; }
 details { border-top:1px solid var(--line); padding-top:1rem; margin-top:1rem; }
 summary { cursor:pointer; font-weight:650; }

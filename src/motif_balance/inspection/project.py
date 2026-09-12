@@ -86,11 +86,10 @@ def _project_candidate(
     *,
     nearest_neighbor_distance: float | None = None,
 ) -> InspectionCandidate:
+    if candidate.candidate_id != candidate_id_for_sequence(candidate.sequence):
+        raise ArtifactError("inspection candidate identity does not match its sequence")
     authoritative = evaluate(candidate.sequence, problem)
-    if (
-        authoritative.balance_score != candidate.balance_score
-        or authoritative.matches != candidate.matches
-    ):
+    if authoritative != candidate.as_evaluation():
         raise ArtifactError(f"inspection score replay failed for '{candidate.candidate_id}'")
     motifs = {motif.motif_id: motif for motif in spec.scored_motifs}
     matches = tuple(
@@ -134,11 +133,10 @@ def _project_candidate(
     )
 
 
-def project_candidate(spec: DesignSpec, candidate: Candidate) -> InspectionCandidate:
-    """Replay and project one candidate into renderer-ready computational score support."""
-
-    support_rows = sum(motif.width for motif in spec.scored_motifs) + sum(
-        item.motif.width for item in spec.avoiders
+def _check_support_limit(spec: DesignSpec, count: int = 1) -> None:
+    support_rows = count * (
+        sum(motif.width for motif in spec.scored_motifs)
+        + sum(item.motif.width for item in spec.avoiders)
     )
     if support_rows > MAX_INSPECTION_SUPPORT_ROWS:
         raise ArtifactError(
@@ -146,6 +144,11 @@ def project_candidate(spec: DesignSpec, candidate: Candidate) -> InspectionCandi
             f"requested={support_rows}, limit={MAX_INSPECTION_SUPPORT_ROWS}"
         )
 
+
+def project_candidate(spec: DesignSpec, candidate: Candidate) -> InspectionCandidate:
+    """Replay and project one candidate into renderer-ready computational score support."""
+
+    _check_support_limit(spec)
     return _project_candidate(spec, candidate, compile_design(spec))
 
 
@@ -303,15 +306,7 @@ def project_result(source: VerifiedResultSource) -> ResultInspection:
         and portfolio.manifest.best_observed.sequence not in selected_sequences
         else 0
     )
-    support_rows = (len(portfolio.candidates) + extra_best) * (
-        sum(motif.width for motif in portfolio.spec.scored_motifs)
-        + sum(item.motif.width for item in portfolio.spec.avoiders)
-    )
-    if support_rows > MAX_INSPECTION_SUPPORT_ROWS:
-        raise ArtifactError(
-            "inspection position-support rows exceed the projection limit; "
-            f"requested={support_rows}, limit={MAX_INSPECTION_SUPPORT_ROWS}"
-        )
+    _check_support_limit(portfolio.spec, len(portfolio.candidates) + extra_best)
     problem = compile_design(portfolio.spec)
     if problem.problem_id != portfolio.problem_id:
         raise ArtifactError("inspection problem replay changed the problem identity")

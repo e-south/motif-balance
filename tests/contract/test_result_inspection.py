@@ -126,7 +126,7 @@ def test_public_inspection_rejects_member_substitution_during_snapshot(
 ) -> None:
     bundle = tmp_path / "bundle"
     design(pairwise_spec).write(bundle)
-    artifacts_module = importlib.import_module("motif_balance.artifacts")
+    artifacts_module = importlib.import_module("motif_balance.artifacts.snapshot")
     real_open = os.open
     changed = False
 
@@ -160,7 +160,7 @@ def test_public_inspection_rejects_member_growth_during_snapshot(
 ) -> None:
     bundle = tmp_path / "bundle"
     design(pairwise_spec).write(bundle)
-    artifacts_module = importlib.import_module("motif_balance.artifacts")
+    artifacts_module = importlib.import_module("motif_balance.artifacts.snapshot")
     target = bundle / "candidates.tsv"
     target_inode = target.stat().st_ino
     real_read = os.read

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-import motif_balance.artifacts as artifacts_module
+import motif_balance.artifacts.publication as artifacts_module
 from motif_balance import DesignSpec, Portfolio, design
 from motif_balance.artifacts import (
     artifact_records,
@@ -19,6 +19,23 @@ from motif_balance.artifacts import (
 )
 from motif_balance.errors import ArtifactError
 from motif_balance.model import ArtifactDigest, RunManifest
+
+
+def test_artifact_facade_routes_to_bounded_semantic_modules() -> None:
+    import motif_balance.artifacts as facade
+
+    root = Path(facade.__file__).parent
+    assert Path(facade.__file__).name == "__init__.py"
+    assert {path.stem for path in root.glob("*.py")} == {
+        "__init__",
+        "encoding",
+        "decoding",
+        "snapshot",
+        "verification",
+        "publication",
+    }
+    for path in root.glob("*.py"):
+        assert len(path.read_text().splitlines()) < 400, path.name
 
 
 class _SwappingRename:
@@ -307,7 +324,7 @@ def test_publication_rejects_caller_forged_scientific_state(
 def test_artifact_records_reject_payloads_the_reader_would_refuse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("motif_balance.artifacts.MAX_BUNDLE_ARTIFACT_BYTES", 4)
+    monkeypatch.setattr("motif_balance.artifacts.encoding.MAX_BUNDLE_ARTIFACT_BYTES", 4)
 
     with pytest.raises(ArtifactError, match="bundle byte limit"):
         artifact_records({"oversized.tsv": b"12345"})

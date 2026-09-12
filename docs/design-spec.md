@@ -7,7 +7,7 @@ audience:
   - CLI users
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-06
+last_verified: 2026-09-08
 doc_type: reference
 ---
 
@@ -57,8 +57,7 @@ means low attainment under the supplied model, not biological absence or lack
 of binding.
 
 Relative motif references must stay inside the specification directory and may
-not traverse symlinks. Mapping keys must equal each resolved model's
-`motif_id`. Inline models follow the [motif-model contract](motif-models.md).
+not traverse symlinks. Inline models follow the [motif-model contract](motif-models.md).
 Serialized YAML and JSON must declare `schema_version` for both the design and
 every structured motif. An omitted version is rejected rather than silently
 interpreted under a historical or directional contract.
@@ -72,7 +71,7 @@ questions.
 ## Hard avoidance constraints
 
 `design-spec/v2` remains the explicit legacy contract for hard upper bounds on
-avoider motifs:
+avoider motifs. Its mapping keys must equal each resolved model's `motif_id`:
 
 ```yaml
 schema_version: design-spec/v2

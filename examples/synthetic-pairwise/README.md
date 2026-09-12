@@ -7,11 +7,15 @@ audience:
   - maintainers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
+last_verified: 2026-09-08
 doc_type: tutorial
 ---
 
 # Exhaustive pairwise example
+
+The current `design-spec/v3` request supplies two `seek` requirements. Change a
+direction to `avoid` to ask for a weak strongest match to that model instead;
+this changes the design problem, not just its display.
 
 This sanitized exact-small-space example makes the balancing problem visible. Two constructed
 motifs prefer different two-base sequences, while every candidate has room for only one

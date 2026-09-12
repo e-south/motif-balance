@@ -46,6 +46,13 @@ completed execution workspace. Workflows measuring failure rates must record
 their trial outcome separately. The requested output count and diversity
 constraints are hard postconditions.
 
+An explicit random method samples with replacement and reports bounded
+completion even if its budget could cover the entire space. Its shared ledger
+counts every draw and retains exact unique evaluations internally. The
+256-elite export cap therefore does not bound working memory; profile memory
+before raising an experiment's budget. Observation/replay is separate work,
+not part of the reported search-call budget.
+
 Hard avoider ceilings are feasibility constraints, not score penalties.
 Complete enumeration may report an exact infeasibility proof. A heuristic run
 that finds too few feasible sequences reports budget exhaustion without
@@ -119,6 +126,13 @@ canonical byte ceiling before either observation API returns. The advanced
 paired design operation performs one exploratory search; independent pool
 publication and reading continue to replay that search at their trust
 boundaries.
+
+Directional search observations are opt-in, bounded side records, separate
+from both canonical bundles and legacy complete-pool observations. Their
+[contract](docs/reference/search-observations.md) bounds snapshots, quality
+samples, bases, and bytes before search, checks actual serialized size before
+return, and replays all observations on reading. Passive retention and
+instrumentation do not change the canonical portfolio or evaluator-call budget.
 
 ## Degraded behavior
 

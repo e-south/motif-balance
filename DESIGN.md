@@ -7,7 +7,7 @@ audience:
   - API consumers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-06
+last_verified: 2026-09-07
 doc_type: explanation
 ---
 
@@ -18,10 +18,32 @@ doc_type: explanation
 The public scientific vocabulary is `MotifModel`, `MotifSpecification`,
 `DesignSpec`, `MotifMatch`, `Candidate`, `Portfolio`,
 `design(spec) -> Portfolio`, and `score(...)`.
-`Evaluation` and `ResultInspection` are internal or operational typed records,
+`Evaluation`, `ResultInspection`, and `CandidateInspection` are internal or operational typed records,
 not additional top-level scientific nouns.
 Scientific inputs belong in an immutable `DesignSpec`; operational CLI options
 may select output or validation behavior but cannot revise that specification.
+
+The explicit `motif_balance.assessment.assess_pair` seam instead takes two
+current motif models, length, and strands. Its versioned `PairAssessment` is a
+pre-search local-conflict profile, not an `Evaluation`, `Portfolio`, or calibrated
+outcome prediction. It does not require or manufacture search-budget/count fields.
+The [assessment contract](docs/pair-assessment.md) owns its formula, translation/
+reverse-complement equivalence, complete relative-arrangement coverage, and
+zero-range-column policy. Existing scoring, search, and artifact schemas are
+unchanged; callers must not relabel another formula as this assessment version.
+
+The explicit `motif_balance.alternatives.rank_architectures` seam scores a
+supplied sequence pool under a current `DesignSpec` and returns every
+quality-ranked selected-architecture prefix. Canonicalization precedes scoring;
+selection returns unchanged evaluations and never silently relaxes count or
+distance requirements. Coverage remains supplied-pool, not search-space coverage.
+The [selection guide](docs/choose-alternatives.md) owns equivalence, ranking,
+distance, resource, and serialization boundaries. No search or bundle schema changes.
+The unreleased `architecture-ranking/v2` record adds explicit distance-budget
+accounting. It uses the same measurements, with independent representative-pair
+and prepared-motif-pair caps. Old v1 records remain tied to their original build;
+there is no in-place migration or permissive reader. Empty and singleton rankings
+perform no pair-distance preparation.
 
 ## Invariants
 
@@ -74,6 +96,9 @@ may select output or validation behavior but cannot revise that specification.
 - Inspection defaults to the bundle contract, requires an explicit execution
   source mode, preserves delivery, search completion, and integrity as separate
   states, contains no source path, and accepts only current contracts.
+- Supplied-candidate inspection replays a current directional candidate under
+  explicit models without searching or verifying its origin. Its rank is
+  caller-assigned, not a claim of portfolio membership or collection quality.
 
 ## Error channels
 
@@ -107,7 +132,7 @@ accepted through loosened validation.
 
 ## Search boundary
 
-Small sequence spaces use deterministic exhaustive enumeration. Larger spaces
+By default, small sequence spaces use deterministic exhaustive enumeration. Larger spaces
 use `annealed_multistart_v1`, a bounded multi-start annealed stochastic local
 search. It combines perturbed starts, four-base single-position resampling,
 block and multi-base replacement, motif-guided proposals, and annealed
@@ -122,6 +147,25 @@ avoiders.
 That engine is production software, not evidence that it outperforms a
 baseline. Comparative performance and repeated-seed robustness require a
 separately frozen workflow over released package artifacts.
+
+Directional Python calls can select `initialization="independent"`, recorded
+as `annealed_independent_starts_v1`. Only the initialization changes: each chain
+starts from an independent uniform DNA draw. The scientific request and
+problem identity are unchanged; the engine and run identities differ. The
+default remains related starts. Observation-on/off equivalence holds within
+each method, and replay uses the recorded engine rather than an implicit
+current default. Complete enumeration does not use initialization.
+
+Directional Python calls also support explicit `method="greedy"` and
+`method="random"` controls. Greedy uses the shared starts, strict hard-minimum
+single-coordinate improvement, and no neutral moves or stagnation restarts.
+It shares the default method's complete-enumeration shortcut. Random draws
+independent whole sequences with replacement and never substitutes enumeration;
+its recorded completion remains bounded, even when the budget exceeds the
+space size. Both use the same scoring, accounting, retention, and selection.
+The [method reference](docs/methods.md#explicit-comparison-methods) owns the
+exact tie, partial-budget, initialization, and observation rules. Their
+existence does not establish comparative performance.
 
 Hard avoidance is feasibility-first. Search prefers feasible states before
 optimizing target balance; among infeasible states it reduces the largest
@@ -141,5 +185,9 @@ for explicit downstream analysis, is replay-verified, and is not part of
 `Portfolio`, the canonical bundle, or the top-level scientific facade. An
 advanced paired operation derives both the ordinary `Portfolio` and this
 observation from one authoritative search result when an analysis needs both.
-Directional v3 requests refuse complete-pool observation and use the manifest's
-bounded elite reservoir instead.
+Directional v3 requests refuse complete-pool observation. They retain the
+manifest's bounded elite archive and can separately request
+[passive search observations](docs/reference/search-observations.md), including
+bounded samples above declared quality thresholds. These do not change the
+search, selected portfolio, or canonical bundle, and are not uniform samples
+of the design space.

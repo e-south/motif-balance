@@ -1,347 +1,200 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from ..model import InspectionCandidate, InspectionMatch, InspectionProblem
-from .candidate_layout import CandidateLayout, build_candidate_layout
-from .candidate_projection import shown_matches, validate_candidate_projection
-from .candidate_support import render_position_support
-from .information_logo import render_coordinate_aligned_information_logo
-from .svg_primitives import (
-    INK,
-    MUTED,
-    PAPER,
-    SHARED,
-    finish_svg,
-    motif_color,
-    motif_id,
-    safe_text,
-    svg_start,
-    text,
+from .candidate_layout import (
+    DNA_FONT_FAMILY,
+    DNA_FONT_SIZE,
+    VISUAL_CONTRACT,
+    CandidateLayout,
+    build_candidate_layout,
 )
+from .candidate_projection import shown_matches, validate_candidate_projection
+from .information_logo import render_coordinate_aligned_information_logo
+from .svg_primitives import INK, MUTED, finish_svg, motif_color, motif_id, safe_text, text
 
 
-def _match_lane(
-    match: InspectionMatch,
-    *,
-    lane: int,
-    layout: CandidateLayout,
-    limiting: bool,
-    avoider: bool,
-    score_ceiling: float | None,
-) -> str:
+def _match_lane(match: InspectionMatch, *, top: int, layout: CandidateLayout) -> str:
+    """Show projected strand bases, never derive a new match or reverse twice."""
+
     x = layout.left + match.start * layout.cell
     width = (match.end - match.start) * layout.cell
-    if match.strand == "+":
-        y = layout.primary_y - 22 - lane * 30
-        label_y = y - 4
-    else:
-        y = layout.complement_y + 10 + lane * 30
-        label_y = y + 30
     color = motif_color(match.motif_id)
-    ceiling_label = (
-        f" · ceiling {score_ceiling:.6g}" if avoider and score_ceiling is not None else ""
+    bases = "".join(
+        text(
+            layout.left + (support.candidate_position + 0.5) * layout.cell,
+            top + 15,
+            support.observed_base,
+            size=DNA_FONT_SIZE,
+            fill="#FFFFFF",
+            anchor="middle",
+            weight=650,
+            family=DNA_FONT_FAMILY,
+            extra=(
+                f' class="match-window-base" data-candidate-position="{support.candidate_position}"'
+            ),
+        )
+        for support in sorted(match.position_support, key=lambda row: row.candidate_position)
     )
-    score_label = (
-        f"{match.spec_direction} · attainment {match.normalized_score:.6g} · "
-        f"satisfaction {match.spec_satisfaction:.6g}"
-        if match.spec_direction is not None and match.spec_satisfaction is not None
-        else f"{match.normalized_score:.6g}"
-    )
-    label = (
-        f"{motif_id(match.motif_id)} · {score_label} · {match.strand} · "
-        f"[{match.start}, {match.end}){ceiling_label}"
-    )
-    ceiling_attribute = (
-        f'data-score-ceiling="{score_ceiling:.17g}" '
-        if avoider and score_ceiling is not None
-        else ""
-    )
-    role_attribute = 'data-role="avoider" ' if avoider else ""
-    direction_attribute = (
-        f'data-direction="{match.spec_direction}" '
-        f'data-spec-satisfaction="{match.spec_satisfaction:.17g}" '
-        if match.spec_direction is not None and match.spec_satisfaction is not None
-        else ""
-    )
-    limiting_attribute = f'data-limiting="{str(limiting).lower()}" '
-    dash_attribute = 'stroke-dasharray="6 4" ' if avoider else ""
-    limiting_label = " · LIMITING" if limiting else ""
-    match_label = text(
-        x,
-        label_y,
-        label + limiting_label,
-        size=12,
-        fill=INK,
-        family="ui-monospace,monospace",
+    left_prime, right_prime = (
+        ("5\u2032", "3\u2032") if match.strand == "+" else ("3\u2032", "5\u2032")
     )
     return (
         f'<g class="motif-match" data-motif-id="{motif_id(match.motif_id)}" '
-        f'data-motif-color="{color}" '
-        f"{role_attribute}"
-        f"{direction_attribute}"
-        f"{limiting_attribute}"
-        f"{ceiling_attribute}"
-        f'data-start="{match.start}" data-end="{match.end}" data-strand="{match.strand}">'
-        f'<rect x="{x}" y="{y}" width="{width}" height="16" rx="3" '
-        f'fill="{color}" fill-opacity=".18" stroke="{color}" '
-        f'stroke-width="{3 if limiting else 1.5}" '
-        f"{dash_attribute}/>{match_label}</g>"
+        f'data-motif-color="{color}" data-start="{match.start}" '
+        f'data-end="{match.end}" data-strand="{match.strand}">'
+        f'<rect x="{x}" y="{top}" width="{width}" height="20" '
+        f'fill="{color}" stroke="{color}"/>{bases}'
+        + text(x - 6, top + 15, left_prime, anchor="end", fill=MUTED)
+        + text(x + width + 6, top + 15, right_prime, fill=MUTED)
+        + "</g>"
     )
 
 
-def _render_opening(candidate: InspectionCandidate, layout: CandidateLayout) -> list[str]:
-    parts = svg_start(
-        width=layout.width,
-        height=layout.height,
-        title_id="candidate-realization-title",
-        desc_id="candidate-realization-desc",
-        view_id="candidate-realization-view",
-    )
-    limiting = ", ".join(candidate.limiting_motif_ids)
-    parts.extend(
-        [
-            '<title id="candidate-realization-title">Candidate realization</title>',
-            '<desc id="candidate-realization-desc">',
-            safe_text(
-                f"Candidate rank {candidate.rank}. The primary strand is shown 5 prime to 3 prime "
-                "and its coordinate-aligned complement 3 prime to 5 prime. Forward matches are "
-                "above, reverse matches below, and signed observed-base log-likelihood "
-                "contributions are shown by motif."
-            ),
-            "</desc>",
-            f'<rect width="{layout.width}" height="{layout.height}" fill="{PAPER}"/>',
-            text(20, 30, "Candidate realization", size=18, weight=650),
-            text(
-                20,
-                54,
-                f"rank {candidate.rank} · balance {candidate.balance_score:.6g} · "
-                f"limiting {limiting}",
-                size=13,
-                fill=MUTED,
-            ),
-        ]
-    )
-    return parts
-
-
-def _render_model_logos(
+def _molecular_lanes(
     problem: InspectionProblem,
     candidate: InspectionCandidate,
     layout: CandidateLayout,
 ) -> list[str]:
-    motifs_by_id = {motif.motif_id: motif for motif in (*problem.motifs, *problem.avoiders)}
-    avoider_ceilings = {motif.motif_id: motif.score_ceiling for motif in problem.avoiders}
-    return [
-        f'<g id="motif-models" data-displayed-matches="{len(layout.shown)}" '
-        f'data-total-matches="{len(candidate.matches) + len(candidate.avoidance_matches)}">',
-        text(
-            20,
-            78,
-            "Supplied motif models (0 to 2 bit information logos) → selected matches",
-            size=12,
-            weight=650,
-        ),
-        *(
-            render_coordinate_aligned_information_logo(
-                motifs_by_id[match.motif_id],
-                match,
-                top=layout.logo_top + index * layout.logo_row_height,
-                left=layout.left,
-                cell=layout.cell,
-                limiting=match.motif_id in candidate.limiting_motif_ids,
-                avoider=match.motif_id in avoider_ceilings,
-                score_ceiling=avoider_ceilings.get(match.motif_id),
-            )
-            for index, match in enumerate(layout.forward)
-        ),
-        *(
-            render_coordinate_aligned_information_logo(
-                motifs_by_id[match.motif_id],
-                match,
-                top=layout.reverse_logo_top + index * layout.logo_row_height,
-                left=layout.left,
-                cell=layout.cell,
-                limiting=match.motif_id in candidate.limiting_motif_ids,
-                avoider=match.motif_id in avoider_ceilings,
-                score_ceiling=avoider_ceilings.get(match.motif_id),
-            )
-            for index, match in enumerate(layout.reverse)
-        ),
-        "</g>",
-    ]
-
-
-def _render_shared_coordinates(
-    candidate: InspectionCandidate,
-    layout: CandidateLayout,
-) -> list[str]:
-    parts = ['<g id="shared-coordinates">']
-    for position in candidate.shared_coordinates:
-        x = layout.left + position * layout.cell
-        parts.append(
-            f'<rect x="{x}" y="{layout.primary_y - 18}" width="{layout.cell}" height="58" '
-            f'fill="{SHARED}" fill-opacity=".55" data-candidate-position="{position}"/>'
-        )
-    parts.append("</g>")
-    return parts
-
-
-def _render_duplex_and_matches(
-    problem: InspectionProblem,
-    candidate: InspectionCandidate,
-    layout: CandidateLayout,
-) -> list[str]:
-    avoider_ceilings = {motif.motif_id: motif.score_ceiling for motif in problem.avoiders}
+    motifs = {motif.motif_id: motif for motif in (*problem.motifs, *problem.avoiders)}
+    ceilings = {motif.motif_id: motif.score_ceiling for motif in problem.avoiders}
     parts = [
-        '<g id="forward-matches">',
-        *(
-            _match_lane(
-                match,
-                lane=index,
-                layout=layout,
-                limiting=match.motif_id in candidate.limiting_motif_ids,
-                avoider=match.motif_id in avoider_ceilings,
-                score_ceiling=avoider_ceilings.get(match.motif_id),
-            )
-            for index, match in enumerate(layout.forward)
-        ),
-        "</g>",
-        '<g id="primary-sequence">',
-        text(20, layout.primary_y + 5, "Primary 5\u2032\u21923\u2032", size=12, weight=650),
-        text(
-            layout.left - 12,
-            layout.primary_y + 5,
-            "5\u2032",
-            size=12,
-            anchor="end",
-            fill=MUTED,
-        ),
+        f'<g id="motif-models" data-total-matches="{len(layout.shown)}" '
+        f'data-displayed-matches="{len(layout.shown)}">'
     ]
-    for position, base in enumerate(candidate.sequence):
-        base_x = layout.left + (position + 0.5) * layout.cell
-        parts.extend(
-            [
-                text(
-                    base_x,
-                    layout.primary_y + 5,
-                    base,
-                    size=14,
-                    anchor="middle",
-                    weight=650,
-                    family="ui-monospace,monospace",
-                    extra=f' data-candidate-position="{position}"',
-                ),
-                text(base_x, layout.primary_y + 23, position, size=12, anchor="middle", fill=MUTED),
-            ]
-        )
-    parts.extend(
-        [
-            text(
-                layout.left + len(candidate.sequence) * layout.cell + 12,
-                layout.primary_y + 5,
-                "3\u2032",
-                size=12,
-            ),
-            "</g>",
-            '<g id="complementary-sequence">',
-            text(
-                20,
-                layout.complement_y + 5,
-                "Complement 3\u2032\u21925\u2032",
-                size=12,
-                weight=650,
-            ),
-            text(
-                layout.left - 12,
-                layout.complement_y + 5,
-                "3\u2032",
-                size=12,
-                anchor="end",
-                fill=MUTED,
-            ),
-        ]
-    )
-    for position, base in enumerate(candidate.complement_sequence):
-        base_x = layout.left + (position + 0.5) * layout.cell
-        parts.append(
-            text(
-                base_x,
-                layout.complement_y + 5,
-                base,
-                size=14,
-                anchor="middle",
-                weight=650,
-                family="ui-monospace,monospace",
-                extra=f' data-candidate-position="{position}"',
+    for matches, origin in (
+        (layout.forward, layout.logo_top),
+        (layout.reverse, layout.reverse_logo_top),
+    ):
+        for index, match in enumerate(matches):
+            top = origin + index * layout.logo_row_height
+            parts.append(
+                render_coordinate_aligned_information_logo(
+                    motifs[match.motif_id],
+                    match,
+                    top=top,
+                    left=layout.left,
+                    cell=layout.cell,
+                    limiting=match.motif_id in candidate.limiting_motif_ids,
+                    avoider=match.motif_id in ceilings,
+                    score_ceiling=ceilings.get(match.motif_id),
+                )
             )
-        )
-    parts.extend(
-        [
-            text(
-                layout.left + len(candidate.sequence) * layout.cell + 12,
-                layout.complement_y + 5,
-                "5\u2032",
-                size=12,
-            ),
-            "</g>",
-            '<g id="reverse-matches">',
-            *(
+            parts.append(
                 _match_lane(
                     match,
-                    lane=index,
+                    top=top + 102 if match.strand == "+" else top - 24,
                     layout=layout,
-                    limiting=match.motif_id in candidate.limiting_motif_ids,
-                    avoider=match.motif_id in avoider_ceilings,
-                    score_ceiling=avoider_ceilings.get(match.motif_id),
                 )
-                for index, match in enumerate(layout.reverse)
-            ),
-            "</g>",
-        ]
-    )
-    return parts
+            )
+    return [*parts, "</g>"]
 
 
-def _render_footer(candidate: InspectionCandidate, layout: CandidateLayout) -> list[str]:
-    total_matches = len(candidate.matches) + len(candidate.avoidance_matches)
-    parts: list[str] = []
-    if len(layout.shown) < total_matches:
-        parts.append(
-            text(
-                20,
-                layout.height - 18,
-                f"Showing {len(layout.shown)} of {total_matches} matches; "
-                "exact records remain in the inspection JSON.",
-                size=12,
-                fill=MUTED,
-            )
+def _duplex(candidate: InspectionCandidate, layout: CandidateLayout) -> list[str]:
+    parts = ['<g id="duplex">']
+    for group, sequence, baseline, primes in (
+        ("primary-sequence", candidate.sequence, layout.primary_y, ("5\u2032", "3\u2032")),
+        (
+            "complementary-sequence",
+            candidate.complement_sequence,
+            layout.complement_y,
+            ("3\u2032", "5\u2032"),
+        ),
+    ):
+        parts.extend(
+            [
+                f'<g id="{group}">',
+                text(layout.left - 12, baseline + 5, primes[0], anchor="end"),
+            ]
         )
-    elif candidate.shared_coordinates:
-        parts.append(
-            text(
-                20,
-                layout.height - 18,
-                f"Shared-coordinate union: {len(candidate.shared_coordinates)} positions. "
-                "Overlap is not evidence of simultaneous occupancy.",
-                size=12,
-                fill=MUTED,
+        for position, base in enumerate(sequence):
+            parts.append(
+                text(
+                    layout.left + (position + 0.5) * layout.cell,
+                    baseline + 5,
+                    base,
+                    size=DNA_FONT_SIZE,
+                    anchor="middle",
+                    weight=650,
+                    family=DNA_FONT_FAMILY,
+                    extra=f' data-candidate-position="{position}"',
+                )
             )
+        parts.extend(
+            [
+                text(layout.left + len(sequence) * layout.cell + 12, baseline + 5, primes[1]),
+                "</g>",
+            ]
         )
-    parts.append("</svg>\n")
-    return parts
+    for position in range(len(candidate.sequence)):
+        x = layout.left + (position + 0.5) * layout.cell
+        parts.append(
+            f'<line x1="{x}" x2="{x}" y1="{layout.primary_y + 10}" '
+            f'y2="{layout.complement_y - 12}" stroke="#D1D5DB"/>'
+        )
+    return [*parts, "</g>"]
 
 
 def render_candidate_projection_svg(
     problem: InspectionProblem,
     candidate: InspectionCandidate,
+    *,
+    rank_scope: Literal["selected_portfolio", "caller_supplied_order"] = "selected_portfolio",
 ) -> bytes:
-    """Render a candidate selected from the same verified result inspection."""
+    """Render the current molecular visual contract from a bound projection."""
 
     validate_candidate_projection(problem, candidate)
     layout = build_candidate_layout(candidate, shown_matches(candidate))
-    parts = _render_opening(candidate, layout)
-    parts.extend(_render_model_logos(problem, candidate, layout))
-    parts.extend(_render_shared_coordinates(candidate, layout))
-    parts.extend(_render_duplex_and_matches(problem, candidate, layout))
-    parts.extend(render_position_support(candidate, layout))
-    parts.extend(_render_footer(candidate, layout))
+    supplied = rank_scope == "caller_supplied_order"
+    rank_description = (
+        f"Caller-supplied rank {candidate.rank}; score replay only; "
+        if supplied
+        else f"Candidate rank {candidate.rank}; "
+    )
+    parts = [
+        '<svg xmlns="http://www.w3.org/2000/svg" id="candidate-realization-view" '
+        f'data-visual-contract="{VISUAL_CONTRACT}" width="{layout.width}" '
+        f'height="{layout.height}" viewBox="0 0 {layout.width} {layout.height}" '
+        'role="img" aria-labelledby="candidate-title candidate-desc">',
+        '<title id="candidate-title">One DNA sequence, multiple motif preferences</title>',
+        '<desc id="candidate-desc">',
+        safe_text(
+            rank_description + f"length {problem.length} nucleotides; "
+            f"weakest requirement {candidate.balance_score:.6g}. "
+            "Primary DNA runs 5\u2032\u21923\u2032; its coordinate-aligned complement "
+            "runs 3\u2032\u21925\u2032. Selected windows "
+            "contain white bases; model information logos color the observed base and leave "
+            "other bases gray. Information in bits is distinct from motif matching scores. "
+            "These are model-defined matches, not measured binding."
+        ),
+        "</desc>",
+        f'<rect width="{layout.width}" height="{layout.height}" fill="#FFFFFF"/>',
+        text(20, 28, "One DNA sequence, multiple motif preferences", size=18, weight=650),
+        text(
+            20,
+            54,
+            f"L = {problem.length} nt · weakest requirement = {candidate.balance_score:.4g}",
+            size=14,
+            fill=INK,
+        ),
+    ]
+    parts.extend(_molecular_lanes(problem, candidate, layout))
+    parts.extend(_duplex(candidate, layout))
+    parts.append(
+        text(
+            20,
+            layout.height - 14,
+            (
+                f"Caller-supplied rank {candidate.rank}; score replay, not source verification."
+                if supplied
+                else (
+                    "Model preferences, not measured binding. "
+                    "Exact scores and positions: inspection JSON."
+                )
+            ),
+            fill=MUTED,
+        )
+    )
+    parts.append("</svg>\n")
     return finish_svg(parts)

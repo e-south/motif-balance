@@ -30,8 +30,8 @@ print("Documented scientific surface: ok")
 
 command = get_command(app)
 visible = sorted(name for name, child in command.commands.items() if not child.hidden)
-if visible != ["design", "inspect", "score"]:
-    raise SystemExit(f"ordinary CLI surface differs from the three documented journeys: {visible}")
+if visible != ["assess", "design", "inspect", "score"]:
+    raise SystemExit(f"ordinary CLI surface differs from the four documented journeys: {visible}")
 print("Documented ordinary CLI surface: ok")
 PY
 
@@ -50,7 +50,7 @@ uv run --locked motif-balance design examples/synthetic-pairwise/design.yaml \
 uv run --locked motif-balance inspect "$smoke_root/result" >/dev/null
 uv run --locked motif-balance inspect "$smoke_root/result" \
   --format html --out "$smoke_root/review.html" >/dev/null
-for heading in "Candidate realization" "Portfolio balance" "Search record"; do
+for heading in "Selected candidate" "Portfolio balance" "Search record"; do
   grep -Fq "$heading" "$smoke_root/review.html"
 done
 if grep -Eq '<script|<foreignObject|href=|url\(' "$smoke_root/review.html"; then

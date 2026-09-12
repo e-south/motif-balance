@@ -1,9 +1,13 @@
-schema_version: design-spec/v2
-motifs:
-  motif_a: motifs/motif-a.yaml
-  motif_c: motifs/motif-c.yaml
-  motif_g: motifs/motif-g.yaml
-  motif_t: motifs/motif-t.yaml
+schema_version: design-spec/v3
+specifications:
+  - motif: motifs/motif-a.yaml
+    direction: seek
+  - motif: motifs/motif-c.yaml
+    direction: seek
+  - motif: motifs/motif-g.yaml
+    direction: seek
+  - motif: motifs/motif-t.yaml
+    direction: seek
 length: 8
 count: 4
 strands: both

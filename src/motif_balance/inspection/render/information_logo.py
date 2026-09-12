@@ -5,18 +5,12 @@ import math
 from motif_balance.errors import ArtifactError
 
 from ..model import InspectionMatch, InspectionMotif
+from .logo_shapes import PIXELS_PER_BIT, information_letter
+from .logo_shapes import information_bits as column_information
 from .svg_primitives import INK, MUTED, motif_color, motif_id, text
 
 _ALPHABET = "ACGT"
 _ALTERNATIVE = "#D1D5DB"
-_BITS_PER_COLUMN = 2.0
-_PIXELS_PER_BIT = 36.0
-_LETTER_FONT_SIZE = 32.0
-
-
-def _information_bits(row: tuple[float, float, float, float]) -> float:
-    entropy = -sum(probability * math.log2(probability) for probability in row)
-    return min(_BITS_PER_COLUMN, max(0.0, _BITS_PER_COLUMN - entropy))
 
 
 def _letter(
@@ -28,19 +22,20 @@ def _letter(
     color: str,
     center_x: float,
     bottom_y: float,
+    width: float,
+    glyph_id: str,
 ) -> str:
-    height = probability * information_bits * _PIXELS_PER_BIT
-    scale_y = max(height / _LETTER_FONT_SIZE, 0.001)
     observed = base == observed_base
-    fill = color if observed else _ALTERNATIVE
-    return (
-        f'<text class="information-logo-letter" x="0" y="0" '
-        f'fill="{fill}" font-family="ui-monospace,monospace" '
-        f'font-size="{_LETTER_FONT_SIZE:.0f}" font-weight="700" text-anchor="middle" '
-        f'transform="translate({center_x:.3f} {bottom_y:.3f}) scale(1 {scale_y:.6f})" '
-        f'data-base="{base}" data-probability="{probability:.17g}" '
-        f'data-height-bits="{probability * information_bits:.17g}" '
-        f'data-observed="{str(observed).lower()}">{base}</text>'
+    return information_letter(
+        base=base,
+        probability=probability,
+        bits=information_bits,
+        color=color if observed else _ALTERNATIVE,
+        observed=observed,
+        center_x=center_x,
+        bottom_y=bottom_y,
+        width=width,
+        glyph_id=glyph_id,
     )
 
 
@@ -79,9 +74,6 @@ def render_coordinate_aligned_information_logo(
         else "attainment"
     )
     role = match.spec_direction or ("avoider" if avoider else "target")
-    ceiling_label = (
-        f" · ceiling {score_ceiling:.6g}" if avoider and score_ceiling is not None else ""
-    )
     logo_bottom = top + 96
     match_left = left + match.start * cell
     match_width = (match.end - match.start) * cell
@@ -107,27 +99,27 @@ def render_coordinate_aligned_information_logo(
         )
         + ">",
         text(20, top + 17, model_name, size=12, weight=650),
+        text(20, top + 37, f"{motif.width} nt · {match.strand} · {role}", fill=MUTED),
         text(
             20,
-            top + 37,
-            f"{role} · {score_label} {match.normalized_score:.4g}"
-            + (
-                f" · satisfaction {match.spec_satisfaction:.4g}"
-                if match.spec_satisfaction is not None
-                else ""
-            )
-            + " · "
-            + f"best [{match.start}, {match.end}) {match.strand}{ceiling_label}",
+            top + 57,
+            f"{score_label} {match.normalized_score:.4g}",
             size=12,
             fill=MUTED,
         ),
+        text(20, top + 77, f"LLR {match.raw_score:.4g}", fill=MUTED),
+        '<g class="information-axis">',
+        f'<path d="M {left - 10} {logo_bottom - 72} h -4 v 72 h 4" fill="none" stroke="{INK}"/>',
+        text(left - 18, logo_bottom + 4, "0", anchor="end", fill=MUTED),
+        text(left - 18, logo_bottom - 68, "2 bits", anchor="end", fill=MUTED),
+        "</g>",
         f'<line class="information-logo-baseline" x1="{match_left:.3f}" y1="{logo_bottom}" '
         f'x2="{match_left + match_width:.3f}" y2="{logo_bottom}" '
         f'stroke="{INK}" stroke-width="1"/>',
     ]
     for support in match.position_support:
         row = motif.probabilities[support.motif_position]
-        information_bits = _information_bits(row)
+        information_bits = column_information(row)
         center_x = left + (support.candidate_position + 0.5) * cell
         column_bottom = float(logo_bottom)
         parts.append(
@@ -149,34 +141,38 @@ def render_coordinate_aligned_information_logo(
                     color=color,
                     center_x=center_x,
                     bottom_y=column_bottom,
+                    width=cell * 0.8,
+                    glyph_id=f"logo-{model_name}-{support.motif_position}-{base}",
                 )
             )
-            column_bottom -= probability * information_bits * _PIXELS_PER_BIT
+            column_bottom -= probability * information_bits * PIXELS_PER_BIT
         parts.append("</g>")
     if limiting:
-        marker_y = logo_bottom + 8
+        marker_y = top + 2
         parts.extend(
             [
                 f'<path class="limiting-marker" d="M {match_left:.3f} {marker_y:.3f} '
-                f'v 5 h {match_width:.3f} v -5" fill="none" stroke="{INK}" '
+                f'v -5 h {match_width:.3f} v 5" fill="none" stroke="{INK}" '
                 'stroke-width="2"/>',
                 text(
-                    match_left + match_width / 2,
-                    marker_y + 24,
+                    20,
+                    top + 117,
                     "LIMITING",
                     size=12,
-                    anchor="middle",
                     weight=700,
                     fill=INK,
                 ),
             ]
         )
     if avoider:
+        parts.append(text(20, top + 97, f"ceiling {score_ceiling:.4g}", fill=MUTED))
         parts.append(
             f'<rect class="avoidance-ceiling-outline" x="{match_left:.3f}" y="{top + 21}" '
             f'width="{match_width:.3f}" height="{logo_bottom - top - 15:.3f}" '
             f'fill="none" stroke="{color}" stroke-width="1.5" '
             f'stroke-dasharray="6 4" data-score-ceiling="{score_ceiling:.17g}"/>'
         )
+    elif match.spec_direction == "avoid" and match.spec_satisfaction is not None:
+        parts.append(text(20, top + 97, f"satisfaction {match.spec_satisfaction:.4g}", fill=MUTED))
     parts.append("</g>")
     return "".join(parts)

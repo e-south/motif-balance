@@ -72,6 +72,60 @@ uv run --locked motif-balance --help >"$smoke_root/source-help.txt"
 "$smoke_root/venv/bin/motif-balance" --help >"$smoke_root/wheel-help.txt"
 cmp "$smoke_root/source-help.txt" "$smoke_root/wheel-help.txt"
 
+uv run --locked motif-balance assess examples/synthetic-pairwise/motifs/motif-a.yaml \
+  examples/synthetic-pairwise/motifs/motif-b.yaml --length 2 --format json \
+  >"$smoke_root/source-assessment.json"
+"$smoke_root/venv/bin/motif-balance" assess examples/synthetic-pairwise/motifs/motif-a.yaml \
+  examples/synthetic-pairwise/motifs/motif-b.yaml --length 2 --format json \
+  >"$smoke_root/wheel-assessment.json"
+cmp "$smoke_root/source-assessment.json" "$smoke_root/wheel-assessment.json"
+uv run --locked motif-balance assess examples/synthetic-pairwise/motifs/motif-a.yaml \
+  examples/synthetic-pairwise/motifs/motif-b.yaml --length 2 --format svg \
+  --out "$smoke_root/source-assessment.svg"
+"$smoke_root/venv/bin/motif-balance" assess examples/synthetic-pairwise/motifs/motif-a.yaml \
+  examples/synthetic-pairwise/motifs/motif-b.yaml --length 2 --format svg \
+  --out "$smoke_root/wheel-assessment.svg"
+cmp "$smoke_root/source-assessment.svg" "$smoke_root/wheel-assessment.svg"
+"$smoke_root/venv/bin/python" - "$smoke_root/wheel-assessment.json" <<'PY'
+import sys
+from pathlib import Path
+from motif_balance.assessment import PairAssessment
+
+assessment = PairAssessment.model_validate_json(Path(sys.argv[1]).read_bytes())
+assert assessment.structural_score == 1.0
+assert assessment.sequence_evaluations == 0
+assert assessment.arrangement_count == 2
+assert assessment.best_arrangement.right_strand == "-"
+print("Installed assessment API/CLI and source parity: ok")
+PY
+
+source_python="$(uv run --locked python -c 'import sys; print(sys.executable)')"
+for guide in python-api pair-assessment choose-alternatives; do
+  guide_program="$(python3 - "$repo_root/docs/$guide.md" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+guide_path = Path(sys.argv[1])
+guide = guide_path.read_text()
+blocks = re.findall(r"```python\n(.*?)```", guide, flags=re.DOTALL)
+assert blocks, f"no runnable Python example in {guide_path.name}"
+print("\n".join(blocks))
+if guide_path.name == "choose-alternatives.md":
+    print("print(ranking.model_dump_json())\nprint(recovered.model_dump_json())")
+PY
+)"
+  mkdir "$smoke_root/source-$guide" "$smoke_root/wheel-$guide"
+  source_guide="$(cd "$smoke_root/source-$guide" && "$source_python" -c "$guide_program")"
+  wheel_guide="$(cd "$smoke_root/wheel-$guide" && "$smoke_root/venv/bin/python" -c "$guide_program")"
+  if [[ "$source_guide" != "$wheel_guide" ]]; then
+    echo "source/wheel $guide example output or record mismatch" >&2
+    exit 1
+  fi
+  diff -qr "$smoke_root/source-$guide" "$smoke_root/wheel-$guide"
+  echo "Installed $guide from empty directory and source parity: ok"
+done
+
 uv run --locked motif-balance design examples/synthetic-pairwise/design.yaml \
   --check >"$smoke_root/source-check.txt"
 "$smoke_root/venv/bin/motif-balance" design examples/synthetic-pairwise/design.yaml \
@@ -125,7 +179,7 @@ motifs = tuple(
     MotifModel.model_validate(
         {**motif.model_dump(mode="python"), "schema_version": "motif-model/v1"}
     )
-    for motif in current.motifs
+    for motif in (item.motif for item in current.specifications)
 )
 spec = DesignSpec(
     schema_version="design-spec/v1",

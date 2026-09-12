@@ -1,17 +1,17 @@
 ---
 doc_id: motif-balance-execution-receipts
-title: Execution workspace and storage object contract
-intent: Define attested runtime provenance and durable dogfood object boundaries.
+title: Attested execution workspaces
+intent: Define exact-wheel execution provenance and explicit verification inputs.
 audience:
   - integrators
   - execution producers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
+last_verified: 2026-09-08
 doc_type: reference
 ---
 
-# Execution workspace and storage object contract
+# Attested execution workspaces
 
 The canonical bundle is deterministic scientific output. Runtime facts such as
 Python, operating system, architecture, installed dependency versions, and wall
@@ -70,55 +70,24 @@ motif-balance inspect execution-workspace --source execution \
   --expected-producer-revision <40-character-commit>
 ```
 
-## Durable dogfood object
+## Retain the workspace without changing its inventory
 
-Storage may retain the product directory inside
-`workspaces/motif-balance/<storage-id>/workspace/`. The containing Storage
-object owns `storage.object.json`; the nested product root preserves Motif
-Balance's exact inventory. The envelope uses separate fields:
+Storage location, backup, and retention are caller responsibilities. Preserve
+the complete execution workspace and its exact members. Keep any external
+storage metadata, caches, analysis, or manuscript files outside that root;
+adding them inside would invalidate its closed inventory.
 
-```json
-{
-  "content_schema": "motif-balance.execution-workspace",
-  "content_schema_version": "1",
-  "object_kind": "workspace",
-  "owner_repository": "motif-balance",
-  "owner_tool": "motif-balance"
-}
-```
-
-The logical content is:
-
-```text
-storage.object.json
-workspace/
-  execution-workspace.json
-  execution-receipt.json
-  inputs/
-  bundle/
-```
-
-The storage object manifest owns placement, retention, resource inventory, and
-object closure. The execution index owns the product workspace inventory. The
-bundle manifest remains the authority for scientific result content. No
-manifest replaces another owner's contract.
-
-Run Storage validation against the envelope root and `motif-balance inspect
-workspace/ --source execution` with all four external anchors against the
-nested product workspace. Adding the
-Storage envelope to the product root is invalid because both contracts close
-their own inventories.
-
-Do not copy in caches, optimizer traces, comparison decisions, or presentation
-prose. Bulk traces, if explicitly enabled outside the product path, require a
-separate typed resource and must not be inserted into this execution workspace
-or the canonical bundle.
+Apply the storage provider's checks separately, then inspect the product
+workspace with all four external identities above. Storage validation does not
+replace product verification, and product verification does not establish backup
+adequacy or scientific acceptance. Caller-owned passive search observations
+remain separate artifacts, not extra members of the workspace or bundle.
 
 ## Supported schemas
 
-Motif Balance `0.3` verifies `run-manifest/v2` through `run-manifest/v4`.
-Motif Balance `0.4` additionally verifies `run-manifest/v5`, execution
-receipt v1, and execution workspace v1. It rejects earlier or unknown schemas. Retain the exact
-wheel because scientific replay is exact-build replay; a package version alone
-is not enough. Future compatibility must be implemented as an explicit schema
-dispatcher with tests, never as permissive parsing.
+The current `0.5` line verifies `run-manifest/v2` through `run-manifest/v6`,
+execution receipt v1, and execution workspace v1. Unknown schemas fail explicitly;
+the [public contract](public-contract.md#artifacts) owns the supported read/write
+matrix. Retain the exact wheel: a package version alone does not identify the
+bytes that ran. New schema support requires an explicit dispatcher and tests,
+not permissive parsing.

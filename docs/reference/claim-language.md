@@ -8,7 +8,7 @@ audience:
   - maintainers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-31
+last_verified: 2026-09-08
 doc_type: reference
 journey:
   - integrate
@@ -42,7 +42,7 @@ The rule set is bounded, advisory, and necessarily incomplete. The checker
 neither rewrites text nor decides whether a claim is supported. A clean result
 means only that no configured wording hazard was found. It does not establish
 evidence quality, literature completeness, claim acceptance, or publication
-readiness. Research Studies owns evidence and claim decisions; `manufold` owns
-manuscript composition. Because its coverage is deliberately bounded, the
+readiness. Authors own evidence assessment, claim decisions, and manuscript
+composition. Because its coverage is deliberately bounded, the
 checker may still flag quoted prohibited examples that lack adjacent review
 language.

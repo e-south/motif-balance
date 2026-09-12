@@ -10,14 +10,14 @@ from motif_balance.errors import ArtifactError
 from .model import InspectionCandidate, ResultInspection
 from .render import render_candidate_svg
 
-CANDIDATE_SVG_RENDERER_IDENTITY = "motif-balance.candidate-information-logo-svg/v1"
+CANDIDATE_SVG_RENDERER_IDENTITY = "motif-balance.candidate-duplex-svg/v2"
 _RENDERER_MODULES = (
     "candidate.py",
     "candidate_layout.py",
     "candidate_projection.py",
     "candidate_sections.py",
-    "candidate_support.py",
     "information_logo.py",
+    "logo_glyphs.py",
     "svg_primitives.py",
 )
 
@@ -77,6 +77,8 @@ def render_candidate_svg_receipt(
 ) -> bytes:
     """Bind one emitted candidate SVG to its verified review projection and renderer."""
 
+    if not isinstance(inspection, ResultInspection):
+        raise ArtifactError("bundle custody receipts require a verified result inspection")
     canonical_svg = render_candidate_svg(inspection, candidate_rank=candidate_rank)
     if svg != canonical_svg:
         raise ArtifactError(

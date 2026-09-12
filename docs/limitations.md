@@ -7,7 +7,7 @@ audience:
   - integrators
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-30
+last_verified: 2026-09-08
 doc_type: explanation
 ---
 
@@ -19,8 +19,10 @@ doc_type: explanation
   an external validation establishes that interpretation.
 - Balancing model scores does not account for synthesis, genomic context,
   chromatin, RNA structure, toxicity, or assay noise.
-- Hard avoider ceilings constrain the supplied avoider models during design;
-  they do not establish biological off-target specificity.
+- Directional `avoid` satisfaction weakens the strongest sequence-wide model
+  match while trading off against other requirements. It does not enforce a
+  hard threshold or establish biological off-target specificity. Explicit
+  legacy hard-ceiling requests have different feasibility semantics.
 - Shared coordinates between representative motif windows do not establish
   simultaneous occupancy, co-binding, or regulatory function.
 - A bounded stochastic search does not prove global optimality. Completion and
@@ -29,7 +31,8 @@ doc_type: explanation
 - Reaching the bounded distance-selection node limit leaves feasibility
   unresolved; it is not evidence that no valid portfolio exists.
 - Diversity in sequence space does not imply mechanistic or biological
-  diversity.
+  diversity. Selected portfolios and bounded quality samples are recovered
+  alternatives, not uniform samples or estimates of total solution-space volume.
 - One successful context does not establish cross-context portability.
 
 Benchmark cohorts, controls, repetitions, statistical decisions, and claims
