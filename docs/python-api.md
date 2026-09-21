@@ -5,7 +5,7 @@ intent: Complete a first design with inline synthetic inputs and no checkout-loc
 audience: [new users, API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: tutorial
 ---
 
@@ -22,24 +22,28 @@ enumeration of all 16 sequences establishes that 0.5 is the best possible
 weakest-motif satisfaction for this forward-only request.
 
 ```python
+# Import the models and operations used in this example.
 from pathlib import Path
 
 from motif_balance import DesignSpec, MotifModel, MotifSpecification, design, score
 from motif_balance.inspection import inspect_result
 from motif_balance.inspection.render import render_candidate_svg, render_text
 
+# Define a two-position motif that prefers AC.
 motif_a = MotifModel(
     schema_version="motif-model/v2",
     motif_id="motif_a",
     probabilities=((0.7, 0.1, 0.1, 0.1), (0.1, 0.7, 0.1, 0.1)),
     background=(0.25, 0.25, 0.25, 0.25),
 )
+# Define a second motif that prefers GT.
 motif_b = MotifModel(
     schema_version="motif-model/v2",
     motif_id="motif_b",
     probabilities=((0.1, 0.1, 0.7, 0.1), (0.1, 0.1, 0.1, 0.7)),
     background=(0.25, 0.25, 0.25, 0.25),
 )
+# Fit both preferences into two bases and request three separated sequences.
 spec = DesignSpec(
     schema_version="design-spec/v3",
     specifications=(
@@ -53,15 +57,23 @@ spec = DesignSpec(
     strands="forward",
     min_distance=0.25,
 )
+# Score AT directly before searching for alternatives.
 evaluation = score("AT", spec)
+# Show the weakest of the two best motif matches.
 print("AT balance:", evaluation.balance_score)
+# Show how each desired motif contributes to that balance.
 for match in evaluation.matches:
     print(match.motif_id, match.spec_direction, match.spec_satisfaction)
 
+# Search for the requested three sequences.
 portfolio = design(spec)
+# Save the inputs, sequences and scores in a new result directory.
 portfolio.write(Path("result"))
+# Reload the result and verify its recorded scores.
 review = inspect_result(Path("result"), kind="bundle")
+# Print the verified sequence and match summary.
 print(render_text(review))
+# Write the best candidate as a duplex with aligned motif logos.
 with Path("candidate.svg").open("xb") as output:
     output.write(render_candidate_svg(review, candidate_rank=1))
 ```
@@ -84,6 +96,7 @@ function. See [concepts](concepts.md) before comparing their scores.
 Append this to the example to try the same six-base problem with three methods:
 
 ```python
+# Allow six bases and 127 candidate evaluations for a bounded comparison.
 comparison_spec = DesignSpec.model_validate(
     {
         **spec.model_dump(mode="python"),
@@ -93,6 +106,7 @@ comparison_spec = DesignSpec.model_validate(
         "evaluations": 127,
     }
 )
+# Run each method on the same request and print its recovered balance.
 for method in ("annealed", "greedy", "random"):
     result = design(comparison_spec, method=method)
     print(

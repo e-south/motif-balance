@@ -5,7 +5,7 @@ intent: Define the calculation, returned records and validation limits.
 audience: [API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: reference
 ---
 
@@ -99,9 +99,11 @@ one-column preferences allowing AC, CG and AG each have a shared preferred
 base with either other model, yet no base satisfies all three.
 
 ```python
+# Import the models and operations used in this example.
 from motif_balance import MotifModel
 from motif_balance.assessment import assess_motifs
 
+# Create three one-position motifs that prefer different bases.
 models = tuple(
     MotifModel(
         motif_id=f"model-{i}",
@@ -110,8 +112,11 @@ models = tuple(
     )
     for i, allowed in enumerate(("AC", "CG", "AG"))
 )
+# Assess all three preferences together at one shared position.
 assessment = assess_motifs(models, length=1, strands="forward")
+# Check the expected score for this exactly solvable example.
 assert abs(assessment.structural_score - 2 / 3) < 1e-12
+# Print the calculation scope and its best arrangement.
 print(assessment.proof, assessment.best_arrangement)
 ```
 

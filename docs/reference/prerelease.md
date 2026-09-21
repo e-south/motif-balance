@@ -6,7 +6,7 @@ audience:
   - maintainers
 owner: Eric J. South, Dunlop Lab
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: how-to
 ---
 
@@ -22,8 +22,11 @@ checksums. Return to the [documentation index](../README.md) for user guides.
 From the repository root:
 
 ```bash
+# Run tests, documentation checks and package-installation checks.
 bash ./scripts/verify
+# Build the wheel and source archive into a new review directory.
 uv build --no-sources --out-dir /absolute/path/to/review-dist
+# Install the built distributions and check their public commands and examples.
 bash ./scripts/wheel-smoke /absolute/path/to/review-dist
 ```
 
@@ -44,6 +47,7 @@ Dependabot updates the lock but does not update this embedded digest; its pull
 requests need that small follow-up before the repository checks can pass.
 
 ```bash
+# Calculate the lockfile checksum to record with this dependency update.
 uv run --locked python -c 'import hashlib; from pathlib import Path; print(hashlib.sha256(Path("uv.lock").read_bytes()).hexdigest())'
 ```
 
@@ -53,6 +57,7 @@ Choose a version that has not been published. Commit the reviewed changes and
 start from a clean checkout whose `HEAD` is contained in `origin/main`. Then run:
 
 ```bash
+# Build and verify release files, recording this local build and its limits.
 bash ./scripts/prepare-prerelease \
   --out /absolute/path/outside/repository/dist-release \
   --builder-kind maintainer_local \
@@ -73,10 +78,12 @@ Upload these four unchanged files, download them into a fresh directory, and
 verify the download from the tagged checkout:
 
 ```bash
+# Check the downloaded release files against the recorded source revision.
 uv run --locked python scripts/release_attestation.py verify \
   --directory /path/to/fresh-download \
   --repository-root "$(pwd)" \
   --require-tag
+# Install and test those same release files against the current source revision.
 MOTIF_BALANCE_PRODUCER_REVISION="$(git rev-parse HEAD)" \
   bash ./scripts/wheel-smoke /path/to/fresh-download
 ```
@@ -128,7 +135,9 @@ Approve the `pypi` environment only for the reviewed version and commit. After
 publication, confirm its files and hashes on PyPI and test an explicit install:
 
 ```bash
+# Install the exact version published in the preceding release step.
 python -m pip install "motif-balance==<published-version>"
+# Confirm the installed command and list its available operations.
 motif-balance --help
 ```
 

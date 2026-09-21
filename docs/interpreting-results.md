@@ -5,7 +5,7 @@ intent: Explain result fields, diagnostics, and the boundary of product claims.
 audience: [users, bundle consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: explanation
 ---
 
@@ -34,11 +34,16 @@ poor desired match or an unwanted match that remains too strong.
 
 Zero is the theoretical minimum raw LLR over one motif-width word, and one is
 the corresponding maximum. Both word-level extrema are attained by choosing a
-minimum- or maximum-scoring base at every motif position. Motif Balance reports
-the best score across all valid placements and orientations: embedding a
+minimum- or maximum-scoring base at every motif position.
+
+Motif Balance reports the best score across all valid placements and orientations: embedding a
 score-maximizing word can attain one, while no sequence need have zero as its
-reported best match. Under a nonuniform background, the most probable base can differ from the base
-with the highest log odds. When comparing repeated designs, keep motif content,
+reported best match.
+
+Under a nonuniform background, the most probable base can differ from the base
+with the highest log odds.
+
+When comparing repeated designs, keep motif content,
 scoring version and strand rule fixed. Scores from different models express
 attainment relative to each model's own range, not a shared physical affinity.
 

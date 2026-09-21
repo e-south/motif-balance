@@ -5,7 +5,7 @@ intent: Render recorded sequence states alongside best observed scores.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: how-to
 ---
 
@@ -18,11 +18,13 @@ observation before rendering, so altered sequence or score records fail validati
 
 ## Export an observation
 
-The [biological example](../biological-example.md) creates an observation file.
+The [example](../biological-example.md) creates an observation file.
 For a file saved from your own `design_observed` call:
 
 ```bash
+# Create an interactive player from the recorded search states.
 motif-balance animate observation.json --out playback.html
+# Export the final recorded state as a vector figure.
 motif-balance animate observation.json --format svg --out final-frame.svg
 ```
 
@@ -53,10 +55,13 @@ After saving an observation as described in the
 [observation reference](search-observations.md):
 
 ```python
+# Import the models and operations used in this example.
 from pathlib import Path
 from motif_balance.playback import inspect_playback, render_playback_html
 
+# Verify the saved states and construct the playback frames.
 playback = inspect_playback(Path("observation.json").read_bytes())
+# Save a new HTML player that displays four recorded states per second.
 with Path("playback.html").open("xb") as output:
     output.write(render_playback_html(playback, fps=4))
 ```
@@ -72,7 +77,9 @@ HTML and SVG use the base installation. PNG, GIF and MP4 additionally require
 the `visualization` extra:
 
 ```bash
+# Install the optional image and video export dependencies.
 uv sync --locked --extra visualization
+# Encode the recorded states as an MP4 video.
 uv run motif-balance animate observation.json --format mp4 --out playback.mp4
 ```
 

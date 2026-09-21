@@ -14,13 +14,14 @@ This example asks for a 20-base sequence matching all three supplied motif
 models. Their widths are 12, 7 and 7 bases, so some matches must share positions.
 The search chooses the DNA; best-match positions and strands emerge from rescanning.
 
-![Recorded final sequence beside search recovery](final-frame.png)
+<a href="playback.mp4"><img src="final-frame.png" width="640" alt="Three motif matches beside the recorded search curve; click to open the video"></a>
 
-Read the [biological example guide](../../docs/biological-example.md) for the
+Read the [example guide](../../docs/biological-example.md) for the
 installation and design steps. To reproduce the illustration from an installed
 package, run this example directory's script from any working directory:
 
 ```bash
+# Recreate the example search, its saved observations and its HTML player.
 python reproduce.py --out /tmp/developmental-trio-demo
 ```
 
@@ -34,7 +35,9 @@ recorded observations; its timing does not represent search elapsed time.
 For an existing observation file:
 
 ```bash
+# Open the saved states through a new interactive HTML player.
 motif-balance animate /tmp/developmental-trio-demo/observation.json --out /tmp/review.html
+# Export the same saved states as an MP4 video.
 motif-balance animate /tmp/developmental-trio-demo/observation.json --out /tmp/review.mp4 --format mp4
 ```
 

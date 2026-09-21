@@ -5,7 +5,7 @@ intent: Explain bounded, passive search diagnostics and their replay contract.
 audience: [integrators, maintainers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: reference
 ---
 
@@ -25,10 +25,12 @@ Use [playback](playback.md) to display the recorded sequences and scores.
 This complete synthetic example records a search without creating files:
 
 ```python
+# Import the models and operations used in this example.
 from motif_balance import DesignSpec, MotifModel, MotifSpecification
 from motif_balance.api import design_observed, read_search_observation
 from motif_balance.model.search_observation import ObservationSpec
 
+# Define two motifs and a seven-base search with a fixed evaluation budget.
 spec = DesignSpec(
     schema_version="design-spec/v3",
     specifications=tuple(
@@ -51,6 +53,7 @@ spec = DesignSpec(
     strands="both",
     seed=19,
 )
+# Run the search while recording chosen score levels and evaluation counts.
 portfolio, observation = design_observed(
     spec,
     ObservationSpec(
@@ -61,10 +64,15 @@ portfolio, observation = design_observed(
         max_sequences_per_threshold=64,
     ),
 )
+# Serialize the observations to portable JSON bytes.
 encoded = observation.model_dump_json().encode("utf-8")
+# Reload and verify the recorded sequences and scores.
 replayed = read_search_observation(encoded)
+# Check that replay preserves the observation exactly.
 assert replayed == observation
+# Collect the exact evaluation counts requested for best-sequence snapshots.
 calls = ", ".join(str(row.evaluations) for row in observation.incumbents)
+# Print the search budget used and the recorded snapshot counts.
 print(f"{observation.evaluation_count} evaluations; exact incumbent calls: {calls}")
 ```
 

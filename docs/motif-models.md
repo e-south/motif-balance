@@ -5,7 +5,7 @@ intent: Prepare explicit probability models from count or probability matrices.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: how-to
 ---
 
@@ -28,6 +28,7 @@ version. From the repository checkout, this small format example demonstrates
 conversion with an equal-frequency A/C/G/T background:
 
 ```bash
+# Convert source counts into a probability model with an explicit background.
 motif-balance motif prepare examples/formats/synthetic.jaspar \
   --motif-id regulator_a \
   --background 0.25,0.25,0.25,0.25 \
@@ -50,10 +51,13 @@ Use the MEME record identifier explicitly when reading a file that contains
 more than one motif:
 
 ```python
+# Import the models and operations used in this example.
 from pathlib import Path
 from motif_balance.formats import read_motif
 
+# Read the named record from a MEME motif file.
 model = read_motif(Path("profiles.meme"), motif_id="selected_record_id")
+# Save the prepared model without replacing an existing file.
 with Path("selected-model.json").open("x") as output:
     output.write(model.model_dump_json(indent=2) + "\n")
 ```

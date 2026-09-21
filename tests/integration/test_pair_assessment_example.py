@@ -40,7 +40,7 @@ def test_pair_assessment_cli_guide_from_a_caller_directory(tmp_path):
     guide = (root / "docs/pair-assessment.md").read_text()
     blocks = re.findall(r"```bash\n(.*?)```", guide, flags=re.DOTALL)
     assert len(blocks) == 1
-    arguments = shlex.split(blocks[0].replace("\\\n", ""))
+    arguments = shlex.split(blocks[0].replace("\\\n", ""), comments=True)
     assert arguments[:4] == ["uv", "run", "motif-balance", "assess"]
     arguments = [str(root / arg) if arg.startswith("examples/") else arg for arg in arguments[3:]]
     completed = subprocess.run(

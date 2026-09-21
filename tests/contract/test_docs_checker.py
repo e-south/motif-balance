@@ -56,6 +56,20 @@ def test_valid_repository_and_external_links_are_accepted() -> None:
     assert module.link_errors(module.REPO_ROOT / "README.md", text) == []
 
 
+@pytest.mark.parametrize(
+    "html",
+    [
+        '<img src="missing.png" width="640" alt="Example">',
+        '<a href="missing.mp4">Watch the example</a>',
+    ],
+)
+def test_html_preview_links_are_checked(html: str) -> None:
+    module = checker()
+    errors = module.link_errors(module.REPO_ROOT / "README.md", html)
+    assert len(errors) == 1
+    assert "broken link" in errors[0]
+
+
 def test_readme_and_example_links_are_included(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

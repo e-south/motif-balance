@@ -5,7 +5,7 @@ intent: Select and replay a full supplied-pool portfolio under explicit separati
 audience: [API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: reference
 journey: [integrate]
 
@@ -30,10 +30,12 @@ models while reversing their order. Run from any directory; no files or external
 models are needed.
 
 ```python
+# Import the models and operations used in this example.
 from motif_balance import DesignSpec, MotifModel, MotifSpecification
 from motif_balance.alternatives import select_portfolio, verify_portfolio_selection
 from motif_balance.model.selection import PortfolioPolicy, PortfolioSelection
 
+# Create two motifs that prefer AA and CC.
 models = tuple(
     MotifModel(
         motif_id=name,
@@ -42,6 +44,7 @@ models = tuple(
     )
     for name, preferred in (("first", "A"), ("second", "C"))
 )
+# Declare the scoring context for the supplied four-base sequences.
 spec = DesignSpec(
     schema_version="design-spec/v3",
     specifications=tuple(MotifSpecification(motif=m, direction="seek") for m in models),
@@ -51,6 +54,7 @@ spec = DesignSpec(
     evaluations=1,
     seed=7,
 )
+# Request two different arrangements with a minimum footprint distance.
 policy = PortfolioPolicy(
     count=2,
     separation="selected_footprint",
@@ -58,14 +62,23 @@ policy = PortfolioPolicy(
     equivalence="forward",
     architectures="distinct",
 )
+# Supply the sequences from which the collection may be selected.
 pool = ("AACC", "CCAA", "ACAC", "CACA", "AAAA", "CCCC")
+# Choose the strongest feasible two-sequence set.
 result = select_portfolio(pool, spec, policy)
+# Check that the selected set has a proven optimal quality within this pool.
 assert result.status == "optimal" and result.quality is not None
+# Check that the selected members have a defined separation.
 assert result.minimum_separation is not None
+# Print the delivered count and weakest balance.
 print(f"{result.status}: {result.delivered_count} candidates, weakest balance {result.quality:.3f}")
+# Print the selected DNA sequences.
 print(", ".join(member.evaluation.sequence for member in result.members))
+# Print the smallest separation between selected members.
 print(f"Minimum footprint separation: {result.minimum_separation:.3f}")
+# Serialize and reload the selection record.
 record = PortfolioSelection.model_validate_json(result.model_dump_json())
+# Replay the record against the original pool and check that it agrees.
 assert verify_portfolio_selection(record, pool) == result
 ```
 
