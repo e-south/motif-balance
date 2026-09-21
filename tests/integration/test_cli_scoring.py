@@ -73,7 +73,10 @@ def test_occupied_score_output_fails_before_evaluation(
     assert result.exit_code == 2, result.output
     assert "Refusing to replace existing score output" in result.output
     assert "hint: Choose a new output path." in result.output
-    assert output.lstat() == before
+    # Reading a symlink can update its access time without changing the output.
+    after = output.lstat()
+    assert after[:7] == before[:7]  # Type, identity, ownership and size remain fixed.
+    assert (after.st_mtime_ns, after.st_ctime_ns) == (before.st_mtime_ns, before.st_ctime_ns)
     if kind == "file":
         assert output.read_text() == "keep me"
 
