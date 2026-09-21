@@ -1,6 +1,17 @@
-"""The public first-design example exercises the current directional contract."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_quickstart_example.py
+
+The public first-design example exercises the current directional contract.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -12,40 +23,42 @@ from motif_balance.formats.design import load_design_spec
 from motif_balance.inspection import inspect_result
 
 
-def test_python_tutorial_runs_without_checkout_local_inputs(tmp_path: Path) -> None:
+def test_python_tutorial_runs_with_prepared_source_attributed_inputs(
+    tmp_path: Path, argr_cra_example: Path
+) -> None:
     root = Path(__file__).resolve().parents[2]
     guide = (root / "docs/python-api.md").read_text()
     blocks = re.findall(r"```python\n(.*?)```", guide, flags=re.DOTALL)
     assert len(blocks) == 2
 
+    shutil.copytree(argr_cra_example, tmp_path / "examples/argr-cra")
     result = subprocess.run(
         [sys.executable, "-c", "\n".join(blocks)], cwd=tmp_path, capture_output=True, text=True
     )
 
     assert result.returncode == 0, result.stderr
-    assert "AT balance: 0.5" in result.stdout
-    assert "Returned 3 of 3" in result.stdout
-    for engine in ("annealed_multistart_v1", "greedy_multistart_v1", "uniform_random_v1"):
-        assert f"{engine} 127" in result.stdout
+    assert "ArgR" in result.stdout and "Cra" in result.stdout
+    assert "Returned 4 of 4" in result.stdout
+    for engine in ("annealed", "greedy", "random"):
+        assert f"{engine} 4096" in result.stdout
     assert (tmp_path / "candidate.svg").read_bytes().startswith(b"<svg")
     review = inspect_result(tmp_path / "result", kind="bundle")
-    assert review.portfolio.best_observed_score == 0.5
+    assert review.portfolio.best_observed_score == pytest.approx(0.880, abs=0.0005)
 
 
-def test_quickstart_uses_directional_scoring_and_verified_inspection(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    spec = load_design_spec(root / "examples/synthetic-pairwise/design.yaml")
+def test_quickstart_uses_directional_scoring_and_verified_inspection(tmp_path, argr_cra_example):
+    spec = load_design_spec(argr_cra_example / "design.yaml")
     assert spec.schema_version == "design-spec/v3"
     assert [item.direction for item in spec.specifications] == ["seek", "seek"]
-    evaluation = score("AT", spec)
-    assert evaluation.balance_score == 0.5
-    assert [match.spec_satisfaction for match in evaluation.matches] == [0.5, 0.5]
     portfolio = design(spec)
-    assert len(portfolio.candidates) == 3
+    assert len(portfolio.candidates) == 4
+    evaluation = score(portfolio.candidates[0].sequence, spec)
+    assert evaluation.balance_score == portfolio.candidates[0].balance_score
+    assert {match.motif_id for match in evaluation.matches} == {"ArgR", "Cra"}
     portfolio.write(tmp_path / "result")
     review = inspect_result(tmp_path / "result", kind="bundle")
     assert [motif.direction for motif in review.problem.motifs] == ["seek", "seek"]
-    assert review.portfolio.best_observed_score == 0.5
+    assert review.portfolio.best_observed_score == pytest.approx(0.880, abs=0.0005)
 
 
 @pytest.mark.parametrize(

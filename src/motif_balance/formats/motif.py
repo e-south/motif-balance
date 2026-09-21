@@ -1,6 +1,13 @@
-"""Read motif probabilities and convert JASPAR counts with recorded preparation rules.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/formats/motif.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Read motif probabilities and convert JASPAR counts with recorded preparation rules.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

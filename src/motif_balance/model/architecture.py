@@ -1,6 +1,13 @@
-"""Threshold-free relationships among labeled selected motif intervals.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/architecture.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Threshold-free relationships among labeled selected motif intervals.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from typing import Annotated, Literal

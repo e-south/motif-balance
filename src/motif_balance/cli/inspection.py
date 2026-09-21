@@ -1,6 +1,13 @@
-"""Verify saved results and present the requested text, JSON, HTML, or SVG view.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/cli/inspection.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Verify saved results and present the requested text, JSON, HTML, or SVG view.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

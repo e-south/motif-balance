@@ -1,6 +1,13 @@
-"""Export inspected search frames with optional raster and video dependencies.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/playback/media.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Export inspected search frames with optional raster and video dependencies.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 import importlib

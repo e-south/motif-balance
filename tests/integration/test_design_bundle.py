@@ -1,3 +1,15 @@
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_design_bundle.py
+
+Verify design bundle behavior.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
+
 from __future__ import annotations
 
 import json

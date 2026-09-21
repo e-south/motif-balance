@@ -1,6 +1,13 @@
-"""Assess and select architectures from explicit sequence pools, without search.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/alternatives/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Assess and select architectures from explicit sequence pools, without search.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from .api import measure_prefixes, rank_architectures

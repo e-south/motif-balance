@@ -1,4 +1,14 @@
-"""Footprint separation is independently minimized over allowed orientations."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_portfolio_separation.py
+
+Footprint separation is independently minimized over allowed orientations.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from itertools import combinations, product
 

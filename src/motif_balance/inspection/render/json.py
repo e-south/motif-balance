@@ -1,6 +1,13 @@
-"""Serialize validated inspection records as deterministic JSON.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/render/json.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Serialize validated inspection records as deterministic JSON.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

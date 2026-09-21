@@ -1,6 +1,13 @@
-"""Versioned result manifests and complete exact-count proofs.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/manifest.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Versioned result manifests and complete exact-count proofs.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

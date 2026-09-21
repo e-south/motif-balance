@@ -1,4 +1,14 @@
-"""Pre-search assessment uses explicit motif arrangements, not searched sequences."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_pair_assessment.py
+
+Pre-search assessment uses explicit motif arrangements, not searched sequences.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 

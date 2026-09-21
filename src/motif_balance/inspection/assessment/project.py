@@ -1,6 +1,13 @@
-"""Bind the existing assessment calculation to inspectable physical-coordinate terms.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/assessment/project.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Bind the existing assessment calculation to inspectable physical-coordinate terms.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

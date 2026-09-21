@@ -1,4 +1,21 @@
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/conftest.py
+
+Provide shared motif and request fixtures for tests.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
+
 from __future__ import annotations
+
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -37,3 +54,19 @@ def pairwise_spec(motif_a: MotifModel, motif_b: MotifModel) -> DesignSpec:
         seed=7,
         min_distance=0.25,
     )
+
+
+@pytest.fixture(scope="session")
+def argr_cra_example(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Prepare real tutorial inputs once from their checksum-pinned publisher archive."""
+    source = Path(__file__).resolve().parents[1] / "examples/argr-cra"
+    destination = tmp_path_factory.mktemp("real-motifs") / "argr-cra"
+    shutil.copytree(source, destination, ignore=shutil.ignore_patterns("inputs", "__pycache__"))
+    subprocess.run(
+        [sys.executable, str(destination / "prepare_inputs.py")],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
+    return destination

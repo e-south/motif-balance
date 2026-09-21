@@ -1,6 +1,13 @@
-"""Draw motif information logos aligned to the selected DNA strand and coordinates.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/render/information_logo.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Draw motif information logos aligned to the selected DNA strand and coordinates.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

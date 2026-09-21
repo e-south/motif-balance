@@ -1,3 +1,15 @@
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_models.py
+
+Verify models behavior.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
+
 from __future__ import annotations
 
 import hashlib

@@ -1,6 +1,13 @@
-"""Inspect a pre-search pair assessment from explicit model inputs.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/assessment/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Inspect a pre-search pair assessment from explicit model inputs.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from .model import PairAssessmentInspection

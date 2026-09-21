@@ -1,6 +1,13 @@
-"""Verify result snapshots before producing an immutable inspection record.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/api.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Verify result snapshots before producing an immutable inspection record.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

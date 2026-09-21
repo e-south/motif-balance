@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Reject obvious private or credential-bearing repository content."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+scripts/check_public_safety.py
+
+Reject obvious private or credential-bearing repository content.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 

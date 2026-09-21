@@ -1,6 +1,13 @@
-"""Count evaluations and retain deterministic best candidates and search checkpoints.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/search/recording.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Count evaluations and retain deterministic best candidates and search checkpoints.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

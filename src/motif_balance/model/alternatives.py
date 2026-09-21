@@ -1,6 +1,13 @@
-"""Immutable ranked representatives of supplied selected-match architectures.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/alternatives.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Immutable ranked representatives of supplied selected-match architectures.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

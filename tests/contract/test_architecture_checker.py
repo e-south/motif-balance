@@ -1,3 +1,15 @@
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_architecture_checker.py
+
+Verify architecture checker behavior.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
+
 from __future__ import annotations
 
 import importlib.util

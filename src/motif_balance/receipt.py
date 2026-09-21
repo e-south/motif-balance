@@ -1,6 +1,13 @@
-"""Build and validate runtime receipts that bind a design to its inputs and software.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/receipt.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Build and validate runtime receipts that bind a design to its inputs and software.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

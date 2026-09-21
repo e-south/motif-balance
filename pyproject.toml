@@ -114,3 +114,7 @@ select = ["B", "C4", "E", "F", "I", "RUF", "SIM", "UP"]
 [tool.ruff.lint.per-file-ignores]
 "src/motif_balance/__init__.py" = ["F401"]
 "tests/**/*.py" = ["B017"]
+
+[tool.ruff.format]
+# Preserve aligned teaching comments in these introductory code examples.
+exclude = ["README.md", "docs/python-api.md"]

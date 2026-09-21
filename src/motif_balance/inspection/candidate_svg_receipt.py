@@ -1,6 +1,13 @@
-"""Bind a candidate SVG to its verified inputs and renderer implementation.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/candidate_svg_receipt.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Bind a candidate SVG to its verified inputs and renderer implementation.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

@@ -17,6 +17,10 @@ Run relevant tests while editing and the full verification command before submit
 Add a regression test for behavior changes. Preserve the [scoring and selection
 contracts](DESIGN.md); describe compatibility changes to scores or schemas explicitly.
 
+Use the module header in existing source files: package name, repository-relative
+path, a short purpose, and author attribution. Apply it to tests and scripts too;
+shell scripts use comment lines below their shebang.
+
 ## Pull requests
 
 Explain the problem, what changed and how you checked it. Update examples or

@@ -1,6 +1,13 @@
-"""Arrange duplex bases and strand-specific motif lanes within an SVG.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/render/candidate_layout.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Arrange duplex bases and strand-specific motif lanes within an SVG.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

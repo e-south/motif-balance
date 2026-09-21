@@ -1,6 +1,13 @@
-"""Render a navigable HTML review of verified candidates, scores, and provenance.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/render/html.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Render a navigable HTML review of verified candidates, scores, and provenance.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

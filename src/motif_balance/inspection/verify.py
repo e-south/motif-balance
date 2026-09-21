@@ -1,6 +1,13 @@
-"""Carry a verified byte snapshot and its trust basis into result projection.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/verify.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Carry a verified byte snapshot and its trust basis into result projection.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

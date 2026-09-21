@@ -1,6 +1,13 @@
-"""Scan permitted DNA strands and score the weakest desired or avoidance requirement.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/scoring.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Scan permitted DNA strands and score the weakest desired or avoidance requirement.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

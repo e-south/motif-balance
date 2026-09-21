@@ -1,4 +1,14 @@
-"""Public architecture ranking starts from supplied sequences, never a search."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_architecture_ranking.py
+
+Public architecture ranking starts from supplied sequences, never a search.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from itertools import product
 from pathlib import Path

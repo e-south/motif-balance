@@ -1,6 +1,13 @@
-"""Bounded, opt-in observations of an unchanged directional search.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/search_observation.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Bounded, opt-in observations of an unchanged directional search.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

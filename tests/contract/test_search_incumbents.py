@@ -1,4 +1,14 @@
-"""Exact incumbent receipts observe evaluator calls, not invented chain states."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_search_incumbents.py
+
+Exact incumbent receipts observe evaluator calls, not invented chain states.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 

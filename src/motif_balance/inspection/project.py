@@ -1,6 +1,13 @@
-"""Project verified scores and matches into inspectable sequence and portfolio records.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/project.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Project verified scores and matches into inspectable sequence and portfolio records.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

@@ -1,0 +1,11 @@
+schema_version: design-spec/v3
+specifications:
+  - motif: inputs/motifs/argR.json
+    direction: seek
+  - motif: inputs/motifs/cra.json
+    direction: seek
+length: 32
+count: 4
+strands: both
+evaluations: 4096
+seed: 7

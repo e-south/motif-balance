@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Check documentation metadata, local links, and fenced blocks."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+scripts/check_docs.py
+
+Check documentation metadata, local links, and fenced blocks.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 

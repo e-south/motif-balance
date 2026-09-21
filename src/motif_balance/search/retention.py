@@ -1,6 +1,13 @@
-"""Bounded hash-priority retention; no RNG or alternate scoring authority.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/search/retention.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Bounded hash-priority retention; no RNG or alternate scoring authority.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

@@ -1,4 +1,14 @@
-"""The current public portfolio example needs no neighboring checkout or files."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_portfolio_selection_example.py
+
+The current public portfolio example needs no neighboring checkout or files.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 import re
 import subprocess

@@ -25,6 +25,8 @@ git clone https://github.com/e-south/motif-balance.git
 cd motif-balance
 # Install the locked environment, including PNG, GIF and MP4 export support.
 uv sync --locked --extra visualization
+# Download and prepare the ArgR and Cra example inputs.
+uv run python examples/argr-cra/prepare_inputs.py
 # List the available commands.
 uv run motif-balance --help
 ```
@@ -49,10 +51,21 @@ source .venv/bin/activate
 motif-balance --help
 ```
 
-The wheel includes the library and CLI. Copy an [example folder](../examples/)
-from the same revision if you need its input files. The [Python tutorial](python-api.md)
-works without those files. Use `motif-balance` in place of `uv run motif-balance`.
+The wheel includes the library and CLI. The [Python tutorial](python-api.md)
+also needs the source checkout's `examples/argr-cra` directory. From the checkout
+root, use the installed wheel's interpreter to prepare its inputs:
+
+```bash
+# Download and prepare the two profiles using the installed package.
+python examples/argr-cra/prepare_inputs.py
+```
+
+Then run the tutorial from that checkout. Use `motif-balance` in place of
+`uv run motif-balance` when the wheel environment is active.
 
 </details>
 
 Development and release checks are described in [Contributing](../CONTRIBUTING.md).
+
+The `visualization` extra enables PNG images and GIF/MP4 videos of recorded
+searches. SVG figures and HTML inspection views are available without it.

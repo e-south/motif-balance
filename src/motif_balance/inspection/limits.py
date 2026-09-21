@@ -1,6 +1,13 @@
-"""Hard bounds for derived result review.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/limits.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Hard bounds for derived result review.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 MAX_CATALOG_ENTRIES = 100

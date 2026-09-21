@@ -1,6 +1,13 @@
-"""Replay one caller-owned candidate through the existing score and projection authorities.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/supplied.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Replay one caller-owned candidate through the existing score and projection authorities.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from motif_balance.compile import compile_scoring

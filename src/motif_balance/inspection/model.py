@@ -1,6 +1,13 @@
-"""Define immutable records for inspecting motifs, candidates, searches, and provenance.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/model.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Define immutable records for inspecting motifs, candidates, searches, and provenance.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

@@ -1,4 +1,14 @@
-"""Selection works with a supplied pool and a verified, locally generated bundle."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_architecture_selection_example.py
+
+Selection works with a supplied pool and a verified, locally generated bundle.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 import re
 import subprocess

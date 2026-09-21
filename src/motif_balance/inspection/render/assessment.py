@@ -1,6 +1,13 @@
-"""Display one inspected arrangement without rescoring models or drawing a candidate.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/render/assessment.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Display one inspected arrangement without rescoring models or drawing a candidate.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

@@ -1,6 +1,13 @@
-"""Score one supplied DNA sequence against an explicit design specification.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/cli/scoring.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Score one supplied DNA sequence against an explicit design specification.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

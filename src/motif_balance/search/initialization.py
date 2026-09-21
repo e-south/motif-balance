@@ -1,6 +1,13 @@
-"""Shared starting sequences; no optimizer-specific decision policy.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/search/initialization.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Shared starting sequences; no optimizer-specific decision policy.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

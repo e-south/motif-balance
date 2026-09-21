@@ -1,6 +1,13 @@
-"""Replay recorded searches and project their actual DNA states for playback.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/playback/api.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Replay recorded searches and project their actual DNA states for playback.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 import hashlib

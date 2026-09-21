@@ -1,6 +1,13 @@
-"""Compose equal square panels for recorded recovery and its verified DNA state.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/playback/render.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Compose equal square panels for recorded recovery and its verified DNA state.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 import math

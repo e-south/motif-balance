@@ -1,6 +1,13 @@
-"""Compact checkpoints and search diagnostics, without proposal history.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/search.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Compact checkpoints and search diagnostics, without proposal history.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

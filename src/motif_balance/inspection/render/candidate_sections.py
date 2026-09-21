@@ -1,6 +1,13 @@
-"""Draw duplex bases, matched intervals, and coordinate-aligned motif logos.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/render/candidate_sections.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Draw duplex bases, matched intervals, and coordinate-aligned motif logos.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

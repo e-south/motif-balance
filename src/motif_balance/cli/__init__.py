@@ -1,6 +1,13 @@
-"""Thin command registration; scientific behavior remains in the owning APIs.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/cli/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Thin command registration; scientific behavior remains in the owning APIs.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from typing import Any

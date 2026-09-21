@@ -1,6 +1,13 @@
-"""Propose fixed-length DNA edits and evaluate them through the shared scorer.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/search/moves.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Propose fixed-length DNA edits and evaluate them through the shared scorer.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

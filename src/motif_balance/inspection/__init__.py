@@ -1,6 +1,13 @@
-"""Advanced review of verified results or replayed caller-supplied candidates.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Advanced review of verified results or replayed caller-supplied candidates.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from .api import inspect_result

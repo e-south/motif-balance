@@ -1,3 +1,15 @@
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_candidate_projection_render.py
+
+Verify candidate projection render behavior.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
+
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET

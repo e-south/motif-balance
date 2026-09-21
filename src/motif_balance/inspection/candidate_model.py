@@ -1,6 +1,13 @@
-"""Path-free review of a supplied candidate, without invented search provenance.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/candidate_model.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Path-free review of a supplied candidate, without invented search provenance.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from typing import Literal, Self

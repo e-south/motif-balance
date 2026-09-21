@@ -1,6 +1,13 @@
-"""Define immutable policies and results for constrained selection from supplied DNA.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/selection.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Define immutable policies and results for constrained selection from supplied DNA.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

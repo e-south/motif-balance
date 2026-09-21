@@ -1,6 +1,13 @@
-"""Shared pool contract for architecture ranking and constrained selection.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/alternatives/pool.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Shared pool contract for architecture ranking and constrained selection.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

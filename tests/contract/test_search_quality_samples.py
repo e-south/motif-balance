@@ -1,4 +1,14 @@
-"""Quality-threshold retention is passive, bounded, and not elite ranking."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_search_quality_samples.py
+
+Quality-threshold retention is passive, bounded, and not elite ranking.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 

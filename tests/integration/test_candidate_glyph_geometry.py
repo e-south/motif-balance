@@ -1,4 +1,14 @@
-"""Check measured vector outlines, independently of the SVG's information metadata."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_candidate_glyph_geometry.py
+
+Check measured vector outlines, independently of the SVG's information metadata.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 
