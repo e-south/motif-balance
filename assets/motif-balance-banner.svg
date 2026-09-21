@@ -3,7 +3,7 @@
   shape-rendering="geometricPrecision">
   <title id="title">Motif Balance: balanced motif design</title>
   <desc id="desc">Motif Balance beside four stages: model, scan, balance motif scores at the limiting threshold, and select.</desc>
-  <rect width="1280" height="230" rx="20" fill="#1E1D1A"/>
+  <rect width="1280" height="230" rx="40" fill="#1E1D1A"/>
 
   <g font-family="Menlo, Monaco, Consolas, monospace">
     <text x="48" y="125" fill="#F3EFE7" font-size="50" font-weight="700" letter-spacing="-2">motif balance</text>

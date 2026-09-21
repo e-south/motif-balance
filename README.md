@@ -1,9 +1,9 @@
 # ![Motif Balance: balanced motif design](https://raw.githubusercontent.com/e-south/motif-balance/main/assets/motif-balance-banner.svg)
 
-Motif Balance designs fixed-length DNA that balances several supplied motif
-preferences, including desired and unwanted matches. It returns candidate
-sequences with their strongest motif matches, so you can inspect the compromises
-and choose alternative arrangements for experimental comparison.
+Supply motif models and a DNA length. Motif Balance searches for sequences that
+strengthen the weakest desired match while optionally limiting unwanted matches.
+Results show each motif's best-matching site, strand and score, so you can compare
+alternative arrangements.
 
 [Install](https://github.com/e-south/motif-balance/blob/main/docs/installation.md) ·
 [First design](https://github.com/e-south/motif-balance/blob/main/docs/quickstart.md) ·
@@ -17,5 +17,4 @@ See [Contributing](https://github.com/e-south/motif-balance/blob/main/CONTRIBUTI
 software reuse.
 
 If you use Motif Balance in your research, please cite the accompanying paper
-when available. Its DOI is pending; until then, identify the software version
-and link to this repository.
+when available.
