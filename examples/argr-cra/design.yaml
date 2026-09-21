@@ -1,8 +1,8 @@
 schema_version: design-spec/v3
 specifications:
-  - motif: motifs/argR.json
+  - motif: inputs/motifs/argR.json
     direction: seek
-  - motif: motifs/cra.json
+  - motif: inputs/motifs/cra.json
     direction: seek
 length: 32
 count: 4

@@ -21,10 +21,10 @@ def main() -> None:
     root = Path(__file__).resolve().parent
     source_record = json.loads((root / "SOURCE.json").read_text())
     for profile in source_record["profiles"]:
-        source = root / "source" / f"{profile['record']}.json"
+        source = root / "inputs" / "source" / f"{profile['record']}.json"
         assert hashlib.sha256(source.read_bytes()).hexdigest() == profile["numeric_extract_sha256"]
         numeric = json.loads(source.read_text())
-        model = read_motif(root / "motifs" / f"{profile['record']}.json")
+        model = read_motif(root / "inputs" / "motifs" / f"{profile['record']}.json")
         prepared = tuple(
             tuple((value / sum(row) + 0.025) / 1.1 for value in row)
             for row in numeric["probabilities"]

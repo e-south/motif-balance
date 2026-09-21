@@ -83,6 +83,6 @@ grep -Fq 'id="score-matrix"' "$smoke_root/portfolio.svg"
 grep -Fq 'id="search-record"' "$smoke_root/search.svg"
 cmp "$smoke_root/candidate.svg" examples/synthetic-pairwise/candidate-review.svg
 
-uv run --locked python examples/argr-cra/verify_inputs.py
+uv run --locked python examples/argr-cra/prepare_inputs.py --out "$smoke_root/argr-cra-inputs"
 
 echo "Documentation smoke: ok"

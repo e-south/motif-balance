@@ -23,6 +23,8 @@ git clone https://github.com/e-south/motif-balance.git
 cd motif-balance
 # Install the locked dependencies and image/video support.
 uv sync --locked --extra visualization
+# Download and prepare the two example profiles from the publisher.
+uv run python examples/argr-cra/prepare_inputs.py
 # Open Python in this environment, then paste the examples below.
 uv run python
 ```
@@ -38,23 +40,23 @@ position. `specifications` pairs each model with a goal: `seek` strengthens its
 best match; `avoid` reduces it. Both DNA strands are scanned.
 
 ```python
-# Load the bundled profiles and define the design request.
+# Load the prepared profiles and define the design request.
 from motif_balance import DesignSpec, MotifSpecification, design
 from motif_balance.formats.motif import read_motif
 
-argr = read_motif("examples/argr-cra/motifs/argR.json")  # 25-position ArgR model
-cra = read_motif("examples/argr-cra/motifs/cra.json")    # 14-position Cra model
+argr = read_motif("examples/argr-cra/inputs/motifs/argR.json")  # 25-position ArgR model
+cra = read_motif("examples/argr-cra/inputs/motifs/cra.json")    # 14-position Cra model
 spec = DesignSpec(
-    specifications=(                                     # Motif models and their goals
+    specifications=(                                            # Motif models and their goals
         MotifSpecification(motif=argr, direction="seek"),
         MotifSpecification(motif=cra, direction="seek"),
     ),
-    length=32,                                           # DNA length in base pairs
-    count=4,                                             # Number of sequences to return
-    evaluations=4096,                                    # Maximum candidate evaluations
+    length=32,                                                  # DNA length in base pairs
+    count=4,                                                    # Number of sequences to return
+    evaluations=4096,                                           # Maximum candidate evaluations
     seed=7,
 )
-result = design(spec)                                    # Search by editing and rescanning DNA
+result = design(spec)                                           # Search by editing and rescanning DNA
 for candidate in result.candidates:
     print(candidate.sequence, round(candidate.balance_score, 3))
 ```

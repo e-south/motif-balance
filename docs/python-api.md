@@ -11,8 +11,9 @@ doc_type: tutorial
 
 # Design and inspect from Python
 
-Run this from the [source checkout](installation.md#install-from-source).
-The [ArgR and Cra inputs](../examples/argr-cra/README.md) contain nucleotide
+Run this from the [source checkout](installation.md#install-from-source) after
+preparing the ArgR and Cra inputs during installation.
+The prepared [ArgR and Cra inputs](../examples/argr-cra/README.md) contain nucleotide
 probabilities prepared from Baumgart et al. (2021), Supplementary Data 2.
 Each row lists the probabilities of A, C, G and T at one motif position.
 
@@ -25,8 +26,8 @@ from motif_balance.formats.motif import read_motif
 from motif_balance.inspection import inspect_result
 from motif_balance.inspection.render import render_candidate_svg, render_text
 
-argr = read_motif("examples/argr-cra/motifs/argR.json")
-cra = read_motif("examples/argr-cra/motifs/cra.json")
+argr = read_motif("examples/argr-cra/inputs/motifs/argR.json")
+cra = read_motif("examples/argr-cra/inputs/motifs/cra.json")
 spec = DesignSpec(
     specifications=(
         MotifSpecification(motif=argr, direction="seek"),  # Strengthen the ArgR match

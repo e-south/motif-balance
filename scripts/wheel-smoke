@@ -46,7 +46,7 @@ for forbidden in '/tests/' '/scripts/' '/.github/' '/.agents/'; do
   fi
 done
 sdist_contents="$(tar -tzf "$sdist_path")"
-for forbidden in '/.git/' '/.venv/' '/.artifacts/'; do
+for forbidden in '/.git/' '/.venv/' '/.artifacts/' '/examples/argr-cra/inputs/'; do
   if grep -Fq "$forbidden" <<<"$sdist_contents"; then
     echo "source distribution contains local path: $forbidden" >&2
     exit 1
@@ -58,7 +58,7 @@ for required in LICENSE README.md IA.md ARCHITECTURE.md DESIGN.md RELIABILITY.md
     exit 1
   fi
 done
-for required in examples/formats/synthetic.jaspar examples/synthetic-pairwise/design.yaml examples/synthetic-pairwise/candidate-review.svg examples/synthetic-multimotif/design.yaml examples/production-pairwise/design.yaml; do
+for required in examples/argr-cra/design.yaml examples/argr-cra/prepare_inputs.py examples/argr-cra/SOURCE.json examples/formats/synthetic.jaspar examples/synthetic-pairwise/design.yaml examples/synthetic-pairwise/candidate-review.svg examples/synthetic-multimotif/design.yaml examples/production-pairwise/design.yaml; do
   if ! grep -Fq "/$required" <<<"$sdist_contents"; then
     echo "source distribution omits reproducibility input: $required" >&2
     exit 1
@@ -181,6 +181,7 @@ assert ranking.grouping == "interval_topology"
 print("Installed collection API/CLI and source parity: ok")
 PY
 
+"$smoke_root/venv/bin/python" examples/argr-cra/prepare_inputs.py --out "$smoke_root/argr-cra-inputs"
 source_python="$(uv run --locked python -c 'import sys; print(sys.executable)')"
 for guide in README.md docs/python-api.md docs/pair-assessment.md docs/choose-alternatives.md docs/reference/portfolio-selection.md docs/reference/search-observations.md; do
   guide_program="$(python3 - "$repo_root/$guide" <<'PY'
@@ -206,8 +207,12 @@ PY
   mkdir "$smoke_root/source-$guide_name" "$smoke_root/wheel-$guide_name"
   if [[ "$guide" == "README.md" || "$guide" == "docs/python-api.md" ]]; then
     mkdir -p "$smoke_root/source-$guide_name/examples" "$smoke_root/wheel-$guide_name/examples"
-    cp -R examples/argr-cra "$smoke_root/source-$guide_name/examples/"
-    cp -R examples/argr-cra "$smoke_root/wheel-$guide_name/examples/"
+    for environment in source wheel; do
+      example_destination="$smoke_root/$environment-$guide_name/examples/argr-cra"
+      mkdir "$example_destination"
+      cp examples/argr-cra/design.yaml examples/argr-cra/SOURCE.json "$example_destination/"
+      cp -R "$smoke_root/argr-cra-inputs" "$example_destination/inputs"
+    done
   fi
   source_guide="$(cd "$smoke_root/source-$guide_name" && "$source_python" -c "$guide_program")"
   wheel_guide="$(cd "$smoke_root/wheel-$guide_name" && "$smoke_root/venv/bin/python" -c "$guide_program")"

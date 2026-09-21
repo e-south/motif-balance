@@ -11,3 +11,6 @@ dist/*
 !dist/.gitignore
 *.egg-info/
 *.py[cod]
+
+# Publisher data are prepared locally, not redistributed.
+/examples/argr-cra/inputs/

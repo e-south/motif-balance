@@ -23,13 +23,15 @@ from motif_balance.formats.design import load_design_spec
 from motif_balance.inspection import inspect_result
 
 
-def test_python_tutorial_runs_with_bundled_source_attributed_inputs(tmp_path: Path) -> None:
+def test_python_tutorial_runs_with_prepared_source_attributed_inputs(
+    tmp_path: Path, argr_cra_example: Path
+) -> None:
     root = Path(__file__).resolve().parents[2]
     guide = (root / "docs/python-api.md").read_text()
     blocks = re.findall(r"```python\n(.*?)```", guide, flags=re.DOTALL)
     assert len(blocks) == 2
 
-    shutil.copytree(root / "examples/argr-cra", tmp_path / "examples/argr-cra")
+    shutil.copytree(argr_cra_example, tmp_path / "examples/argr-cra")
     result = subprocess.run(
         [sys.executable, "-c", "\n".join(blocks)], cwd=tmp_path, capture_output=True, text=True
     )
@@ -44,9 +46,8 @@ def test_python_tutorial_runs_with_bundled_source_attributed_inputs(tmp_path: Pa
     assert review.portfolio.best_observed_score == pytest.approx(0.880, abs=0.0005)
 
 
-def test_quickstart_uses_directional_scoring_and_verified_inspection(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    spec = load_design_spec(root / "examples/argr-cra/design.yaml")
+def test_quickstart_uses_directional_scoring_and_verified_inspection(tmp_path, argr_cra_example):
+    spec = load_design_spec(argr_cra_example / "design.yaml")
     assert spec.schema_version == "design-spec/v3"
     assert [item.direction for item in spec.specifications] == ["seek", "seek"]
     portfolio = design(spec)

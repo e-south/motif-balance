@@ -28,5 +28,7 @@
       "numeric_extract_sha256": "255942369c22e5e4dee8f4c1671bc4860fe7732701764c7bef74b2d4100a34bc",
       "prepared_model_digest": "751d4c9431ecf206e6543831d6799d06a4dd24b7bac3619939aa8dc6a158eaa4"
     }
-  ]
+  ],
+  "distribution": "Source and prepared matrices are downloaded and generated locally; they are not bundled with the repository or distributions.",
+  "redistribution_license": "Not established; no third-party matrices are redistributed."
 }
