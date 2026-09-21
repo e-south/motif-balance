@@ -1,4 +1,7 @@
-"""Strict immutable base and deterministic scalar identities."""
+"""Strict immutable base and deterministic scalar identities.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 

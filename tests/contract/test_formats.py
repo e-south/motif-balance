@@ -41,6 +41,12 @@ letter-probability matrix: alength= 4 w= 2 nsites= 4 E= 0
     assert first.source_name == "pair.meme"
     assert first.model_digest != second.model_digest
 
+    with pytest.raises(InvalidMotif, match="multiple motifs"):
+        read_motif(source)
+    source.write_text(source.read_text().replace("MOTIF motif_b", "MOTIF motif_a"))
+    with pytest.raises(InvalidMotif, match="duplicate motif identifiers"):
+        read_motif(source, motif_id="motif_a")
+
 
 def test_read_motif_refuses_zero_probability_without_explicit_conversion(tmp_path: Path) -> None:
     source = tmp_path / "invalid.yaml"

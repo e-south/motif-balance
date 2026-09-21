@@ -1,3 +1,8 @@
+"""Verify saved results and present the requested text, JSON, HTML, or SVG view.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from pathlib import Path

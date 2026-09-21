@@ -1,4 +1,7 @@
-"""Bounded descriptor-pinned bundle reads and inventory closure."""
+"""Bounded descriptor-pinned bundle reads and inventory closure.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -15,7 +18,6 @@ from motif_balance.constants import (
 from motif_balance.errors import ArtifactError
 from motif_balance.model import (
     PortfolioRecord,
-    RunManifest,
 )
 
 from .decoding import _json_object, _parse_manifest, _read_candidates, _read_spec
@@ -29,20 +31,7 @@ _CANONICAL_FILES = {
     "manifest.json",
 }
 _DERIVED_FILES = {"candidates.fasta"}
-_V3_FILES = _CANONICAL_FILES | _DERIVED_FILES
-_V4_FILES = _V3_FILES
-_V5_FILES = _V4_FILES
-_V2_FILES = _V3_FILES | {"report.html"}
-
-
-def _schema_files(manifest: RunManifest) -> set[str]:
-    if manifest.schema_version == "run-manifest/v2":
-        return _V2_FILES
-    if manifest.schema_version == "run-manifest/v3":
-        return _V3_FILES
-    if manifest.schema_version == "run-manifest/v4":
-        return _V4_FILES
-    return _V5_FILES
+_BUNDLE_FILES = _CANONICAL_FILES | _DERIVED_FILES
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,14 +146,14 @@ def read_bundle_snapshot(directory: str | Path) -> BundleSnapshot:
         )
         manifest_payload = _json_object(canonical_manifest, label="manifest.json")
         if (
-            manifest_payload.get("schema_version") != "run-manifest/v6"
+            manifest_payload.get("schema_version") != "run-manifest/v7"
             and len(canonical_manifest) > MAX_INPUT_BYTES
         ):
             raise ArtifactError(
                 f"bundle member 'manifest.json' exceeds the {MAX_INPUT_BYTES}-byte limit"
             )
         manifest = _parse_manifest(manifest_payload)
-        expected_files = _schema_files(manifest)
+        expected_files = _BUNDLE_FILES
         if files != expected_files:
             missing = sorted(expected_files - files)
             extra = sorted(files - expected_files)

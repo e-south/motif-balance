@@ -1,3 +1,8 @@
+"""Read motif probabilities and convert JASPAR counts with recorded preparation rules.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -45,6 +50,15 @@ def _read_meme(text: str, *, requested_id: str | None) -> dict[str, Any]:
     motif_matches = list(re.finditer(r"^MOTIF\s+(\S+).*$", text, flags=re.MULTILINE))
     if not motif_matches:
         raise InvalidMotif("MEME file contains no MOTIF record.")
+    identifiers = [match.group(1) for match in motif_matches]
+    if len(set(identifiers)) != len(identifiers):
+        raise InvalidMotif("MEME file contains duplicate motif identifiers.")
+    if requested_id is None and len(motif_matches) > 1:
+        raise InvalidMotif(
+            "MEME file contains multiple motifs; select one with motif_id.",
+            field="motif_id",
+            hint="Pass the exact identifier following MOTIF in the source file.",
+        )
     selected = None
     for index, match in enumerate(motif_matches):
         motif_id = match.group(1)
@@ -116,8 +130,7 @@ def _read_motif_snapshot(
         if "schema_version" not in payload:
             raise InvalidMotif(
                 f"Structured motif file '{source.name}' must declare schema_version explicitly; "
-                "use 'motif-model/v1' for historical scoring or 'motif-model/v2' for "
-                "relative PWM attainment."
+                "use 'motif-model/v2' for relative PWM attainment."
             )
         if motif_id is not None:
             existing = payload.get("motif_id")

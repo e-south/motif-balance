@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from motif_balance import DesignSpec, MotifModel
+from motif_balance import DesignSpec, MotifModel, MotifSpecification
 from motif_balance.compile import compile_design
 
 
@@ -15,7 +15,9 @@ def _motif(motif_id: str, preferred: tuple[float, float, float, float]) -> Motif
 def _problem_id(*motifs: MotifModel) -> str:
     return compile_design(
         DesignSpec(
-            motifs=motifs,
+            specifications=tuple(
+                MotifSpecification(motif=motif, direction="seek") for motif in motifs
+            ),
             length=2,
             count=1,
             strands="both",
@@ -42,7 +44,10 @@ def test_distinct_motif_identities_may_share_one_scoring_model() -> None:
 
     problem = compile_design(
         DesignSpec(
-            motifs=(first, second),
+            specifications=(
+                MotifSpecification(motif=first, direction="seek"),
+                MotifSpecification(motif=second, direction="seek"),
+            ),
             length=2,
             count=1,
             strands="both",

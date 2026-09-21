@@ -1,22 +1,19 @@
 ---
 doc_id: motif-balance-score-sequences
 title: Score an existing sequence
-intent: Evaluate one caller-supplied sequence through the authoritative public score operation.
-audience:
-  - API consumers
-  - users
+intent: Evaluate one caller-supplied sequence through the shared sequence-scoring operation.
+audience: [API consumers, users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-09
+last_verified: 2026-09-20
 doc_type: how-to
-journey:
-  - score
+journey: [score]
+
 ---
 
 # Score an existing sequence
 
-Use the CLI when you already have a sequence and need the same matching and
-score semantics used by design:
+Use the CLI when you already have a sequence and need the same best-match scoring used during design:
 
 ```bash
 motif-balance score examples/synthetic-pairwise/design.yaml AT
@@ -49,9 +46,8 @@ portfolio. The saved request's count, seed, search budget and minimum portfolio
 distance do not affect its score. Even a count larger than the complete sequence
 space does not prevent scoring; `design` still rejects that impossible request.
 The `DesignSpec` must satisfy its schema and resource limits, every motif must
-fit, and the supplied DNA must match the declared length and alphabet. Hard
-avoidance constraints, when explicitly present in a v2 request, are still
-evaluated and reported; they are not removed with the portfolio-count check.
+fit, and the supplied DNA must match the declared length and alphabet. Only the current directional request is accepted; `avoid` contributes one minus
+the strongest motif match to the balance objective.
 
 `--out` requires a new file in an existing writable directory. An occupied path
 is rejected before evaluation, including a dangling symlink. Publication also

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from motif_balance import DesignSpec, MotifModel, design
+from motif_balance import DesignSpec, MotifModel, MotifSpecification, design
 
 
 def test_seeded_partial_search_is_repeatable() -> None:
@@ -17,7 +17,7 @@ def test_seeded_partial_search_is_repeatable() -> None:
         ),
     )
     spec = DesignSpec(
-        motifs=motifs,
+        specifications=tuple(MotifSpecification(motif=motif, direction="seek") for motif in motifs),
         length=8,
         count=4,
         strands="both",

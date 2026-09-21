@@ -115,8 +115,10 @@ def test_unselected_proposal_updates_incumbent_and_exact_target_hit() -> None:
         seed=19,
     )
     problem = compile_design(spec)
-    observer = SearchRecorder(spec, ObservationSpec(max_snapshots=2, score_targets=(1.0,)))
-    ledger = _SearchLedger(budget=5, directional=True, observer=observer)
+    observer = SearchRecorder(
+        spec, ObservationSpec(max_snapshots=2, score_targets=(1.0,), incumbent_evaluations=(4,))
+    )
+    ledger = _SearchLedger(budget=5, observer=observer)
     current = evaluate("T", problem)
     ledger.record(current)
     observer.snapshot(1, ledger.best_evaluation, (current,), force=True)
@@ -141,6 +143,9 @@ def test_unselected_proposal_updates_incumbent_and_exact_target_hit() -> None:
     frame = observer.frames[-1]
     assert frame.incumbent.sequence == "G" and frame.incumbent.balance_score == 1.0
     assert frame.states[0].evaluation == selected
+    observed = observer.finish(engine="controlled", engine_version="test", evaluation_count=5)
+    assert observed.incumbents[0].evaluations == 4
+    assert observed.incumbents[0].incumbent == frame.incumbent
 
 
 def test_observation_refuses_unknown_fields_and_invalid_limits() -> None:

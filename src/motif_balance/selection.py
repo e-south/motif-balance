@@ -1,4 +1,12 @@
+"""Select unchanged evaluated sequences under explicit count and separation constraints.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
+
+from dataclasses import dataclass
+from math import fsum
 
 from motif_balance.errors import (
     ArtifactError,
@@ -9,6 +17,70 @@ from motif_balance.errors import (
 from motif_balance.model import Candidate, Evaluation, candidate_id_for_sequence
 
 SELECTION_NODE_LIMIT = 1_000_000
+
+
+@dataclass(frozen=True, slots=True)
+class _SubsetResult:
+    indices: tuple[int, ...]
+    work_used: int
+    complete: bool
+
+
+def _bottleneck_subset(
+    ranked: tuple[Evaluation, ...],
+    forward_edges: tuple[int, ...],
+    *,
+    count: int,
+    work_limit: int,
+) -> _SubsetResult:
+    """Bounded clique search on an admitted, quality-ordered finite pool.
+
+    The caller supplies only edges satisfying all hard constraints, with bits
+    pointing to later ranked indices. Rank by minimum quality, then total
+    quality, then the lexical sorted sequence tuple. Bounds ignore conflicts
+    and so can only overestimate what an unfinished branch could deliver.
+    Each popped state is one work unit, including pruned and terminal states.
+    This operation never scores, edits, or treats the pool as the sequence space.
+    """
+    best: tuple[int, ...] = ()
+    best_key: tuple[float, float, tuple[str, ...]] | None = None
+    stack: list[tuple[tuple[int, ...], int]] = [((), (1 << len(ranked)) - 1)]
+    work = 0
+    while stack and work < work_limit:
+        selected, available = stack.pop()
+        work += 1
+        needed = count - len(selected)
+        if not needed:
+            key = (
+                -min(ranked[i].balance_score for i in selected),
+                -fsum(ranked[i].balance_score for i in selected),
+                tuple(sorted(ranked[i].sequence for i in selected)),
+            )
+            if best_key is None or key < best_key:
+                best, best_key = selected, key
+            continue
+        if available.bit_count() < needed:
+            continue
+        if best_key is not None:
+            optimistic = list(selected)
+            remaining = available
+            for _ in range(needed):
+                bit = remaining & -remaining
+                optimistic.append(bit.bit_length() - 1)
+                remaining ^= bit
+            bound = (
+                -min(ranked[i].balance_score for i in optimistic),
+                -fsum(ranked[i].balance_score for i in optimistic),
+            )
+            if bound > best_key[:2]:
+                continue
+        bit = available & -available
+        index = bit.bit_length() - 1
+        remaining = available ^ bit
+        if remaining.bit_count() >= needed:
+            stack.append((selected, remaining))
+        stack.append(((*selected, index), remaining & forward_edges[index]))
+    return _SubsetResult(best, work, not stack)
 
 
 def normalized_hamming_distance(left: str, right: str) -> float:
@@ -118,10 +190,6 @@ def select_candidates(
             sequence=evaluation.sequence,
             balance_score=evaluation.balance_score,
             matches=evaluation.matches,
-            avoidance_matches=evaluation.avoidance_matches,
-            constraint_status=evaluation.constraint_status,
-            max_avoidance_excess=evaluation.max_avoidance_excess,
-            total_avoidance_excess=evaluation.total_avoidance_excess,
         )
         for rank, evaluation in enumerate(selected, start=1)
     )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,8 @@ def _evaluation(sequence: str, score: float) -> Evaluation:
         strand="+",
         matched_sequence=sequence[0],
         raw_score=score,
+        spec_direction="seek",
+        spec_satisfaction=score,
         normalized_score=score,
     )
     return Evaluation(sequence=sequence, balance_score=score, matches=(match,))
@@ -51,6 +54,12 @@ def test_public_exports_are_deliberate_and_bounded() -> None:
         "inspect_candidate",
         "inspect_result",
     ]
+
+
+@pytest.mark.parametrize("module", ("observation", "admissibility"))
+def test_retired_contract_modules_are_not_shipped(module: str) -> None:
+    """Historical exports belong to their original build, not a current adapter."""
+    assert importlib.util.find_spec(f"motif_balance.{module}") is None
 
 
 @pytest.mark.parametrize(

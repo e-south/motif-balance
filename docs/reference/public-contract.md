@@ -1,16 +1,14 @@
 ---
 doc_id: motif-balance-public-contract
 title: Motif Balance public contract
-intent: Define the supported scientific API, ordinary CLI, and artifact seam.
-audience:
-  - API consumers
-  - integrators
+intent: Define the supported scientific API, ordinary CLI, and artifact formats.
+audience: [API consumers, integrators]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-08
+last_verified: 2026-09-20
 doc_type: reference
-journey:
-  - integrate
+journey: [integrate]
+
 ---
 
 # Motif Balance public contract
@@ -20,7 +18,8 @@ journey:
 For a runnable first task, start with the [Python tutorial](../python-api.md).
 This page is the interface reference, not an installation walkthrough.
 
-The top-level facade has six nouns and two verbs:
+The main Python interface provides the input and result models, plus design
+and scoring functions:
 
 ```python
 from motif_balance import (
@@ -49,8 +48,7 @@ eight independently initialized uniform DNA starts instead of the default
 `"related"` starts. `design_observed` accepts the same keyword. This Python
 method option does not change the scoring problem, moves, cooling schedule,
 selection, or evaluator budget. It changes the recorded search-engine identity
-and therefore the run identity. Unknown options fail; v1/v2 requests refuse
-independent initialization. Complete enumeration takes precedence for annealed
+and therefore the run identity. Unknown options and retired request schemas fail validation. Complete enumeration takes precedence for annealed
 and greedy methods and does not use either initialization policy. The ordinary
 CLI uses the default method.
 
@@ -78,7 +76,7 @@ from motif_balance.inspection import (
 `inspect_candidate(candidate, spec)` replays one supplied directional candidate
 without inventing a result or checking its caller-assigned rank. The latter
 returns numeric support and uses the same candidate SVG renderer; it performs
-no search or file access. It is unreleased and has no separate CLI command.
+no search or file access. It has no separate CLI command.
 See [inspection](result-inspection.md#inspect-a-supplied-candidate) for its
 input, replay, provenance and rendering boundaries.
 
@@ -89,62 +87,88 @@ scientific facade and may evolve with their versioned artifact schemas.
 The optional [claim-language check](claim-language.md) flags a bounded set of
 wording hazards. It does not assess evidence or decide whether a claim is valid.
 
-The explicit `motif_balance.assessment` seam exports `assess_pair` and
-`PairAssessment`. It calculates a bounded, length-aware seek-pair conflict
-profile from two current motif models, without sequence search or publication.
+The explicit `motif_balance.assessment` module exports `assess_motifs`/`JointAssessment` for bounded two-to-four-model
+exact joint arrangements, alongside `assess_pair` and
+`PairAssessment`. The pair operation returns every relative arrangement; the joint operation
+returns the best joint arrangement. Both calculate shared-base preference loss
+without searching candidate sequences.
 See [pair assessment](../pair-assessment.md) for the runnable example, independent
 formula identity, output fields, equivalence rules, and typed refusal conditions.
 It does not change `score`, `design`, or the top-level facade.
 
 The explicit `motif_balance.alternatives.rank_architectures(sequences, spec)`
 operation scores an explicit pool and returns an immutable
-`architecture-ranking/v2` profile with explicit distance-budget accounting.
+`architecture-ranking/v4` profile with explicit distance-budget accounting.
 Its `select(count)` returns unchanged
 evaluations for an exact quality-ranked architecture prefix or fails; it does
 not search, publish a bundle, or enforce the portfolio's distance constraint.
 See [choose alternatives](../choose-alternatives.md) for the executable example,
 equivalence rules, separate distances, resource admission, and replay boundary.
+The explicit `grouping` is `exact_offsets` (the preserved Python default) or
+`interval_topology` (labeled endpoint order/equality and strand). The latter
+groups spacing variants while preserving exact coordinates for inspection.
+`select_up_to(count)` returns an `architecture-collection/v1` with explicit
+partial delivery and weakest delivered quality. It does not turn partial
+delivery into fulfillment of an exact-count request.
 The same submodule's `measure_prefixes(ranking, order)` measures a complete
 explicit representative order without editing or rescoring candidates. The
 original order reuses its profile; another order incurs one bounded distance
-pass. These unreleased operations add no top-level facade verb or CLI command.
+pass. The corresponding `collect` CLI uses interval topology; advanced prefix
+measurement remains a Python operation.
+
+For a full set satisfying explicit separation and architecture requirements,
+use `motif_balance.alternatives.select_portfolio(sequences, spec, policy)` and
+`verify_portfolio_selection(result, sequences)`. The current
+[portfolio contract](portfolio-selection.md) returns bottleneck quality and
+finite-pool proof status without changing the original generation request.
+It retains same-architecture variants until constrained selection. Neither
+ranked prefixes nor supplied scores are accepted as an implicit substitute.
+This operation is available through Python.
 
 ## Command line
 
-The ordinary command help exposes four journeys:
+The command line supports these tasks:
 
 ```text
 assess   inspect a seek pair's length-dependent conflicts before search
 design   validate or execute a DesignSpec
+collect  select up to a requested number of architectures from retained elites
 score    evaluate one supplied sequence
 inspect  verify and review one immutable result
+motif    prepare a motif model from an explicit source
+animate  render recorded sequence states and best-score checkpoints
 ```
 
 `assess LEFT RIGHT --length N` reads two explicit canonical YAML/JSON
 `motif-model/v2` files. It emits a summary or the full `PairAssessment` JSON;
-`--out` writes only a new file. It does not accept a DesignSpec, search seed,
-avoidance direction, or multi-model database. The [assessment guide](../pair-assessment.md)
-owns its unreleased status, runnable example, formula, and interpretation.
+`--out` writes only a new file. Use `--additional` for a third or fourth desired motif; joint assessment
+supports text and JSON. It does not accept a DesignSpec, search seed,
+avoidance direction or multi-model database. The [assessment guide](../pair-assessment.md)
+owns its runnable example, formula and interpretation.
 
 `inspect` automatically verifies bytes, schemas, identities, and score replay.
 It emits text by default and can export inspection JSON or one candidate,
 portfolio, or search-record SVG. HTML is the optional linear composition of
 those same renderers.
 
-Advanced integration commands are intentionally hidden from ordinary help:
+Motif preparation is available in ordinary help. Exact-wheel execution is an
+advanced integration command:
 
 ```text
-motif-balance motif prepare ...
 motif-balance orchestration execute ...
 ```
 
 Motif preparation converts one explicitly supplied supported source. It does
 not discover or fetch databases. Orchestration binds an execution to an exact
-wheel and producer revision. Neither operation adds a new scientific verb.
+wheel and producer revision. Both operate on explicitly supplied files.
+
+[Playback](playback.md) replays an explicit search observation and exports HTML,
+SVG or optional media. It reports recorded states without interpolating missing
+search events.
 
 ## Artifacts
 
-The immutable result seam is:
+A result bundle contains:
 
 ```text
 design.json
@@ -157,7 +181,7 @@ candidates.fasta  # derived, manifest-bound
 
 The manifest binds every other member by relative path, size, and SHA-256.
 Verification recompiles the problem and replays each published candidate's
-matches, directional satisfaction, constraint state where applicable, and
+matches, directional satisfaction, and
 hard-minimum score. Directional manifests also replay every retained elite and
 bind exact-completion counts or an explicit bounded-run status. Current
 manifests bind the complete best observed evaluation even when it is excluded
@@ -165,34 +189,21 @@ from the distance-constrained selected portfolio. Verification does not rerun
 search. Text, inspection JSON, SVG, and HTML are regenerable projections outside
 the bundle.
 
-Version `0.5` reads `run-manifest/v2` through `run-manifest/v6`. A v3
-directional input writes v6; an explicit legacy v2 input still writes v5. New
-bundle projections use `motif-balance.result-inspection/v4`; supplied-candidate
-projections use `motif-balance.candidate-inspection/v1`. Unknown schemas fail
-closed. V1 remains readable and scoreable but cannot initiate a new design
-publication. A workflow that
+The reader and writer use only `run-manifest/v7` for directional v3 inputs. New
+bundle projections use `motif-balance.result-inspection/v5`; supplied-candidate
+projections use `motif-balance.candidate-inspection/v2`. Unknown schemas fail
+closed. Retired scoring and artifact formats are not converted; historical
+records require their original software. A workflow that
 needs exact runtime identity retains the complete
 `motif-balance.execution-workspace/v1` with its wheel and external trust
 anchors.
 
-Package verification establishes product integrity. It does not accept a
-scientific claim, define a benchmark cohort, or confer manuscript status.
+Verification checks the saved computational result. Biological interpretation
+and comparisons across runs require the corresponding experimental evidence.
 
-Legacy v2 downstream analyses that require the complete unique evaluated pool may use
-the deliberately advanced `motif_balance.observation` submodule. Its single
-bounded JSON record is immutable, canonical, path-free, identity-checked, and
-scientifically replayed. The observer admits at most 32,768 evaluator calls
-and independently limits the encoded record to 64 MiB. Directional v3 runs
-refuse this complete-pool export and instead retain a deterministic score-ranked
-reservoir of at most 256 unique evaluations in the manifest. It is not a
-`Portfolio`, canonical bundle member, CLI journey, or top-level export.
-
-An analysis that needs both outputs from one declared evaluator budget may use
-`motif_balance.observation.design_with_evaluated_pool(spec)`. It returns the
-ordinary immutable `Portfolio` and complete observation derived from the same
-search result. It adds no top-level symbol or CLI command.
-
-Directional runs may instead request [bounded search observations](search-observations.md).
+Directional runs may request [bounded search observations](search-observations.md)
+from the same search as the returned portfolio. No complete-pool compatibility
+module is shipped; historical observations require their original producing build.
 These retain separate chain snapshots, exact first-hit counts, and move-change
 counts without changing the canonical portfolio. They are not a complete pool
 or a replacement for the manifest's elite reservoir.

@@ -1,3 +1,8 @@
+"""Prepare motif models and run designs with explicit software provenance.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from pathlib import Path

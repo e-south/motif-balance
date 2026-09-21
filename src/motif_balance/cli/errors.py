@@ -1,3 +1,8 @@
+"""Translate validation and domain failures into concise command-line errors.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from typing import NoReturn

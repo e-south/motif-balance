@@ -63,18 +63,10 @@ def test_observation_replay_refuses_a_relabeled_method():
 
 
 def test_independent_initialization_requires_directional_inputs():
-    from motif_balance import DesignSpec
     from motif_balance.errors import IncompatibleDesign
 
-    directional = _spec()
-    spec = DesignSpec(
-        motifs=tuple(s.motif for s in directional.specifications),
-        length=7,
-        evaluations=127,
-        count=1,
-        seed=directional.seed,
-    )
-    with pytest.raises(IncompatibleDesign, match="directional"):
+    spec = _spec().model_copy(update={"schema_version": "design-spec/v2"})
+    with pytest.raises(IncompatibleDesign, match=r"[Uu]nsupported"):
         design(spec, initialization="independent")
 
 

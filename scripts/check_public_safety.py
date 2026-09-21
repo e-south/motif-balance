@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import tomllib
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -31,7 +32,7 @@ def candidate_paths() -> list[Path]:
 
 
 def main() -> int:
-    """Check content and the explicit package publication brake."""
+    """Check public content and keep release building separate from PyPI upload."""
     errors: list[str] = []
     for path in candidate_paths():
         if path.is_symlink():
@@ -47,10 +48,11 @@ def main() -> int:
             if pattern.search(text):
                 errors.append(f"{path.relative_to(REPO_ROOT)}: contains {label}")
 
-    project_text = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    brake = "Private :: Do Not Upload"
-    if brake not in project_text:
-        errors.append("pyproject.toml: missing private publication brake")
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["project"]
+    if project["name"] != "motif-balance" or "Private :: Do Not Upload" in project.get(
+        "classifiers", []
+    ):
+        errors.append("pyproject.toml: public distribution metadata is inconsistent")
 
     release_path = REPO_ROOT / ".github" / "workflows" / "release.yaml"
     if release_path.exists():

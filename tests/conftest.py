@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from motif_balance import DesignSpec, MotifModel
+from motif_balance import DesignSpec, MotifModel, MotifSpecification
 
 
 @pytest.fixture
@@ -26,7 +26,10 @@ def motif_b() -> MotifModel:
 @pytest.fixture
 def pairwise_spec(motif_a: MotifModel, motif_b: MotifModel) -> DesignSpec:
     return DesignSpec(
-        motifs={"motif_a": motif_a, "motif_b": motif_b},
+        specifications=(
+            MotifSpecification(motif=motif_a, direction="seek"),
+            MotifSpecification(motif=motif_b, direction="seek"),
+        ),
         length=4,
         count=3,
         strands="both",

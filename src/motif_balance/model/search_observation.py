@@ -1,4 +1,7 @@
-"""Bounded, opt-in observations of an unchanged directional search."""
+"""Bounded, opt-in observations of an unchanged directional search.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -12,6 +15,7 @@ from .evaluation import Evaluation
 
 UnitScore = Annotated[float, Field(strict=True, ge=0.0, le=1.0, allow_inf_nan=False)]
 Count = Annotated[int, Field(strict=True, ge=0)]
+EvaluationCount = Annotated[int, Field(strict=True, gt=0)]
 
 
 class ObservationSpec(FrozenModel):
@@ -19,8 +23,9 @@ class ObservationSpec(FrozenModel):
 
     max_snapshots: Annotated[int, Field(strict=True, ge=2, le=256)] = 32
     score_targets: Annotated[tuple[UnitScore, ...], Field(max_length=32)] = ()
+    incumbent_evaluations: Annotated[tuple[EvaluationCount, ...], Field(max_length=32)] = ()
     quality_thresholds: Annotated[tuple[UnitScore, ...], Field(max_length=16)] = ()
-    max_sequences_per_threshold: Annotated[int, Field(strict=True, ge=1, le=256)] = 64
+    max_sequences_per_threshold: Annotated[int, Field(strict=True, ge=1, le=1024)] = 64
 
     @model_validator(mode="after")
     def validate_targets(self) -> Self:
@@ -28,6 +33,8 @@ class ObservationSpec(FrozenModel):
             raise ValueError("score targets must be unique and increasing")
         if tuple(sorted(set(self.quality_thresholds))) != self.quality_thresholds:
             raise ValueError("quality thresholds must be unique and increasing")
+        if tuple(sorted(set(self.incumbent_evaluations))) != self.incumbent_evaluations:
+            raise ValueError("incumbent evaluation counts must be unique and increasing")
         return self
 
 
@@ -60,6 +67,13 @@ class TargetHit(FrozenModel):
     first_evaluation: Annotated[int, Field(strict=True, gt=0)] | None
 
 
+class IncumbentCheckpoint(FrozenModel):
+    """Best evaluation at a requested call; null if the search ended before that call."""
+
+    evaluations: EvaluationCount
+    incumbent: Evaluation | None
+
+
 class ObservedMoveCounts(FrozenModel):
     move: Literal["single", "block", "multi", "insertion"]
     attempted: Count
@@ -81,7 +95,7 @@ class QualitySample(FrozenModel):
     threshold: UnitScore
     qualifying_evaluations: Count
     unique_sequences: Count
-    evaluations: Annotated[tuple[Evaluation, ...], Field(max_length=256)]
+    evaluations: Annotated[tuple[Evaluation, ...], Field(max_length=1024)]
 
     @model_validator(mode="after")
     def validate_sample(self) -> Self:
@@ -95,7 +109,7 @@ class QualitySample(FrozenModel):
 
 
 class SearchObservation(FrozenModel):
-    schema_version: Literal["search-observation/v2"] = "search-observation/v2"
+    schema_version: Literal["search-observation/v4"] = "search-observation/v4"
     spec: DesignSpec
     observation_spec: ObservationSpec
     engine: str
@@ -103,6 +117,7 @@ class SearchObservation(FrozenModel):
     evaluation_count: Annotated[int, Field(strict=True, gt=0)]
     snapshots: Annotated[tuple[SearchSnapshot, ...], Field(min_length=1, max_length=256)]
     target_hits: Annotated[tuple[TargetHit, ...], Field(max_length=32)]
+    incumbents: Annotated[tuple[IncumbentCheckpoint, ...], Field(max_length=32)]
     moves: Annotated[tuple[ObservedMoveCounts, ...], Field(max_length=4)]
     quality_samples: Annotated[tuple[QualitySample, ...], Field(max_length=16)]
 
@@ -110,6 +125,8 @@ class SearchObservation(FrozenModel):
     def validate_observation(self) -> Self:
         if self.spec.schema_version != "design-spec/v3":
             raise ValueError("search observations require directional design-spec/v3")
+        if self.evaluation_count > self.spec.evaluations:
+            raise ValueError("observation evaluation count exceeds the requested budget")
         if len(self.snapshots) > self.observation_spec.max_snapshots:
             raise ValueError("observation exceeds its snapshot limit")
         if self.snapshots[-1].evaluations != self.evaluation_count:
@@ -158,4 +175,29 @@ class SearchObservation(FrozenModel):
                 raise ValueError("quality sample sequence length does not match the design")
             previous_qualifying = sample.qualifying_evaluations
             previous_unique = sample.unique_sequences
+        return self
+
+    @model_validator(mode="after")
+    def validate_incumbents(self) -> Self:
+        requested = self.observation_spec.incumbent_evaluations
+        if any(count > self.spec.evaluations for count in requested):
+            raise ValueError("incumbent evaluation count exceeds the requested budget")
+        if tuple(row.evaluations for row in self.incumbents) != requested:
+            raise ValueError("incumbent checkpoints must match declared evaluation counts")
+        observed = {frame.evaluations: frame.incumbent for frame in self.snapshots}
+        for row in self.incumbents:
+            if (row.incumbent is None) != (row.evaluations > self.evaluation_count):
+                raise ValueError("incumbent must be present exactly when its call was reached")
+            if row.incumbent is None:
+                continue
+            if len(row.incumbent.sequence) != self.spec.length:
+                raise ValueError("incumbent sequence length does not match the design")
+            if any(match.spec_direction is None for match in row.incumbent.matches):
+                raise ValueError("incumbent checkpoints require directional evaluations")
+            if row.evaluations in observed and observed[row.evaluations] != row.incumbent:
+                raise ValueError("incumbent checkpoint contradicts the same-count snapshot")
+            observed[row.evaluations] = row.incumbent
+        scores = [observed[count].balance_score for count in sorted(observed)]
+        if scores != sorted(scores):
+            raise ValueError("incumbent scores cannot decrease between recorded observations")
         return self

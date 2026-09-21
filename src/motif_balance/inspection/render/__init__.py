@@ -1,3 +1,8 @@
+"""Expose text, JSON, HTML, and SVG renderers for validated inspection records.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from .assessment import render_pair_assessment_svg
 from .candidate import render_candidate_svg
 from .html import render_html

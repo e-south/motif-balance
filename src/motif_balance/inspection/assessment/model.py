@@ -1,4 +1,7 @@
-"""Path-free column evidence for one pre-search arrangement; never a candidate."""
+"""Path-free column evidence for one pre-search arrangement; never a candidate.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 

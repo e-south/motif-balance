@@ -4,18 +4,18 @@ build-backend = "hatchling.build"
 
 [project]
 name = "motif-balance"
-version = "0.5.0a2"
-description = "Deterministic inverse design for balancing explicit DNA motif models"
+version = "0.6.0a1"
+description = "Design compact DNA that balances supplied motif sequence preferences"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "Motif Balance contributors" }]
+authors = [{ name = "Eric J. South" }]
+maintainers = [{ name = "Eric J. South, Dunlop Lab" }]
+keywords = ["DNA design", "sequence motifs", "synthetic biology", "bioinformatics"]
 classifiers = [
-  "Private :: Do Not Upload",
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: MacOS",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
@@ -28,8 +28,21 @@ dependencies = [
   "numpy>=2.2,<3",
   "pydantic>=2.11,<3",
   "pyyaml>=6.0.2,<7",
-  "typer>=0.16,<1",
+  "typer>=0.19,<1",
 ]
+
+[project.optional-dependencies]
+visualization = [
+  "resvg-py>=0.5,<0.6",
+  "pillow>=11,<13",
+  "imageio-ffmpeg>=0.6,<1",
+]
+
+[project.urls]
+Homepage = "https://github.com/e-south/motif-balance"
+Documentation = "https://github.com/e-south/motif-balance/blob/main/docs/README.md"
+Repository = "https://github.com/e-south/motif-balance"
+Issues = "https://github.com/e-south/motif-balance/issues"
 
 [project.scripts]
 motif-balance = "motif_balance.cli:app"

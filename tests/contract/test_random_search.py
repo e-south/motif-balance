@@ -95,23 +95,16 @@ def test_random_relabeling_fails_observation_replay():
 
 def test_random_refuses_legacy_before_any_evaluation(monkeypatch):
     import motif_balance.search.uniform
-    from motif_balance import DesignSpec
     from motif_balance.errors import IncompatibleDesign
 
     directional = _spec()
-    legacy = DesignSpec(
-        motifs=tuple(s.motif for s in directional.specifications),
-        length=7,
-        count=1,
-        evaluations=31,
-        seed=7,
-    )
+    legacy = directional.model_copy(update={"schema_version": "design-spec/v2"})
     monkeypatch.setattr(
         motif_balance.search.uniform,
         "evaluate",
         lambda *_: pytest.fail("legacy request was evaluated"),
     )
-    with pytest.raises(IncompatibleDesign, match="directional"):
+    with pytest.raises(IncompatibleDesign, match=r"[Uu]nsupported"):
         design(legacy, method="random")
 
 

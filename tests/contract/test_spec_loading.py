@@ -20,9 +20,10 @@ background: [0.25, 0.25, 0.25, 0.25]
     )
     design_path = tmp_path / "design.yaml"
     design_path.write_text(
-        """schema_version: design-spec/v2
-motifs:
-  fixture: motif.yaml
+        """schema_version: design-spec/v3
+specifications:
+  - motif: motif.yaml
+    direction: seek
 length: 1
 count: 1
 evaluations: 1
@@ -31,10 +32,10 @@ seed: 0
     )
 
     spec = load_design_spec(design_path)
-    assert spec.motifs[0].source_name == "motif.yaml"
+    assert spec.scored_motifs[0].source_name == "motif.yaml"
 
 
-def test_load_spec_resolves_contained_avoider_file_and_ceiling(tmp_path: Path) -> None:
+def test_load_spec_resolves_contained_directional_avoid_model(tmp_path: Path) -> None:
     for name, motif_id, row in (
         ("target.yaml", "target", "[0.7, 0.1, 0.1, 0.1]"),
         ("avoider.yaml", "avoider", "[0.1, 0.7, 0.1, 0.1]"),
@@ -45,19 +46,16 @@ def test_load_spec_resolves_contained_avoider_file_and_ceiling(tmp_path: Path) -
         )
     design_path = tmp_path / "design.yaml"
     design_path.write_text(
-        "schema_version: design-spec/v2\n"
-        "motifs:\n  target: target.yaml\n"
-        "avoiders:\n"
-        "  avoider:\n"
-        "    motif: avoider.yaml\n"
-        "    score_ceiling: 0.2\n"
+        "schema_version: design-spec/v3\n"
+        "specifications:\n  - motif: target.yaml\n    direction: seek\n"
+        "  - motif: avoider.yaml\n    direction: avoid\n"
         "length: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
     )
 
     spec = load_design_spec(design_path)
 
-    assert spec.avoiders[0].motif.source_name == "avoider.yaml"
-    assert spec.avoiders[0].score_ceiling == 0.2
+    assert spec.specifications[0].motif.source_name == "avoider.yaml"
+    assert spec.specifications[0].direction == "avoid"
 
 
 def test_load_spec_applies_the_same_containment_boundary_to_avoiders(tmp_path: Path) -> None:
@@ -80,8 +78,9 @@ def test_load_spec_applies_the_same_containment_boundary_to_avoiders(tmp_path: P
     for index, reference in enumerate(("../private.yaml", "link.yaml")):
         design_path = root / f"avoidance-{index}.yaml"
         design_path.write_text(
-            "schema_version: design-spec/v2\nmotifs:\n  target: target.yaml\n"
-            f"avoiders:\n  avoider:\n    motif: {reference}\n    score_ceiling: 0.2\n"
+            "schema_version: design-spec/v3\n"
+            "specifications:\n  - motif: target.yaml\n    direction: seek\n"
+            f"  - motif: {reference}\n    direction: avoid\n"
             "length: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
         )
         with pytest.raises(InvalidDesign, match=r"contained|symbolic"):
@@ -93,11 +92,12 @@ def test_load_spec_applies_the_same_containment_boundary_to_avoiders(tmp_path: P
     [
         ("- not\n- a\n- mapping\n", "one mapping"),
         (
-            "schema_version: design-spec/v2\nlength: 2\ncount: 1\nevaluations: 1\nseed: 0\n",
-            "name-to-model",
+            "schema_version: design-spec/v3\nlength: 2\ncount: 1\nevaluations: 1\nseed: 0\n",
+            "nonempty list",
         ),
         (
-            "schema_version: design-spec/v2\nmotifs:\n  fixture: 4\n"
+            "schema_version: design-spec/v3\n"
+            "specifications:\n  - motif: 4\n    direction: seek\n"
             "length: 2\ncount: 1\nevaluations: 1\nseed: 0\n",
             "path or model",
         ),
@@ -119,16 +119,28 @@ def test_load_spec_reports_missing_file(tmp_path: Path) -> None:
         load_design_spec(tmp_path / "missing.yaml")
 
 
+@pytest.mark.parametrize("schema", ("design-spec/v1", "design-spec/v2", "design-spec/v999"))
+def test_unsupported_schema_fails_before_resolving_models(tmp_path: Path, schema: str) -> None:
+    path = tmp_path / "design.yaml"
+    path.write_text(
+        f"schema_version: {schema}\nspecifications:\n  - motif: missing.yaml\n    direction: seek\n"
+    )
+    with pytest.raises(InvalidDesign, match="Unsupported design schema_version"):
+        load_design_spec(path)
+
+
 def test_structured_inputs_reject_duplicate_keys(tmp_path: Path) -> None:
     design_path = tmp_path / "design.yaml"
     design_path.write_text(
-        "schema_version: design-spec/v2\n"
-        "motifs:\n"
-        "  fixture:\n"
-        "    schema_version: motif-model/v2\n"
-        "    probabilities:\n"
-        "      - [0.7, 0.1, 0.1, 0.1]\n"
-        "    background: [0.25, 0.25, 0.25, 0.25]\n"
+        "schema_version: design-spec/v3\n"
+        "specifications:\n"
+        "  - direction: seek\n"
+        "    motif:\n"
+        "      motif_id: fixture\n"
+        "      schema_version: motif-model/v2\n"
+        "      probabilities:\n"
+        "        - [0.7, 0.1, 0.1, 0.1]\n"
+        "      background: [0.25, 0.25, 0.25, 0.25]\n"
         "length: 1\n"
         "length: 2\n"
         "count: 1\n"
@@ -176,8 +188,8 @@ def test_load_spec_rejects_traversal_and_symlink_motif_references(tmp_path: Path
     for index, reference in enumerate(("../private.yaml", "link.yaml")):
         design_path = specification_root / f"design-{index}.yaml"
         design_path.write_text(
-            "schema_version: design-spec/v2\n"
-            f"motifs:\n  leaked: {reference}\nlength: 1\n"
+            "schema_version: design-spec/v3\n"
+            f"specifications:\n  - motif: {reference}\n    direction: seek\nlength: 1\n"
             "count: 1\nevaluations: 1\nseed: 0\n"
         )
         with pytest.raises(InvalidDesign, match=r"contained|symbolic"):
@@ -194,7 +206,8 @@ def test_load_spec_and_motif_loader_enforce_byte_bounds(tmp_path: Path) -> None:
     motif_path.write_bytes(b" " * 1_000_001)
     design_path = tmp_path / "design.yaml"
     design_path.write_text(
-        "schema_version: design-spec/v2\nmotifs:\n  fixture: oversized-motif.yaml\n"
+        "schema_version: design-spec/v3\n"
+        "specifications:\n  - motif: oversized-motif.yaml\n    direction: seek\n"
         "length: 1\ncount: 1\nevaluations: 1\nseed: 0\n"
     )
     with pytest.raises(InvalidDesign, match="byte limit"):
@@ -214,7 +227,8 @@ def test_serialized_design_and_motif_inputs_require_explicit_schema_versions(
 
     design_path = tmp_path / "legacy-ambiguous-design.yaml"
     design_path.write_text(
-        "motifs:\n  fixture: legacy-ambiguous.yaml\nlength: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
+        "specifications:\n  - motif: legacy-ambiguous.yaml\n    direction: seek\n"
+        "length: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
     )
     with pytest.raises(InvalidDesign, match="schema_version"):
         load_design_spec(design_path)

@@ -1,4 +1,7 @@
-"""Independent whole-sequence sampling under the shared scoring and retention contract."""
+"""Independent whole-sequence sampling under the shared scoring and retention contract.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -36,9 +39,7 @@ class UniformRandomSearchEngine:
                 hint="Use explicit seek/avoid specifications for this search method.",
             )
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
-        ledger = _SearchLedger(
-            budget=problem.spec.evaluations, directional=True, observer=self.observer
-        )
+        ledger = _SearchLedger(budget=problem.spec.evaluations, observer=self.observer)
         while ledger.evaluations_used < ledger.budget:
             state = rng.integers(0, 4, size=problem.spec.length, dtype=np.int8)
             ledger.record(evaluate(_sequence(state), problem))
@@ -51,12 +52,11 @@ class UniformRandomSearchEngine:
                 )
         evaluations = tuple(ledger.evaluations.values())
         diagnostics = SearchDiagnostics(
-            schema_version="search-diagnostics/v3",
+            schema_version="search-diagnostics/v4",
             restarts=1,
-            best_score=ledger.best_feasible_score,
+            best_score=ledger.best_score,
             checkpoints=tuple(ledger.checkpoints),
-            restart_final_scores=(ledger.best_feasible_score,),
-            restart_final_constraint_statuses=("feasible",),
+            restart_final_scores=(ledger.best_score,),
             proposals=(),
         )
         return SearchResult(

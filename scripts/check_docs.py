@@ -191,7 +191,7 @@ def main() -> int:
 
     try:
         banner = ET.parse(BANNER_PATH).getroot()
-        expected_attributes = {"width": "1280", "height": "260", "viewBox": "0 0 1280 260"}
+        expected_attributes = {"width": "1280", "height": "230", "viewBox": "0 0 1280 230"}
         for name, value in expected_attributes.items():
             if banner.get(name) != value:
                 errors.append(f"assets/motif-balance-banner.svg: invalid {name}")

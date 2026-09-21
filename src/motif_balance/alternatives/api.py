@@ -1,4 +1,7 @@
-"""Score a supplied pool once, then rank its selected-match architectures."""
+"""Score a supplied pool once, then rank its selected-match architectures.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -8,26 +11,24 @@ from motif_balance.compile import compile_scoring
 from motif_balance.constants import (
     MAX_ARCHITECTURE_DISTANCE_BASE_BUDGET,
     MAX_ARCHITECTURE_DISTANCE_PAIRS,
-    MAX_ARCHITECTURE_POOL_RECORDS,
     MAX_ARCHITECTURE_PREPARED_PAIRS,
     MAX_DISTANCE_BASE_COMPARISONS,
-    MAX_PORTFOLIO_BASES,
-    MAX_SCORE_BASE_OPERATIONS,
 )
 from motif_balance.model import DesignSpec, Evaluation
 from motif_balance.model.alternatives import (
-    ArchitectureKey,
+    ArchitectureClass,
+    ArchitectureGrouping,
     ArchitecturePrefix,
     ArchitectureRanking,
     ArchitectureRepresentative,
+    architecture_class,
     architecture_distance_work,
     architecture_key,
-    validate_architecture_spec,
 )
-from motif_balance.model.base import _sha256
-from motif_balance.scoring import evaluate, reverse_complement
+from motif_balance.scoring import evaluate
 
 from .geometry import pair_distances, prepare_distances
+from .pool import prepare_pool
 
 
 def _distance_admission(count: int, spec: DesignSpec, budget: int) -> int:
@@ -91,32 +92,11 @@ def measure_prefixes(
     return _prefixes(tuple(records[word] for word in order), both=ranking.spec.strands == "both")
 
 
-def _admit(sequences: tuple[str, ...] | list[str], spec: DesignSpec) -> tuple[str, ...]:
-    validate_architecture_spec(spec)
-    if not isinstance(sequences, (tuple, list)) or len(sequences) > MAX_ARCHITECTURE_POOL_RECORDS:
-        raise ValueError("sequence pool must be a bounded tuple or list of at most 50,000 records")
-    if len(sequences) * spec.length > MAX_PORTFOLIO_BASES:
-        raise ValueError("sequence pool exceeds the total-base limit")
-    supplied = tuple(sequences)
-    if any(
-        not isinstance(s, str) or len(s) != spec.length or set(s) - set("ACGT") for s in supplied
-    ):
-        raise ValueError("each supplied sequence must be uppercase fixed-length A/C/G/T DNA")
-    operations = len(set(supplied)) * sum(
-        (spec.length - item.motif.width + 1)
-        * item.motif.width
-        * (2 if spec.strands == "both" else 1)
-        for item in spec.specifications
-    )
-    if operations > MAX_SCORE_BASE_OPERATIONS:
-        raise ValueError("sequence pool exceeds the scoring-operation limit")
-    return supplied
-
-
 def rank_architectures(
     sequences: tuple[str, ...] | list[str],
     spec: DesignSpec,
     *,
+    grouping: ArchitectureGrouping = "exact_offsets",
     distance_base_budget: int = MAX_DISTANCE_BASE_COMPARISONS,
 ) -> ArchitectureRanking:
     """Score canonical sequence classes and expose every ranked architecture prefix.
@@ -127,21 +107,22 @@ def rank_architectures(
     An explicit distance budget changes admission only, never the measurements.
     Independent pair-count and preparation caps apply even at the maximum budget.
     """
+    if grouping not in ("exact_offsets", "interval_topology"):
+        raise ValueError("grouping must be exact_offsets or interval_topology")
     if (
         type(distance_base_budget) is not int
         or not 1 <= distance_base_budget <= MAX_ARCHITECTURE_DISTANCE_BASE_BUDGET
     ):
         raise ValueError("architecture distance budget must be an integer in [1, 500000000]")
-    sequences = _admit(sequences, spec)
+    pool = prepare_pool(sequences, spec)
     both = spec.strands == "both"
-    literals = set(sequences)
-    canonical = sorted({min(s, reverse_complement(s)) if both else s for s in literals})
+    canonical = pool.canonical_sequences
     problem = compile_scoring(spec)
-    best: dict[ArchitectureKey, Evaluation] = {}
-    counts: Counter[ArchitectureKey] = Counter()
+    best: dict[ArchitectureClass, Evaluation] = {}
+    counts: Counter[ArchitectureClass] = Counter()
     for sequence in canonical:
         evaluation = evaluate(sequence, problem)
-        geometry = architecture_key(evaluation, both=both)
+        geometry = architecture_class(evaluation, both=both, grouping=grouping)
         counts[geometry] += 1
         prior = best.get(geometry)
         if prior is None or (-evaluation.balance_score, sequence) < (
@@ -159,15 +140,17 @@ def rank_architectures(
             ArchitectureRepresentative(
                 rank=count,
                 evaluation=evaluation,
-                geometry=geometry,
+                geometry=architecture_key(evaluation, both=both),
+                architecture_class=geometry,
                 sequence_classes=counts[geometry],
             )
         )
     return ArchitectureRanking(
+        grouping=grouping,
         spec=spec,
-        pool_digest=_sha256(sorted(sequences)),
-        input_records=len(sequences),
-        literal_sequences=len(literals),
+        pool_digest=pool.digest,
+        input_records=len(pool.sequences),
+        literal_sequences=pool.literal_count,
         sequence_classes=len(canonical),
         scoring_evaluations=len(canonical),
         distance_base_budget=distance_base_budget,

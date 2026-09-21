@@ -1,3 +1,8 @@
+"""Write review outputs without overwriting existing files or result bundles.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import os

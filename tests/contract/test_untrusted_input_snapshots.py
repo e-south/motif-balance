@@ -16,7 +16,7 @@ probabilities:
   - [0.7, 0.1, 0.1, 0.1]
 background: [0.25, 0.25, 0.25, 0.25]
 """
-_DESIGN = b"""schema_version: design-spec/v2
+_DESIGN = b"""schema_version: design-spec/v3
 motifs:
   trusted:
     schema_version: motif-model/v2
@@ -157,20 +157,10 @@ def test_design_motif_references_reject_intermediate_directory_substitution(
     external.mkdir()
     (external / motif_name).write_bytes(_MOTIF.replace(b"trusted", role.encode()))
     design = specification / "design.yaml"
-    if role == "target":
-        motif_section = f"motifs:\n  {role}: models/{motif_name}\n"
-    else:
-        motif_section = (
-            "motifs:\n"
-            "  target:\n"
-            "    schema_version: motif-model/v2\n"
-            "    probabilities: [[0.7, 0.1, 0.1, 0.1]]\n"
-            "    background: [0.25, 0.25, 0.25, 0.25]\n"
-            f"avoiders:\n  {role}:\n    motif: models/{motif_name}\n"
-            "    score_ceiling: 0.5\n"
-        )
+    direction = "seek" if role == "target" else "avoid"
+    motif_section = f"specifications:\n  - motif: models/{motif_name}\n    direction: {direction}\n"
     design.write_text(
-        "schema_version: design-spec/v2\n"
+        "schema_version: design-spec/v3\n"
         f"{motif_section}"
         "length: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
     )
@@ -223,8 +213,8 @@ def test_design_motif_reference_rejects_same_size_in_place_mutation(
     motif_inode = motif.stat().st_ino
     design = tmp_path / "design.yaml"
     design.write_text(
-        "schema_version: design-spec/v2\n"
-        "motifs:\n  trusted: models/target.yaml\n"
+        "schema_version: design-spec/v3\n"
+        "specifications:\n  - motif: models/target.yaml\n    direction: seek\n"
         "length: 1\ncount: 1\nevaluations: 4\nseed: 0\n"
     )
     real_read = structured_module.os.read

@@ -1,4 +1,7 @@
-"""Source conversion receipts and positive motif probability contracts."""
+"""Source conversion receipts and positive motif probability contracts.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -9,7 +12,6 @@ from pydantic import Field, field_validator, model_validator
 
 from motif_balance.constants import (
     DNA_ALPHABET,
-    LEGACY_SCORING_SEMANTICS,
     SCORING_SEMANTICS,
 )
 
@@ -151,7 +153,7 @@ class MotifConversion(FrozenModel):
 
 
 class MotifModel(FrozenModel):
-    schema_version: Literal["motif-model/v1", "motif-model/v2"] = "motif-model/v2"
+    schema_version: Literal["motif-model/v2"] = "motif-model/v2"
     motif_id: str = Field(min_length=1, pattern=r"^[A-Za-z][A-Za-z0-9_.-]*$")
     alphabet: tuple[Literal["A", "C", "G", "T"], ...] = DNA_ALPHABET
     probabilities: tuple[
@@ -234,18 +236,6 @@ class MotifModel(FrozenModel):
         if (
             self.conversion is not None
             and self.conversion.method == "count_matrix_sqrt_n_background_prior_v1"
-            and self.schema_version != "motif-model/v2"
-        ):
-            raise ValueError("count-matrix sqrt-N conversion requires motif-model/v2")
-        if (
-            self.conversion is not None
-            and self.conversion.method == "probability_matrix_target_background_v1"
-            and self.schema_version != "motif-model/v2"
-        ):
-            raise ValueError("target-background conversion requires motif-model/v2")
-        if (
-            self.conversion is not None
-            and self.conversion.method == "count_matrix_sqrt_n_background_prior_v1"
             and self.conversion.position_observed_counts is not None
             and len(self.conversion.position_observed_counts) != self.width
         ):
@@ -264,17 +254,12 @@ class MotifModel(FrozenModel):
 
     @property
     def model_digest(self) -> str:
-        scoring_semantics = (
-            LEGACY_SCORING_SEMANTICS
-            if self.schema_version == "motif-model/v1"
-            else SCORING_SEMANTICS
-        )
         return _sha256(
             {
                 "schema_version": self.schema_version,
                 "alphabet": self.alphabet,
                 "probabilities": self.probabilities,
                 "background": self.background,
-                "scoring_semantics": scoring_semantics,
+                "scoring_semantics": SCORING_SEMANTICS,
             }
         )

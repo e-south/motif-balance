@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import itertools
 import math
 
-import numpy as np
 import pytest
 
 from motif_balance import DesignSpec, MotifModel, MotifSpecification, score
-from motif_balance.compile import _null_mean, compile_design
+from motif_balance.compile import compile_design
 from motif_balance.errors import IncompatibleDesign, InvalidSequence
 from motif_balance.scoring import evaluate
 
@@ -19,7 +17,7 @@ def test_relative_pwm_attainment_uses_attainable_score_extrema() -> None:
         background=(0.25, 0.25, 0.25, 0.25),
     )
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=1,
         count=1,
         strands="forward",
@@ -45,7 +43,7 @@ def test_probability_consensus_is_distinct_from_score_maximizing_reference() -> 
         background=(0.80, 0.10, 0.05, 0.05),
     )
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=1,
         count=1,
         strands="forward",
@@ -67,7 +65,7 @@ def test_v2_relative_attainment_fails_closed_outside_tolerance() -> None:
     )
     problem = compile_design(
         DesignSpec(
-            motifs=(motif,),
+            specifications=(MotifSpecification(motif=motif, direction="seek"),),
             length=1,
             count=1,
             strands="forward",
@@ -94,7 +92,7 @@ def test_v2_relative_attainment_snaps_only_endpoint_roundoff(
     )
     problem = compile_design(
         DesignSpec(
-            motifs=(motif,),
+            specifications=(MotifSpecification(motif=motif, direction="seek"),),
             length=1,
             count=1,
             strands="forward",
@@ -118,27 +116,6 @@ def test_v2_relative_attainment_snaps_only_endpoint_roundoff(
     assert evaluate(sequence, problem).matches[0].normalized_score == expected
 
 
-def test_explicit_v1_scoring_remains_readable_without_v2_reinterpretation() -> None:
-    motif = MotifModel(
-        schema_version="motif-model/v1",
-        motif_id="legacy",
-        probabilities=((0.7, 0.1, 0.1, 0.1),),
-        background=(0.25, 0.25, 0.25, 0.25),
-    )
-    spec = DesignSpec(
-        schema_version="design-spec/v1",
-        motifs=(motif,),
-        length=1,
-        count=1,
-        strands="forward",
-        evaluations=4,
-        seed=1,
-        scoring_semantics="normalized_llr_v1",
-    )
-
-    assert evaluate("C", compile_design(spec)).matches[0].normalized_score == 0.0
-
-
 def test_best_match_ties_are_leftmost_then_plus() -> None:
     motif = MotifModel(
         motif_id="tie",
@@ -146,7 +123,7 @@ def test_best_match_ties_are_leftmost_then_plus() -> None:
         background=(0.25, 0.25, 0.25, 0.25),
     )
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=2,
         count=1,
         strands="both",
@@ -166,7 +143,7 @@ def test_reverse_match_reports_candidate_coordinates_and_motif_orientation() -> 
         background=(0.25, 0.25, 0.25, 0.25),
     )
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=3,
         count=1,
         strands="both",
@@ -185,16 +162,13 @@ def test_public_score_uses_same_authoritative_evaluator(pairwise_spec: DesignSpe
 
 
 @pytest.mark.parametrize(
-    ("schema", "direction", "expected"),
+    ("direction", "expected"),
     [
-        ("design-spec/v2", "seek", 0.0),
-        ("design-spec/v3", "seek", 0.0),
-        ("design-spec/v3", "avoid", 1.0),
+        ("seek", 0.0),
+        ("avoid", 1.0),
     ],
 )
-def test_scoring_does_not_require_a_feasible_portfolio(
-    schema: str, direction: str, expected: float
-) -> None:
+def test_scoring_does_not_require_a_feasible_portfolio(direction: str, expected: float) -> None:
     from motif_balance import design
 
     models = tuple(
@@ -205,19 +179,15 @@ def test_scoring_does_not_require_a_feasible_portfolio(
         )
         for name, preferred in (("a", "A"), ("c", "C"))
     )
-    requirements = (
-        {"motifs": models}
-        if schema == "design-spec/v2"
-        else {
-            "specifications": (
-                MotifSpecification(motif=models[0], direction="seek"),
-                MotifSpecification(motif=models[1], direction=direction),
-            )
-        }
-    )
+    requirements = {
+        "specifications": (
+            MotifSpecification(motif=models[0], direction="seek"),
+            MotifSpecification(motif=models[1], direction=direction),
+        )
+    }
     spec = DesignSpec.model_validate(
         {
-            "schema_version": schema,
+            "schema_version": "design-spec/v3",
             **requirements,
             "length": 2,
             "count": 17,
@@ -246,26 +216,15 @@ def test_scoring_rejects_wrong_length_and_alphabet(pairwise_spec: DesignSpec) ->
         score("ACNT", pairwise_spec)
 
 
-def test_null_mean_matches_explicit_small_distribution_without_materializing_it() -> None:
-    probabilities = np.asarray(
-        (
-            (0.61, 0.17, 0.13, 0.09),
-            (0.11, 0.53, 0.19, 0.17),
-            (0.07, 0.23, 0.59, 0.11),
-        ),
-        dtype=np.float64,
-    )
-    background = np.asarray((0.1, 0.2, 0.3, 0.4), dtype=np.float64)
-    log_odds = np.log2(probabilities / background)
-    scale = 1000.0 / math.log(2.0)
-    discretized = np.round(log_odds * scale).astype(np.int64)
-    explicit = 0.0
-    for bases in itertools.product(range(4), repeat=len(probabilities)):
-        probability = math.prod(float(background[base]) for base in bases)
-        score = sum(int(discretized[position, base]) for position, base in enumerate(bases))
-        explicit += probability * score / scale
-
-    assert _null_mean(log_odds, background) == pytest.approx(explicit, abs=1.0e-14)
+@pytest.mark.parametrize("sequence", [None, True, 123, b"ACGT", ["A", "C", "G", "T"]])
+def test_scoring_reports_nontext_input_as_invalid_sequence(
+    sequence: object, pairwise_spec: DesignSpec
+) -> None:
+    with pytest.raises(InvalidSequence, match="DNA string") as failure:
+        score(sequence, pairwise_spec)  # type: ignore[arg-type]
+    assert failure.value.code == "invalid_sequence"
+    assert failure.value.field == "sequence"
+    assert failure.value.hint
 
 
 def test_compile_rejects_numerically_unstable_probability_ratios() -> None:
@@ -276,7 +235,7 @@ def test_compile_rejects_numerically_unstable_probability_ratios() -> None:
         background=(smallest, 0.25, 0.25, 0.5),
     )
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=1,
         count=1,
         strands="forward",

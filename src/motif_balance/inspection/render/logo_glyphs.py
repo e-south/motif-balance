@@ -3,6 +3,8 @@
 Only four letterforms are included, not a font program or runtime font dependency.
 Source typeface: Arial Bold Version 5.06.
 Source font SHA-256: 893af24f334b23a68f0233ccfa5b19a1c87b9fc6050ba01c34e91fc8e8f62a77
+
+Maintainer(s): Eric J. South, Dunlop Lab
 """
 
 ARIAL_BOLD_GLYPHS = {

@@ -1,3 +1,8 @@
+"""Define typed failures with context for invalid inputs and incomplete design requests.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 
@@ -60,51 +65,6 @@ class SearchBudgetExhausted(MotifBalanceError):
         self.valid_count = valid_count
         self.evaluations_used = evaluations_used
         self.best_score = best_score
-
-
-class ConstraintFeasibilityExhausted(MotifBalanceError):
-    """A bounded search ended before enough constraint-feasible sequences were found."""
-
-    code = "constraint_feasibility_exhausted"
-
-    def __init__(
-        self,
-        *,
-        requested_count: int,
-        feasible_count: int,
-        evaluations_used: int,
-        best_max_excess: float | None,
-        best_total_excess: float | None,
-    ) -> None:
-        super().__init__(
-            f"Search used {evaluations_used} evaluator calls but found only {feasible_count} "
-            f"constraint-feasible sequences for a requested portfolio of {requested_count}. "
-            "No portfolio was published. This does not establish that the hard avoidance "
-            "constraints are infeasible in the complete DNA design space.",
-            field="avoiders",
-            hint="Increase evaluations or revise the declared hard constraints.",
-        )
-        self.requested_count = requested_count
-        self.feasible_count = feasible_count
-        self.evaluations_used = evaluations_used
-        self.best_max_excess = best_max_excess
-        self.best_total_excess = best_total_excess
-
-
-class ExactConstraintInfeasible(MotifBalanceError):
-    """Complete enumeration proved that no sequence satisfies the hard constraints."""
-
-    code = "exact_constraint_infeasible"
-
-    def __init__(self, *, sequence_space_size: int) -> None:
-        super().__init__(
-            f"Complete enumeration of all {sequence_space_size} sequences found no sequence "
-            "that satisfies every hard avoidance ceiling. No portfolio was published.",
-            field="avoiders",
-            hint="Revise the avoider ceilings or the design length.",
-        )
-        self.sequence_space_size = sequence_space_size
-        self.feasible_count = 0
 
 
 class PortfolioInfeasible(MotifBalanceError):

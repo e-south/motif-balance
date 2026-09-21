@@ -1,0 +1,76 @@
+name: Publish verified distributions
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published GitHub release tag to verify and upload to PyPI
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-publish
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify selected release assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Verify tag, download assets, and inspect exact distributions
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          uv run --locked python -c 'import re,sys; assert re.fullmatch(r"v[0-9]+(?:\.[0-9]+){2}(?:a|b|rc)[0-9]+", sys.argv[1])' "$RELEASE_TAG"
+          test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test "$(git rev-parse "${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
+          git merge-base --is-ancestor HEAD origin/main
+          test "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = false
+          mkdir "$RUNNER_TEMP/verified-release" "$RUNNER_TEMP/pypi-distributions"
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --dir "$RUNNER_TEMP/verified-release" \
+            --pattern '*.whl' --pattern '*.tar.gz' \
+            --pattern release-build-attestation.json --pattern SHA256SUMS
+          uv run --locked python scripts/release_attestation.py verify \
+            --directory "$RUNNER_TEMP/verified-release" \
+            --repository-root "$GITHUB_WORKSPACE" --require-tag
+          MOTIF_BALANCE_PRODUCER_REVISION="$(git rev-parse HEAD)" \
+            bash ./scripts/wheel-smoke "$RUNNER_TEMP/verified-release"
+          cp "$RUNNER_TEMP/verified-release/"*.whl "$RUNNER_TEMP/pypi-distributions/"
+          cp "$RUNNER_TEMP/verified-release/"*.tar.gz "$RUNNER_TEMP/pypi-distributions/"
+      - name: Transfer verified distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-pypi-distributions
+          path: ${{ runner.temp }}/pypi-distributions/
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish approved distributions to PyPI
+    needs: verify
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/motif-balance/
+    permissions:
+      id-token: write
+    steps:
+      - name: Retrieve verified distributions
+        uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
+        with:
+          name: verified-pypi-distributions
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33

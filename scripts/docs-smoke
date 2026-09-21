@@ -30,8 +30,8 @@ print("Documented scientific surface: ok")
 
 command = get_command(app)
 visible = sorted(name for name, child in command.commands.items() if not child.hidden)
-if visible != ["assess", "design", "inspect", "score"]:
-    raise SystemExit(f"ordinary CLI surface differs from the four documented journeys: {visible}")
+if visible != ["animate", "assess", "collect", "design", "inspect", "motif", "score"]:
+    raise SystemExit(f"ordinary CLI surface differs from the five documented journeys: {visible}")
 print("Documented ordinary CLI surface: ok")
 PY
 

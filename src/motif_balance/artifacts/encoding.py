@@ -1,4 +1,7 @@
-"""Canonical artifact bytes and content identities."""
+"""Canonical artifact bytes and content identities.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -42,44 +45,26 @@ def _design_payload(spec: DesignSpec) -> dict[str, object]:
         "objective_semantics": spec.objective_semantics,
         "tie_break_semantics": spec.tie_break_semantics,
     }
-    if spec.schema_version == "design-spec/v3":
-        payload["specifications"] = [
-            {
-                "motif_id": item.motif.motif_id,
-                "model_digest": item.motif.model_digest,
-                "direction": item.direction,
-            }
-            for item in spec.specifications
-        ]
-    else:
-        payload["motifs"] = [
-            {"motif_id": motif.motif_id, "model_digest": motif.model_digest}
-            for motif in spec.motifs
-        ]
-    if spec.avoiders:
-        payload["avoiders"] = [
-            {
-                "motif_id": item.motif.motif_id,
-                "model_digest": item.motif.model_digest,
-                "score_ceiling": item.score_ceiling,
-            }
-            for item in spec.avoiders
-        ]
+    payload["specifications"] = [
+        {
+            "motif_id": item.motif.motif_id,
+            "model_digest": item.motif.model_digest,
+            "direction": item.direction,
+        }
+        for item in spec.specifications
+    ]
     return payload
 
 
 def _motifs_payload(spec: DesignSpec) -> dict[str, object]:
     motifs = []
-    all_motifs = (*spec.scored_motifs, *(item.motif for item in spec.avoiders))
+    all_motifs = spec.scored_motifs
     for motif in sorted(all_motifs, key=lambda item: item.motif_id):
         payload = motif.model_dump(mode="json")
         payload["width"] = motif.width
         payload["model_digest"] = motif.model_digest
         motifs.append(payload)
-    collection_version = (
-        "motif-collection/v1" if spec.schema_version == "design-spec/v1" else "motif-collection/v2"
-    )
-    return {"schema_version": collection_version, "motifs": motifs}
+    return {"schema_version": "motif-collection/v2", "motifs": motifs}
 
 
 def _tsv_bytes(fieldnames: tuple[str, ...], rows: list[dict[str, object]]) -> bytes:
@@ -105,47 +90,24 @@ def candidates_tsv(candidates: tuple[Candidate, ...]) -> bytes:
 
 
 def matches_tsv(spec: DesignSpec, candidates: tuple[Candidate, ...]) -> bytes:
-    rows: list[dict[str, object]] = []
-    ceilings = {item.motif.motif_id: item.score_ceiling for item in spec.avoiders}
-    for candidate in candidates:
-        for match in sorted(candidate.matches, key=lambda item: item.motif_id):
-            row: dict[str, object] = {
-                "candidate_id": candidate.candidate_id,
-                "motif_id": match.motif_id,
-                "start": match.start,
-                "end": match.end,
-                "strand": match.strand,
-                "matched_sequence": match.matched_sequence,
-                "raw_score": format(match.raw_score, ".17g"),
-                "normalized_score": format(match.normalized_score, ".17g"),
-            }
-            if spec.schema_version == "design-spec/v3":
-                row = {
-                    **row,
-                    "role": "specification",
-                    "direction": match.spec_direction,
-                    "spec_satisfaction": format(match.spec_satisfaction, ".17g"),
-                }
-            elif spec.schema_version == "design-spec/v2":
-                row = {**row, "role": "target", "score_ceiling": ""}
-            rows.append(row)
-        if spec.schema_version == "design-spec/v2":
-            for match in sorted(candidate.avoidance_matches, key=lambda item: item.motif_id):
-                rows.append(
-                    {
-                        "candidate_id": candidate.candidate_id,
-                        "role": "avoider",
-                        "motif_id": match.motif_id,
-                        "score_ceiling": format(ceilings[match.motif_id], ".17g"),
-                        "start": match.start,
-                        "end": match.end,
-                        "strand": match.strand,
-                        "matched_sequence": match.matched_sequence,
-                        "raw_score": format(match.raw_score, ".17g"),
-                        "normalized_score": format(match.normalized_score, ".17g"),
-                    }
-                )
-    fields = (
+    rows = [
+        {
+            "candidate_id": candidate.candidate_id,
+            "role": "specification",
+            "direction": match.spec_direction,
+            "motif_id": match.motif_id,
+            "start": match.start,
+            "end": match.end,
+            "strand": match.strand,
+            "matched_sequence": match.matched_sequence,
+            "raw_score": format(match.raw_score, ".17g"),
+            "normalized_score": format(match.normalized_score, ".17g"),
+            "spec_satisfaction": format(match.spec_satisfaction, ".17g"),
+        }
+        for candidate in candidates
+        for match in sorted(candidate.matches, key=lambda item: item.motif_id)
+    ]
+    return _tsv_bytes(
         (
             "candidate_id",
             "role",
@@ -158,33 +120,9 @@ def matches_tsv(spec: DesignSpec, candidates: tuple[Candidate, ...]) -> bytes:
             "raw_score",
             "normalized_score",
             "spec_satisfaction",
-        )
-        if spec.schema_version == "design-spec/v3"
-        else (
-            "candidate_id",
-            "role",
-            "motif_id",
-            "score_ceiling",
-            "start",
-            "end",
-            "strand",
-            "matched_sequence",
-            "raw_score",
-            "normalized_score",
-        )
-        if spec.schema_version == "design-spec/v2"
-        else (
-            "candidate_id",
-            "motif_id",
-            "start",
-            "end",
-            "strand",
-            "matched_sequence",
-            "raw_score",
-            "normalized_score",
-        )
+        ),
+        rows,
     )
-    return _tsv_bytes(fields, rows)
 
 
 def candidates_fasta(candidates: tuple[Candidate, ...]) -> bytes:
@@ -232,7 +170,7 @@ def _manifest_payload(manifest: RunManifest) -> dict[str, object]:
 def manifest_bytes(manifest: RunManifest) -> bytes:
     payload = _json_bytes(_manifest_payload(manifest))
     limit = (
-        MAX_RUN_MANIFEST_BYTES if manifest.schema_version == "run-manifest/v6" else MAX_INPUT_BYTES
+        MAX_RUN_MANIFEST_BYTES if manifest.schema_version == "run-manifest/v7" else MAX_INPUT_BYTES
     )
     if len(payload) > limit:
         raise ArtifactError(f"bundle member 'manifest.json' exceeds the {limit}-byte limit")

@@ -1,4 +1,7 @@
-"""Shared information-height Arial glyphs for candidate and pre-search views."""
+"""Shared information-height Arial glyphs for candidate and pre-search views.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 import math
 

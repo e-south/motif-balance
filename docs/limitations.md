@@ -2,27 +2,24 @@
 doc_id: motif-balance-limitations
 title: Motif Balance limitations
 intent: Bound software claims and identify unsupported uses.
-audience:
-  - users
-  - integrators
+audience: [users, integrators]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-08
+last_verified: 2026-09-20
 doc_type: explanation
 ---
 
 # Motif Balance limitations
 
 - Results are conditional on the supplied motif models, background,
-  normalization, strand policy, and sequence constraints.
+  model-relative score range, strand policy, and sequence constraints.
 - A motif score is not a calibrated probability of binding or expression unless
   an external validation establishes that interpretation.
 - Balancing model scores does not account for synthesis, genomic context,
   chromatin, RNA structure, toxicity, or assay noise.
 - Directional `avoid` satisfaction weakens the strongest sequence-wide model
   match while trading off against other requirements. It does not enforce a
-  hard threshold or establish biological off-target specificity. Explicit
-  legacy hard-ceiling requests have different feasibility semantics.
+  hard threshold or establish biological off-target specificity.
 - Shared coordinates between representative motif windows do not establish
   simultaneous occupancy, co-binding, or regulatory function.
 - A bounded stochastic search does not prove global optimality. Completion and

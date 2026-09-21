@@ -1,3 +1,8 @@
+"""Build and validate runtime receipts that bind a design to its inputs and software.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import hashlib

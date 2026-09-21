@@ -1,3 +1,8 @@
+"""Scan permitted DNA strands and score the weakest desired or avoidance requirement.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import math
@@ -23,7 +28,9 @@ def _window_score(window: str, motif: CompiledMotif) -> float:
     )
 
 
-def _best_match(sequence: str, motif: CompiledMotif, *, both_strands: bool) -> MotifMatch:
+def _best_match(
+    sequence: str, motif: CompiledMotif, *, both_strands: bool, direction: Literal["seek", "avoid"]
+) -> MotifMatch:
     width = motif.model.width
     best: tuple[float, int, int, Literal["+", "-"], str] | None = None
     for start in range(len(sequence) - width + 1):
@@ -50,22 +57,16 @@ def _best_match(sequence: str, motif: CompiledMotif, *, both_strands: bool) -> M
     if best is None:  # compile_design prevents this path
         raise ValueError(f"Sequence is shorter than motif '{motif.model.motif_id}'.")
     raw_score, start, _, strand, motif_oriented = best
-    if motif.model.schema_version == "motif-model/v1":
-        normalized = max(
-            0.0,
-            (raw_score - motif.null_mean) / motif.normalization_denominator,
+    normalized = (raw_score - motif.score_min) / (motif.score_max - motif.score_min)
+    if normalized < -_ATTAINMENT_TOLERANCE or normalized > 1.0 + _ATTAINMENT_TOLERANCE:
+        raise ValueError(
+            f"relative PWM attainment for motif '{motif.model.motif_id}' is outside "
+            "the attainable range"
         )
-    else:
-        normalized = (raw_score - motif.score_min) / (motif.score_max - motif.score_min)
-        if normalized < -_ATTAINMENT_TOLERANCE or normalized > 1.0 + _ATTAINMENT_TOLERANCE:
-            raise ValueError(
-                f"relative PWM attainment for motif '{motif.model.motif_id}' is outside "
-                "the attainable range"
-            )
-        if normalized < 0.0:
-            normalized = 0.0
-        elif normalized > 1.0:
-            normalized = 1.0
+    if normalized < 0.0:
+        normalized = 0.0
+    elif normalized > 1.0:
+        normalized = 1.0
     return MotifMatch(
         motif_id=motif.model.motif_id,
         start=start,
@@ -74,10 +75,18 @@ def _best_match(sequence: str, motif: CompiledMotif, *, both_strands: bool) -> M
         matched_sequence=motif_oriented,
         raw_score=raw_score,
         normalized_score=normalized,
+        spec_direction=direction,
+        spec_satisfaction=normalized if direction == "seek" else 1.0 - normalized,
     )
 
 
 def evaluate(sequence: str, problem: CompiledProblem) -> Evaluation:
+    if not isinstance(sequence, str):
+        raise InvalidSequence(
+            "sequence must be a DNA string",
+            field="sequence",
+            hint="Pass nucleotide letters as text, for example 'ACGT'.",
+        )
     normalized = sequence.upper()
     if len(normalized) != problem.spec.length:
         raise InvalidSequence(
@@ -89,56 +98,19 @@ def evaluate(sequence: str, problem: CompiledProblem) -> Evaluation:
             "sequence must contain only A, C, G, and T",
             field="sequence",
         )
-    plain_matches = tuple(
-        _best_match(normalized, motif, both_strands=problem.spec.strands == "both")
-        for motif in problem.motifs
-    )
-    matches = (
-        tuple(
-            MotifMatch.model_validate(
-                {
-                    **match.model_dump(mode="python"),
-                    "spec_direction": direction,
-                    "spec_satisfaction": (
-                        match.normalized_score
-                        if direction == "seek"
-                        else 1.0 - match.normalized_score
-                    ),
-                }
-            )
-            for match, direction in zip(
-                plain_matches, problem.spec.specification_directions, strict=True
-            )
-        )
-        if problem.spec.schema_version == "design-spec/v3"
-        else plain_matches
-    )
-    avoidance_matches = tuple(
+    matches = tuple(
         _best_match(
-            normalized,
-            item.motif,
-            both_strands=problem.spec.strands == "both",
+            normalized, motif, both_strands=problem.spec.strands == "both", direction=direction
         )
-        for item in problem.avoiders
+        for motif, direction in zip(
+            problem.motifs, problem.spec.specification_directions, strict=True
+        )
     )
-    balance_score = min(
-        match.spec_satisfaction if match.spec_satisfaction is not None else match.normalized_score
-        for match in matches
-    )
+    balance_score = min(match.spec_satisfaction for match in matches)
     if not math.isfinite(balance_score):
         raise ValueError("evaluation produced a nonfinite balance score")
-    excesses = tuple(
-        max(0.0, match.normalized_score - item.score_ceiling)
-        for match, item in zip(avoidance_matches, problem.avoiders, strict=True)
-    )
-    max_excess = max(excesses, default=0.0)
-    total_excess = math.fsum(excesses)
     return Evaluation(
         sequence=normalized,
         balance_score=balance_score,
         matches=matches,
-        avoidance_matches=avoidance_matches,
-        constraint_status="feasible" if max_excess <= 1.0e-12 else "infeasible",
-        max_avoidance_excess=max_excess,
-        total_avoidance_excess=total_excess,
     )

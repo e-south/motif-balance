@@ -119,10 +119,10 @@ def test_verify_rejects_resealed_motif_and_design_identity_drift(
     output = _bundle(pairwise_spec, tmp_path, "design")
     design_path = output / "design.json"
     design_payload = json.loads(design_path.read_text())
-    design_payload["motifs"] = "invalid"
+    design_payload["specifications"] = "invalid"
     design_path.write_text(json.dumps(design_payload, indent=2, sort_keys=True) + "\n")
     _reseal(output, "design.json")
-    with pytest.raises(ArtifactError, match="motifs must be a list"):
+    with pytest.raises(ArtifactError, match="specifications must be a nonempty list"):
         verify_bundle(output)
 
 
@@ -192,7 +192,7 @@ def test_public_inspection_rejects_oversized_canonical_json_before_parsing(
     output = _bundle(pairwise_spec, tmp_path, "oversized")
     manifest_path = output / "manifest.json"
     trusted_id = json.loads(manifest_path.read_text())["bundle_id"]
-    manifest_path.write_bytes(manifest_path.read_bytes() + b" " * 2_000_000)
+    manifest_path.write_bytes(manifest_path.read_bytes() + b" " * (64 * 1024 * 1024))
     with pytest.raises(ArtifactError, match="byte limit"):
         verify_bundle(output, expected_bundle_id=trusted_id)
 

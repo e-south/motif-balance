@@ -1,4 +1,7 @@
-"""Scientific replay of an already parsed immutable portfolio."""
+"""Scientific replay of an already parsed immutable portfolio.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -91,12 +94,9 @@ def verify_portfolio_record(portfolio: PortfolioRecord) -> None:
         raise ArtifactError("scientific replay found impossible random coverage metadata")
 
     best_observed = portfolio.manifest.best_observed
-    if best_observed is not None:
-        authoritative_best = evaluate(best_observed.sequence, problem)
-        if authoritative_best != best_observed:
-            raise ArtifactError(
-                "scientific replay found scoring drift for the best observed candidate"
-            )
+    authoritative_best = evaluate(best_observed.sequence, problem)
+    if authoritative_best != best_observed:
+        raise ArtifactError("scientific replay found scoring drift for the best observed candidate")
 
     for elite in portfolio.manifest.elites:
         authoritative_elite = evaluate(elite.sequence, problem)
@@ -118,10 +118,6 @@ def verify_portfolio_record(portfolio: PortfolioRecord) -> None:
         if (
             candidate.balance_score != authoritative.balance_score
             or candidate.matches != authoritative.matches
-            or candidate.avoidance_matches != authoritative.avoidance_matches
-            or candidate.constraint_status != authoritative.constraint_status
-            or candidate.max_avoidance_excess != authoritative.max_avoidance_excess
-            or candidate.total_avoidance_excess != authoritative.total_avoidance_excess
         ):
             raise ArtifactError(
                 f"scientific replay found scoring drift for '{candidate.candidate_id}'"

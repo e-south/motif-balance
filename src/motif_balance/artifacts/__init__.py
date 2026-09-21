@@ -1,4 +1,7 @@
-"""Stable artifact facade; ownership lives in the semantic submodules."""
+"""Read, verify, and publish canonical design result bundles.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from .encoding import artifact_records as artifact_records
 from .encoding import base_artifact_payloads as base_artifact_payloads

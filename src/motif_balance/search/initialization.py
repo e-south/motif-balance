@@ -1,4 +1,7 @@
-"""Shared starting sequences; no optimizer-specific decision policy."""
+"""Shared starting sequences; no optimizer-specific decision policy.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 

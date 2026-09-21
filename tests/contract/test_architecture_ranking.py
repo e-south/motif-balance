@@ -98,13 +98,15 @@ def test_pool_ranking_still_rejects_wide_motifs_before_matrix_compilation(monkey
         rank_architectures(("A",), spec)
 
 
-def test_information_architecture_names_the_current_ranking_schema():
+def test_information_architecture_routes_to_the_current_ranking_contract():
     from motif_balance.model.alternatives import ArchitectureRanking
 
-    authority = (Path(__file__).resolve().parents[2] / "IA.md").read_text()
-    row = next(line for line in authority.splitlines() if "| alternatives |" in line)
+    root = Path(__file__).resolve().parents[2]
+    authority = (root / "IA.md").read_text()
+    contract = root / "docs/reference/public-contract.md"
+    assert "docs/reference/public-contract.md" in authority
     schema = ArchitectureRanking.model_fields["schema_version"].default
-    assert row.endswith(f"`{schema}` |")
+    assert f"`{schema}`" in contract.read_text()
 
 
 @pytest.mark.parametrize("count", [0, -1, True, "2", 1.5, 4])
@@ -133,7 +135,7 @@ def test_bad_pools_fail_before_compilation(words, monkeypatch):
 def test_scoring_work_is_admitted_before_compilation(monkeypatch):
     from motif_balance.alternatives import api
 
-    monkeypatch.setattr(api, "MAX_SCORE_BASE_OPERATIONS", 1, raising=False)
+    monkeypatch.setattr("motif_balance.alternatives.pool.MAX_SCORE_BASE_OPERATIONS", 1)
     monkeypatch.setattr(api, "compile_scoring", lambda *_: pytest.fail("over-budget pool compiled"))
     with pytest.raises(ValueError, match="scoring"):
         api.rank_architectures(("AC",), specification())
@@ -170,7 +172,7 @@ def test_unsupported_specifications_are_not_reinterpreted(fault):
         payload["specifications"] = payload["specifications"][:1]
     else:
         payload["min_distance"] = 0.5
-    with pytest.raises(ValueError, match=r"directional|two|distance"):
+    with pytest.raises(ValueError, match=r"Extra inputs|two|distance"):
         rank_architectures(("AC",), DesignSpec.model_validate(payload))
 
 
@@ -240,7 +242,7 @@ def test_explicit_distance_budget_is_recorded_and_checked():
     # ordered motif-pair terms. This is a declared work bound, not elapsed time.
     result = rank_architectures(("AC", "CA"), specification(), distance_base_budget=6)
     assert result.distance_base_budget == result.distance_base_operations == 6
-    assert result.schema_version == "architecture-ranking/v2"
+    assert result.schema_version == "architecture-ranking/v4"
     with pytest.raises(ValueError, match="distance"):
         rank_architectures(("AC", "CA"), specification(), distance_base_budget=5)
 

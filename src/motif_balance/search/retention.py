@@ -1,4 +1,7 @@
-"""Bounded hash-priority retention; no RNG or alternate scoring authority."""
+"""Bounded hash-priority retention; no RNG or alternate scoring authority.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 

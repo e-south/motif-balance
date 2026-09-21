@@ -1,3 +1,8 @@
+"""Provide escaped SVG text, stable identifiers, and shared visual primitives.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import hashlib

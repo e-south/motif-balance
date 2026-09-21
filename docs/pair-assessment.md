@@ -2,15 +2,13 @@
 doc_id: motif-balance-pair-assessment
 title: Assess a motif pair before sequence search
 intent: Explain and use length-aware shared-base conflict without predicting sequence scores or biology.
-audience:
-  - users
-  - API consumers
+audience: [users, API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-10
+last_verified: 2026-09-20
 doc_type: how-to
-journey:
-  - assess
+journey: [assess]
+
 ---
 
 # Assess a motif pair before sequence search
@@ -26,10 +24,8 @@ choices. It returns a **structural score**, not a predicted optimization score,
 binding probability, or proof that the requested sequence can attain that score.
 Here, structural means motif-column arrangement, not molecular structure.
 
-The API and command are unreleased: use the current source-checkout installation in
-the [quickstart](quickstart.md#install), or a verified build containing this API.
-A package version label alone does not establish that an older wheel contains
-it.
+Use the current [source installation](installation.md) or a build containing
+this API.
 
 ## Assess two files from the terminal
 
@@ -107,118 +103,12 @@ print("Sequence evaluations:", result.sequence_evaluations)
 The scores are 0.500, 0.667, 0.833, and 1.000 at 3–6 nt. At six bases, a
 nonoverlapping arrangement removes this pair's local conflict. For agreement,
 replace the right matrix with the left matrix: the shared AAA preference costs
-nothing. Reversing a motif can also relieve conflict—for example, the reverse
-complement of a TTT preference is AAA. The calculation checks both relative
+nothing. Reversing a motif can also relieve conflict: the reverse complement of a TTT
+preference is AAA. The calculation checks both relative
 strand choices when `strands="both"`; it does not select a convenient alignment
 to label compatible while ignoring the others.
 
-## Read the returned profile
+## Calculation and reference
 
-The explicit Python seam is
-`motif_balance.assessment.assess_pair(left, right, *, length, strands="both")`.
-Both arguments are current `MotifModel` values. They represent two desired
-motifs; this operation does not accept avoidance requirements or larger sets.
-No seed, search budget, candidate count, filesystem path, or optimized sequence
-is an assessment input.
-
-For the molecular diagram, construct
-`motif_balance.inspection.assessment.inspect_pair_assessment(left, right, length=length)`
-and pass it to `motif_balance.inspection.render.render_pair_assessment_svg`.
-The inspector computes the assessment and its per-coordinate base regrets from
-the supplied models; the renderer only presents that immutable projection.
-`model_dump_json()` retains the inspection, including model probabilities, so
-the caller must respect source rights before sharing it. Ordinary assessment
-JSON does not include the probabilities. Rendered SVG uses Arial labels and
-Arial Bold information glyphs without an external font or renderer dependency.
-
-| Result | Meaning |
-| --- | --- |
-| `structural_score` | Highest local-conflict score among the allowed relative arrangements. |
-| `best_arrangement` | One deterministic best placement: zero-based starts, strands, overlap, and score. |
-| `arrangements` | Every allowed relative arrangement and its score, in fixed strand/offset order—not score order. |
-| `motifs` | Input model IDs, content digests, widths, and indices of zero-range columns. |
-| `length`, `strands`, `equivalence` | The space and symmetry assumptions used in the calculation. |
-| `effective_information_bits` | Information remaining after zero-range columns receive zero weight. |
-| `base_operation_upper_bound` | Conservative count of compared base preferences; not CPU instructions or wall time. |
-| `sequence_evaluations` | Zero: this operation does not generate or score complete DNA sequences. |
-
-Moving both motifs together does not change local conflict, so global
-translations are counted once. With both strands, global reverse complements
-are also counted once by fixing the left motif's strand to `+`. The right motif
-can be `+` or `-`. Coordinates are relative to the first occupied base; they are
-not a proposed unique location within a longer construct.
-
-These are **labeled relative arrangements**, not the absolute placement count,
-selected-match architectures of searched sequences, or distinct functional
-designs. Palindromic motifs still retain their labeled relative strand choices.
-The best tie breaks by left start, right start, then `+` before `-`; motif order
-identifies the two input roles. Swapping roles preserves the best score but can
-change its representative coordinates and ordering.
-
-Inspect the complete profile when one best arrangement hides differences in
-the other arrangements. A broad favorable profile is a possible explanation
-for alternative designs, not an established predictor of recovered diversity.
-It does not count sequences, resolve tied strongest sites in a sequence, or
-measure how far apart designs are.
-
-## What the score calculates
-
-The independently identified formula is
-`information_weighted_shared_base_conflict_v1` in `pair-assessment/v1`:
-
-1. Use each model's compiled log-odds against its declared background.
-2. Scale each column's least-to-most preferred base from zero to one.
-3. Weight the column by `1 − H/2`, where H is its base-2 probability entropy.
-   This information reference is uniform, even for nonuniform scoring backgrounds.
-   A column with exactly zero log-odds range receives **zero weight**: it has no
-   base preference to conflict with another column.
-4. For each arrangement and shared coordinate, choose the base minimizing the
-   sum of weighted preference shortfalls. Sum across shared coordinates, divide
-   by total effective weight, and subtract from one.
-
-This is a sum of local compromises, not the whole-motif hard-minimum objective
-used by [sequence scoring](score-sequences.md). It enumerates relative
-arrangements and four base choices, not the `4^length` sequence space. It is a
-smaller deterministic minimization, not an absence of optimization altogether.
-
-Increasing length expands the allowed seek-pair arrangements, so the best
-structural score cannot decrease. It can reach a ceiling when separation fits;
-that ceiling no longer distinguishes requests, while finite-budget search
-outcomes can still differ. A value of 0.9 does not forecast balance 0.9. Numerical
-prediction, ranking performance, and transfer to new model collections require
-caller-owned evaluation. Avoidance and higher-cardinality behavior do not inherit
-any seek-pair interpretation.
-
-## Limits and failures
-
-`length` must be a native integer, at least the wider motif and at most 10,000.
-Only `"forward"` and `"both"` are accepted. The operation admits at most
-10,000,000 compared base preferences before compiling matrices or allocating
-arrangements. A wider/longer request is rejected, not silently truncated.
-
-The SVG view supports at most 128 nt and uniform scoring backgrounds, matching
-the standard 0–2-bit information-logo convention. It refuses unsupported views
-instead of truncating them or changing their background. Use the text/JSON
-assessment for longer requests or nonuniform backgrounds. Structural validation
-of an inspection catches identity, placement and score-total inconsistencies;
-it is not an independent replay of externally edited per-base regrets. Rebuild
-the inspection from the explicit models before trusting external data.
-
-Invalid requests raise `motif_balance.errors.IncompatibleDesign` with an
-explanation. Non-finite compiled log-odds, a motif without an attainable score
-range, or a pair without positive effective information are also rejected.
-Uniform-probability columns can have log-odds variation under a nonuniform
-background but zero information under this descriptor; zero total weight is
-undefined, not perfect compatibility.
-
-The immutable result validates dimensions, full relative-placement coverage,
-counts, and best-arrangement consistency. `model_dump_json()` exports its record;
-`PairAssessment.model_validate_json(...)` checks that structure, **not** the
-scientific correctness of externally modified scores. Recompute from the
-identified motif models before trusting an external assessment. No assessment
-is inserted into a search bundle, and this API performs no writes or network
-access. The CLI uses this same API and scientific contract; text, JSON and SVG are
-presentations of one assessment, not separate calculations.
-
-Next: [design and inspect sequences](python-api.md), or compare their actual
-[recovered quality and alternatives](interpreting-results.md).
+See [pair and joint assessment reference](reference/pair-assessment.md) for definitions, formulas, returned fields,
+resource limits and verification.

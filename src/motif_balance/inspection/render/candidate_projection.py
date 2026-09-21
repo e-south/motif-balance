@@ -1,3 +1,8 @@
+"""Select and validate the candidate and matches admitted to a molecular view.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import math
@@ -26,7 +31,7 @@ def shown_matches(candidate: InspectionCandidate) -> tuple[InspectionMatch, ...]
 
     ordered = tuple(
         sorted(
-            (*candidate.matches, *candidate.avoidance_matches),
+            candidate.matches,
             key=lambda match: (
                 match.motif_id not in candidate.limiting_motif_ids,
                 match.motif_id,
@@ -50,15 +55,13 @@ def validate_candidate_projection(
     """Reject a candidate that is not bound to the supplied verified problem."""
 
     target_ids = {motif.motif_id for motif in problem.motifs}
-    avoider_ids = {motif.motif_id for motif in problem.avoiders}
     if (
         len(candidate.sequence) != problem.length
         or {match.motif_id for match in candidate.matches} != target_ids
-        or {match.motif_id for match in candidate.avoidance_matches} != avoider_ids
     ):
         raise ArtifactError("candidate render projection does not match its problem")
-    motifs_by_id = {motif.motif_id: motif for motif in (*problem.motifs, *problem.avoiders)}
-    for match in (*candidate.matches, *candidate.avoidance_matches):
+    motifs_by_id = {motif.motif_id: motif for motif in problem.motifs}
+    for match in candidate.matches:
         motif = motifs_by_id[match.motif_id]
         if match.end - match.start != motif.width:
             raise ArtifactError("candidate render projection does not match its problem")

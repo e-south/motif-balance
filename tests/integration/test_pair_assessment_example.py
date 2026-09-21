@@ -11,7 +11,10 @@ def test_pair_assessment_guide_runs_without_search_or_checkout_inputs(tmp_path):
     root = Path(__file__).resolve().parents[2]
     guide = (root / "docs/pair-assessment.md").read_text()
     blocks = re.findall(r"```python\n(.*?)```", guide, flags=re.DOTALL)
+    reference = (root / "docs/reference/pair-assessment.md").read_text()
+    joint_blocks = re.findall(r"```python\n(.*?)```", reference, flags=re.DOTALL)
     assert len(blocks) == 1
+    assert len(joint_blocks) == 1
     completed = subprocess.run(
         [sys.executable, "-c", blocks[0]], cwd=tmp_path, capture_output=True, text=True
     )
@@ -24,6 +27,11 @@ def test_pair_assessment_guide_runs_without_search_or_checkout_inputs(tmp_path):
         "Best at 6 nt: left 0 +; right 3 +",
         "Sequence evaluations: 0",
     ]
+    joint = subprocess.run(
+        [sys.executable, "-c", joint_blocks[0]], cwd=tmp_path, capture_output=True, text=True
+    )
+    assert joint.returncode == 0, joint.stderr
+    assert joint.stdout.startswith("exact_minimum_over_admitted_arrangements")
     assert not list(tmp_path.iterdir())
 
 

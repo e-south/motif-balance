@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# motif-balance | scripts/wheel-smoke
+# Check installed distributions against the source API and documented workflows.
+# Author: Eric J. South, Dunlop Lab
+# -----------------------------------------------------------------------------
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -43,7 +48,7 @@ for forbidden in '/.git/' '/.venv/' '/.artifacts/'; do
     exit 1
   fi
 done
-for required in LICENSE README.md IA.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md assets/motif-balance-banner.svg docs/index.md docs/quickstart.md docs/score-sequences.md docs/reference/execution-receipts.md docs/reference/result-inspection.md; do
+for required in LICENSE README.md IA.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md assets/motif-balance-banner.svg docs/README.md docs/quickstart.md docs/score-sequences.md docs/reference/execution-receipts.md docs/reference/result-inspection.md; do
   if ! grep -Fq "/$required" <<<"$sdist_contents"; then
     echo "source distribution omits routed content: $required" >&2
     exit 1
@@ -56,11 +61,12 @@ for required in examples/formats/synthetic.jaspar examples/synthetic-pairwise/de
   fi
 done
 
-uv venv --python 3.12 "$smoke_root/venv"
+smoke_python="${MOTIF_BALANCE_SMOKE_PYTHON:-3.12}"
+uv venv --python "$smoke_python" "$smoke_root/venv"
 uv pip install --python "$smoke_root/venv/bin/python" "$wheel_path"
 uv pip check --python "$smoke_root/venv/bin/python"
 
-contract_program='import inspect,json; import motif_balance as m; names=("MotifModel","MotifSpecification","DesignSpec","MotifMatch","Candidate","Portfolio"); operations=("design","score"); assert set(m.__all__) == set(names + operations); print(json.dumps({"models":{n:getattr(m,n).model_json_schema() for n in names},"operations":{n:str(inspect.signature(getattr(m,n))) for n in operations}},sort_keys=True))'
+contract_program='import importlib.util,inspect,json; import motif_balance as m; assert importlib.util.find_spec("motif_balance.observation") is None; names=("MotifModel","MotifSpecification","DesignSpec","MotifMatch","Candidate","Portfolio"); operations=("design","score"); assert set(m.__all__) == set(names + operations); print(json.dumps({"models":{n:getattr(m,n).model_json_schema() for n in names},"operations":{n:str(inspect.signature(getattr(m,n))) for n in operations}},sort_keys=True))'
 source_contract="$(uv run --locked python -c "$contract_program")"
 wheel_contract="$("$smoke_root/venv/bin/python" -c "$contract_program")"
 if [[ "$source_contract" != "$wheel_contract" ]]; then
@@ -68,9 +74,21 @@ if [[ "$source_contract" != "$wheel_contract" ]]; then
   exit 1
 fi
 
+# Install the source distribution independently to catch missing build inputs.
+uv venv --python "$smoke_python" "$smoke_root/sdist-venv"
+uv pip install --python "$smoke_root/sdist-venv/bin/python" "$sdist_path"
+uv pip check --python "$smoke_root/sdist-venv/bin/python"
+sdist_contract="$("$smoke_root/sdist-venv/bin/python" -c "$contract_program")"
+if [[ "$source_contract" != "$sdist_contract" ]]; then
+  echo "source/sdist public contract mismatch" >&2
+  exit 1
+fi
+"$smoke_root/sdist-venv/bin/motif-balance" --help >"$smoke_root/sdist-help.txt"
+
 uv run --locked motif-balance --help >"$smoke_root/source-help.txt"
 "$smoke_root/venv/bin/motif-balance" --help >"$smoke_root/wheel-help.txt"
 cmp "$smoke_root/source-help.txt" "$smoke_root/wheel-help.txt"
+cmp "$smoke_root/source-help.txt" "$smoke_root/sdist-help.txt"
 
 uv run --locked motif-balance assess examples/synthetic-pairwise/motifs/motif-a.yaml \
   examples/synthetic-pairwise/motifs/motif-b.yaml --length 2 --format json \
@@ -99,8 +117,68 @@ assert assessment.best_arrangement.right_strand == "-"
 print("Installed assessment API/CLI and source parity: ok")
 PY
 
+"$smoke_root/venv/bin/python" - "$smoke_root/joint-third.json" <<'PY'
+import sys
+from pathlib import Path
+from motif_balance import MotifModel
+model = MotifModel(motif_id="third", probabilities=((0.7, 0.1, 0.1, 0.1),) * 2,
+                   background=(0.25,) * 4)
+Path(sys.argv[1]).write_text(model.model_dump_json())
+PY
+uv run --locked motif-balance assess examples/synthetic-pairwise/motifs/motif-a.yaml \
+  examples/synthetic-pairwise/motifs/motif-b.yaml --additional "$smoke_root/joint-third.json" \
+  --length 2 --format json >"$smoke_root/source-joint.json"
+"$smoke_root/venv/bin/motif-balance" assess examples/synthetic-pairwise/motifs/motif-a.yaml \
+  examples/synthetic-pairwise/motifs/motif-b.yaml --additional "$smoke_root/joint-third.json" \
+  --length 2 --format json >"$smoke_root/wheel-joint.json"
+cmp "$smoke_root/source-joint.json" "$smoke_root/wheel-joint.json"
+"$smoke_root/venv/bin/python" - "$smoke_root/wheel-joint.json" <<'PY'
+import sys
+from pathlib import Path
+from motif_balance.assessment import JointAssessment
+assessment = JointAssessment.model_validate_json(Path(sys.argv[1]).read_bytes())
+assert len(assessment.motifs) == 3 and assessment.arrangement_count == 4
+assert assessment.sequence_evaluations == 0
+assert assessment.proof == "exact_minimum_over_admitted_arrangements"
+print("Installed joint assessment and source/CLI parity: ok")
+PY
+
+# Exercise the installed collection command over the same verified saved pool.
+"$smoke_root/venv/bin/python" - "$smoke_root/collection-source" <<'PY'
+import sys
+from motif_balance import DesignSpec, MotifModel, MotifSpecification, design
+motifs = tuple(MotifModel(motif_id=name, probabilities=(row,) * 2, background=(0.25,) * 4)
+               for name, row in (("a", (0.7, 0.1, 0.1, 0.1)), ("b", (0.1, 0.7, 0.1, 0.1))))
+spec = DesignSpec(schema_version="design-spec/v3", specifications=tuple(
+    MotifSpecification(motif=m, direction="seek") for m in motifs),
+    length=4, count=1, strands="forward", seed=7, evaluations=256)
+result = design(spec)
+result.write(sys.argv[1])
+from pathlib import Path
+Path(sys.argv[1] + ".identity").write_text(result.manifest.bundle_id)
+PY
+collection_id="$(cat "$smoke_root/collection-source.identity")"
+uv run --locked motif-balance collect "$smoke_root/collection-source" \
+  --expected-bundle-id "$collection_id" --count 100 --format json >"$smoke_root/source-collection.json"
+"$smoke_root/venv/bin/motif-balance" collect "$smoke_root/collection-source" \
+  --expected-bundle-id "$collection_id" --count 100 --format json >"$smoke_root/wheel-collection.json"
+cmp "$smoke_root/source-collection.json" "$smoke_root/wheel-collection.json"
+"$smoke_root/venv/bin/python" - "$smoke_root/wheel-collection.json" <<'PY'
+import json, sys
+from pathlib import Path
+from motif_balance.model.alternatives import ArchitectureCollection, ArchitectureRanking
+record = json.loads(Path(sys.argv[1]).read_text())
+ranking = ArchitectureRanking.model_validate(record["ranking"])
+collection = ArchitectureCollection.model_validate(record["collection"])
+assert collection == ranking.select_up_to(100)
+assert 2 < collection.delivered_count < 100
+assert collection.status == "insufficient_retained_architectures"
+assert ranking.grouping == "interval_topology"
+print("Installed collection API/CLI and source parity: ok")
+PY
+
 source_python="$(uv run --locked python -c 'import sys; print(sys.executable)')"
-for guide in python-api pair-assessment choose-alternatives; do
+for guide in python-api pair-assessment choose-alternatives reference/portfolio-selection reference/search-observations; do
   guide_program="$(python3 - "$repo_root/docs/$guide.md" <<'PY'
 import re
 import sys
@@ -113,16 +191,21 @@ assert blocks, f"no runnable Python example in {guide_path.name}"
 print("\n".join(blocks))
 if guide_path.name == "choose-alternatives.md":
     print("print(ranking.model_dump_json())\nprint(recovered.model_dump_json())")
+if guide_path.name == "portfolio-selection.md":
+    print("print(result.model_dump_json())")
+if guide_path.name == "search-observations.md":
+    print("print(observation.model_dump_json())")
 PY
 )"
-  mkdir "$smoke_root/source-$guide" "$smoke_root/wheel-$guide"
-  source_guide="$(cd "$smoke_root/source-$guide" && "$source_python" -c "$guide_program")"
-  wheel_guide="$(cd "$smoke_root/wheel-$guide" && "$smoke_root/venv/bin/python" -c "$guide_program")"
+  guide_name="${guide##*/}"
+  mkdir "$smoke_root/source-$guide_name" "$smoke_root/wheel-$guide_name"
+  source_guide="$(cd "$smoke_root/source-$guide_name" && "$source_python" -c "$guide_program")"
+  wheel_guide="$(cd "$smoke_root/wheel-$guide_name" && "$smoke_root/venv/bin/python" -c "$guide_program")"
   if [[ "$source_guide" != "$wheel_guide" ]]; then
     echo "source/wheel $guide example output or record mismatch" >&2
     exit 1
   fi
-  diff -qr "$smoke_root/source-$guide" "$smoke_root/wheel-$guide"
+  diff -qr "$smoke_root/source-$guide_name" "$smoke_root/wheel-$guide_name"
   echo "Installed $guide from empty directory and source parity: ok"
 done
 
@@ -160,91 +243,6 @@ uv run --locked motif-balance inspect "$smoke_root/source-result" \
   --out "$smoke_root/wheel-review.html" >/dev/null
 cmp "$smoke_root/source-review.html" "$smoke_root/wheel-review.html"
 
-# Exercise the explicit reader with genuinely v1-scored run-manifest/v2 bytes.
-"$smoke_root/venv/bin/python" - examples/synthetic-pairwise/design.yaml "$smoke_root/legacy-v2-result" <<'PY'
-import sys
-from pathlib import Path
-
-from motif_balance.artifacts import artifact_records, base_artifact_payloads, bundle_id, manifest_bytes
-from motif_balance.compile import build_run_id, compile_design
-from motif_balance.constants import BUILD_LOCK_SHA256, RUNTIME_CONTRACT
-from motif_balance.formats.design import load_design_spec
-from motif_balance.model import DesignSpec, MotifModel, RunManifest
-from motif_balance.search import search
-from motif_balance.selection import select_candidates
-
-current = load_design_spec(Path(sys.argv[1]))
-target = Path(sys.argv[2])
-motifs = tuple(
-    MotifModel.model_validate(
-        {**motif.model_dump(mode="python"), "schema_version": "motif-model/v1"}
-    )
-    for motif in (item.motif for item in current.specifications)
-)
-spec = DesignSpec(
-    schema_version="design-spec/v1",
-    motifs=motifs,
-    length=current.length,
-    count=current.count,
-    strands=current.strands,
-    evaluations=current.evaluations,
-    seed=current.seed,
-    min_distance=current.min_distance,
-    scoring_semantics="normalized_llr_v1",
-)
-problem = compile_design(spec)
-result = search(problem)
-legacy_diagnostics = result.diagnostics.model_copy(
-    update={
-        "schema_version": "search-diagnostics/v1",
-        "restart_final_constraint_statuses": (),
-    }
-)
-candidates = select_candidates(
-    result.evaluations,
-    count=spec.count,
-    min_distance=spec.min_distance,
-    evaluations_used=result.evaluations_used,
-)
-report = b"<!doctype html><title>Released Motif Balance v2 report</title>\n"
-payloads = base_artifact_payloads(spec, candidates)
-payloads["report.html"] = report
-run_id = build_run_id(
-    spec,
-    problem.problem_id,
-    result.engine,
-    result.engine_version,
-    package_version="0.2.0a3",
-)
-provisional = RunManifest(
-    schema_version="run-manifest/v2",
-    package_version="0.2.0a3",
-    runtime_contract=RUNTIME_CONTRACT,
-    build_lock_sha256=BUILD_LOCK_SHA256,
-    problem_id=problem.problem_id,
-    run_id=run_id,
-    bundle_id="bundle-000000000000000000000000",
-    search_engine=result.engine,
-    search_engine_version=result.engine_version,
-    rng=result.rng,
-    evaluation_count=result.evaluations_used,
-    unique_evaluations=result.unique_evaluations,
-    completion_status=result.completion_status,
-    search_validation_status=result.search_validation_status,
-    search_diagnostics=legacy_diagnostics,
-    artifacts=artifact_records(payloads),
-)
-sealed = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
-target.mkdir()
-for name, payload in payloads.items():
-    (target / name).write_bytes(payload)
-(target / "manifest.json").write_bytes(manifest_bytes(sealed))
-PY
-legacy_bundle_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["bundle_id"])' "$smoke_root/legacy-v2-result/manifest.json")"
-uv run --locked motif-balance inspect "$smoke_root/legacy-v2-result" \
-  --expected-bundle-id "$legacy_bundle_id" >/dev/null
-"$smoke_root/venv/bin/motif-balance" inspect "$smoke_root/legacy-v2-result" \
-  --expected-bundle-id "$legacy_bundle_id" >/dev/null
 
 for view in candidate portfolio search; do
   uv run --locked motif-balance inspect "$smoke_root/source-result" \
@@ -259,14 +257,6 @@ source_behavior="$(uv run --locked python -c "$behavior_program" examples/synthe
 wheel_behavior="$("$smoke_root/venv/bin/python" -c "$behavior_program" examples/synthetic-pairwise/design.yaml "$smoke_root/wheel-result")"
 if [[ "$source_behavior" != "$wheel_behavior" ]]; then
   echo "source/wheel public behavior mismatch" >&2
-  exit 1
-fi
-
-observation_program='import json; from motif_balance import DesignSpec,MotifModel; from motif_balance.observation import observe_evaluated_pool; target=MotifModel(motif_id="target",probabilities=((0.7,0.1,0.1,0.1),),background=(0.25,0.25,0.25,0.25)); avoider=MotifModel(motif_id="avoid",probabilities=((0.7,0.1,0.1,0.1),),background=(0.25,0.25,0.25,0.25)); spec=DesignSpec(motifs={"target":target},avoiders={"avoid":{"motif":avoider,"score_ceiling":0.0}},length=1,count=1,strands="forward",evaluations=4,seed=11); value=observe_evaluated_pool(spec); print(json.dumps({"id":value.observation_id,"schema":value.schema_version,"count":value.evaluation_count,"feasible":sum(row.constraint_feasible for row in value.evaluations)},sort_keys=True))'
-source_observation="$(uv run --locked python -c "$observation_program")"
-wheel_observation="$("$smoke_root/venv/bin/python" -c "$observation_program")"
-if [[ "$source_observation" != "$wheel_observation" ]]; then
-  echo "source/wheel evaluated-pool observation mismatch" >&2
   exit 1
 fi
 

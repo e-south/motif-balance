@@ -1,3 +1,8 @@
+"""Summarize verified design results and provenance in readable terminal text.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from ..model import ResultInspection
@@ -12,16 +17,7 @@ def render_text(inspection: ResultInspection) -> str:
 
     best = inspection.portfolio.candidates[0]
     best_observed = inspection.portfolio.best_observed
-    motif_count = len(inspection.problem.motifs)
-    directional = all(motif.direction is not None for motif in inspection.problem.motifs)
-    if best_observed is None:
-        observed_lede = (
-            f"The selected rank-one candidate balances {motif_count} motif "
-            f"{'model' if motif_count == 1 else 'models'} at "
-            f"{best.balance_score:.6g}; the source bundle records only the "
-            "best-observed score."
-        )
-    elif best_observed.selected_rank is None:
+    if best_observed.selected_rank is None:
         observed_lede = (
             f"The best observed balance_score was "
             f"{best_observed.balance_score:.6g}; that sequence was not selected "
@@ -56,21 +52,12 @@ def render_text(inspection: ResultInspection) -> str:
         f"Best observed balance_score: {inspection.portfolio.best_observed_score:.17g}",
         f"Top candidate: rank {best.rank}, {best.candidate_id}",
         f"Top balance_score: {best.balance_score:.17g}",
-        (
-            f"Limiting specification: {', '.join(best.limiting_motif_ids)}"
-            if directional
-            else f"Limiting motif: {', '.join(best.limiting_motif_ids)}"
-        ),
+        f"Limiting specification: {', '.join(best.limiting_motif_ids)}",
         "",
         "Use --format svg --view candidate|portfolio|search for a figure, or",
         "--format html --out FILE for the self-contained shareable review.",
     ]
-    if best_observed is None:
-        lines.insert(
-            13,
-            "Best observed sequence: unavailable in the source bundle schema.",
-        )
-    elif best_observed.selected_rank is None:
+    if best_observed.selected_rank is None:
         lines.insert(
             13,
             f"Best observed sequence: {best_observed.sequence}; "
@@ -89,19 +76,13 @@ def render_text(inspection: ResultInspection) -> str:
             f"Producer revision: {inspection.execution.producer_revision}",
             "",
         ]
-    if inspection.problem.avoiders:
-        constraints = ", ".join(
-            f"{item.motif_id} <= {item.score_ceiling:.6g}" for item in inspection.problem.avoiders
-        )
-        lines.insert(12, f"Hard avoidance: {constraints}")
-    if directional:
-        specifications = ", ".join(
-            f"{item.motif_id}: {item.direction}" for item in inspection.problem.motifs
-        )
-        lines.insert(12, f"Specifications: {specifications}")
-        lines.insert(
-            13,
-            "Avoid satisfaction is 1 - attainment on the same model-relative scale; "
-            "it does not establish biological absence.",
-        )
+    specifications = ", ".join(
+        f"{item.motif_id}: {item.direction}" for item in inspection.problem.motifs
+    )
+    lines.insert(12, f"Specifications: {specifications}")
+    lines.insert(
+        13,
+        "Avoid satisfaction is 1 - attainment on the same model-relative scale; "
+        "it does not establish biological absence.",
+    )
     return "\n".join(lines) + "\n"

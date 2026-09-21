@@ -1,4 +1,7 @@
-"""Assess seek-pair base conflicts without generating or scoring DNA sequences."""
+"""Bounded pair profiles with deterministic placement equivalence.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -6,18 +9,12 @@ from typing import Literal
 
 import numpy as np
 
-from motif_balance.compile import _compile_motif
 from motif_balance.constants import MAX_PAIR_ASSESSMENT_BASE_OPERATIONS, MAX_SEQUENCE_LENGTH
 from motif_balance.errors import IncompatibleDesign
 from motif_balance.model import MotifModel
-from motif_balance.model.assessment import (
-    AssessedMotif,
-    PairArrangement,
-    PairAssessment,
-    assessment_work_bound,
-)
+from motif_balance.model.assessment import PairArrangement, PairAssessment, assessment_work_bound
 
-__all__ = ["PairAssessment", "assess_pair"]
+from .terms import column_regret
 
 
 def _admit(left: MotifModel, right: MotifModel, length: int, strands: str) -> int:
@@ -43,32 +40,6 @@ def _admit(left: MotifModel, right: MotifModel, length: int, strands: str) -> in
     return operations
 
 
-def _terms(model: MotifModel) -> tuple[np.ndarray, float, AssessedMotif]:
-    odds = _compile_motif(model).log_odds
-    spans = np.ptp(odds, axis=1)
-    preferences = np.divide(
-        odds - odds.min(axis=1)[:, None],
-        spans[:, None],
-        out=np.ones_like(odds),
-        where=spans[:, None] > 0,
-    )
-    probabilities = np.asarray(model.probabilities, dtype=float)
-    weights = np.clip(1 + np.sum(probabilities * np.log2(probabilities), axis=1) / 2, 0, 1)
-    # A background-shaped column has no score preference, even when its entropy
-    # differs from the uniform reference. It cannot create a base conflict.
-    weights[spans == 0] = 0
-    return (
-        weights[:, None] * (1 - preferences),
-        float(weights.sum()),
-        AssessedMotif(
-            motif_id=model.motif_id,
-            model_digest=model.model_digest,
-            width=model.width,
-            zero_range_columns=tuple(int(i) for i in np.flatnonzero(spans == 0)),
-        ),
-    )
-
-
 def assess_pair(
     left: MotifModel,
     right: MotifModel,
@@ -85,8 +56,8 @@ def assess_pair(
     bound, or estimate of how many sequence solutions exist.
     """
     operations = _admit(left, right, length, strands)
-    a, weight_a, reference_a = _terms(left)
-    b, weight_b, reference_b = _terms(right)
+    a, weight_a, reference_a = column_regret(left)
+    b, weight_b, reference_b = column_regret(right)
     total_weight = weight_a + weight_b
     if total_weight <= 0:
         raise IncompatibleDesign(

@@ -2,6 +2,8 @@
 
 This module detects a bounded set of known publication hazards.  It does not
 assess evidence, accept claims, search literature, or rewrite supplied text.
+
+Maintainer(s): Eric J. South, Dunlop Lab
 """
 
 from __future__ import annotations

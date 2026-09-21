@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from motif_balance import Candidate, DesignSpec, score
+from motif_balance import Candidate, DesignSpec, MotifSpecification, score
 from motif_balance.errors import ArtifactError
 from motif_balance.formats.design import load_design_spec
 from motif_balance.inspection.render import render_candidate_svg
@@ -78,7 +78,7 @@ def test_scored_candidate_is_inspectable_even_if_requested_portfolio_cannot_fit(
     assert inspection.candidate.balance_score == 0.5
 
 
-@pytest.mark.parametrize("change", ["sequence", "score", "identity", "model", "constraint"])
+@pytest.mark.parametrize("change", ["sequence", "score", "identity", "model", "direction"])
 def test_supplied_claims_must_match_full_authoritative_replay(change):
     spec = _spec()
     candidate = _candidate(spec)
@@ -88,9 +88,14 @@ def test_supplied_claims_must_match_full_authoritative_replay(change):
         candidate = candidate.model_copy(update={"balance_score": 0.9})
     elif change == "identity":
         candidate = candidate.model_copy(update={"candidate_id": "candidate-0000000000000000"})
-    elif change == "constraint":
+    elif change == "direction":
         candidate = candidate.model_copy(
-            update={"constraint_status": "infeasible", "max_avoidance_excess": 0.2}
+            update={
+                "matches": (
+                    candidate.matches[0].model_copy(update={"spec_direction": "avoid"}),
+                    *candidate.matches[1:],
+                )
+            }
         )
     else:
         values = spec.model_dump()
@@ -155,9 +160,9 @@ def test_supplied_candidate_cannot_receive_a_bundle_custody_receipt():
 
 def test_no_legacy_request_conversion_or_extra_provenance_fields():
     spec = _spec()
-    legacy = DesignSpec(motifs=spec.scored_motifs, length=2, count=1, evaluations=16, seed=7)
-    with pytest.raises(ArtifactError, match="current directional"):
-        _inspect(_candidate(legacy), legacy)
+    legacy = spec.model_copy(update={"schema_version": "design-spec/v2"})
+    with pytest.raises(ValueError, match="schema_version"):
+        _inspect(_candidate(spec), legacy)
     inspection = _inspect(_candidate(spec), spec)
     for field in ("run", "search", "integrity", "source_path"):
         with pytest.raises(ValidationError):
@@ -178,7 +183,7 @@ def test_nonuniform_candidate_is_inspectable_but_keeps_the_existing_logo_refusal
 
 @pytest.mark.parametrize("direction, balance", [("seek", 1.0), ("avoid", 0.0)])
 def test_supplied_reverse_match_and_direction_survive_the_single_renderer(direction, balance):
-    from motif_balance import MotifModel, MotifSpecification
+    from motif_balance import MotifModel
 
     motifs = tuple(
         MotifModel(

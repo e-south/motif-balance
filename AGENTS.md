@@ -1,37 +1,36 @@
-# Motif Balance agent router
+# Repository guidance
 
-Motif Balance is a standalone public software owner. Read the smallest authority
-that governs the change:
+Start with the document that governs the change:
 
-| Need | Authority |
-| --- | --- |
-| Ownership or dependency direction | `ARCHITECTURE.md` |
-| Schemas, score meaning, or search invariants | `DESIGN.md` |
-| Determinism, artifact integrity, or limits | `RELIABILITY.md` |
-| Inputs, paths, public data, or release posture | `SECURITY.md` |
-| User concepts and journeys | `docs/index.md` |
+- [Architecture](ARCHITECTURE.md) defines module responsibilities and dependencies.
+- [Design contracts](DESIGN.md) defines scoring, search and selection invariants.
+- [Reliability](RELIABILITY.md) defines reproducibility and artifact verification.
+- [Security](SECURITY.md) defines input handling and publication safeguards.
+- [Documentation](docs/README.md) routes user tasks and integration references.
 
 ## Working rules
 
-- Keep reusable behavior here. Study questions, evidence, and claim decisions
-  belong to Research Studies; manuscript selection and composition belong to
-  `manufold`.
-- Do not import neighboring repositories or depend on workspace-relative paths.
-- Public models are strict and immutable. Add a failing contract or negative-
-  path test before changing behavior.
-- Keep scoring, search, and selection distinct. Selection must not mutate a
-  candidate after evaluation.
-- Treat every tracked file and built artifact as potentially public. Use only
-  short synthetic examples.
+Keep reusable sequence-design behavior in this package. Data collection,
+experiment comparisons and manuscript composition belong in the consuming
+project. Do not import neighboring repositories or depend on workspace paths.
 
-## Completion gate
+Public models are strict and immutable. Add a failing contract or invalid-input
+test before changing behavior. Keep scoring, search and selection separate;
+selection must not change an evaluated sequence or its scores. Preserve existing
+changes in the working tree and keep refactors separate from changes to the method.
 
-Run targeted checks while editing. Before declaring a repository change
-complete, run:
+Treat tracked files and distributions as public. Examples may use synthetic
+models or explicitly attributed, redistributable biological models. Keep private
+sequences, credentials and machine-local paths outside the repository.
+
+## Verification
+
+Run targeted checks while editing. Before completing a repository change, run
+from the repository root:
 
 ```bash
-bash ./scripts/agent-preflight --strict
-bash ./scripts/agent-verify
+bash ./scripts/preflight --strict
+bash ./scripts/verify
 ```
 
-The same verification endpoint runs in CI.
+[Contributing](CONTRIBUTING.md) describes the development workflow and review requirements.

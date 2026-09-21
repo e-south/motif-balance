@@ -1,3 +1,8 @@
+"""Draw motif information logos aligned to the selected DNA strand and coordinates.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import math
@@ -47,8 +52,6 @@ def render_coordinate_aligned_information_logo(
     left: int,
     cell: int,
     limiting: bool,
-    avoider: bool,
-    score_ceiling: float | None,
 ) -> str:
     """Render a model logo from an already projected representative match.
 
@@ -56,8 +59,6 @@ def render_coordinate_aligned_information_logo(
     this renderer neither scans the sequence nor recomputes a motif score.
     """
 
-    if avoider and score_ceiling is None:
-        raise ArtifactError("avoider information logo requires a score ceiling")
     if any(
         not math.isclose(probability, 0.25, rel_tol=0.0, abs_tol=1.0e-12)
         for probability in motif.background
@@ -68,12 +69,8 @@ def render_coordinate_aligned_information_logo(
         )
     model_name = motif_id(motif.motif_id)
     color = motif_color(motif.motif_id)
-    score_label = (
-        "normalized score"
-        if motif.score_reference_semantics == "null_mean_to_score_max_v1"
-        else "attainment"
-    )
-    role = match.spec_direction or ("avoider" if avoider else "target")
+    score_label = "attainment"
+    role = match.spec_direction
     logo_bottom = top + 96
     match_left = left + match.start * cell
     match_width = (match.end - match.start) * cell
@@ -87,17 +84,9 @@ def render_coordinate_aligned_information_logo(
         + (
             f'data-direction="{match.spec_direction}" '
             f'data-spec-satisfaction="{match.spec_satisfaction:.17g}" '
-            if match.spec_direction is not None and match.spec_satisfaction is not None
-            else ""
         )
         + f'data-model-digest="{motif.model_digest}" data-match-start="{match.start}" '
-        f'data-match-end="{match.end}" data-match-strand="{match.strand}"'
-        + (
-            f' data-score-ceiling="{score_ceiling:.17g}"'
-            if avoider and score_ceiling is not None
-            else ""
-        )
-        + ">",
+        f'data-match-end="{match.end}" data-match-strand="{match.strand}"' + ">",
         text(20, top + 17, model_name, size=12, weight=650),
         text(20, top + 37, f"{motif.width} nt · {match.strand} · {role}", fill=MUTED),
         text(
@@ -164,15 +153,7 @@ def render_coordinate_aligned_information_logo(
                 ),
             ]
         )
-    if avoider:
-        parts.append(text(20, top + 97, f"ceiling {score_ceiling:.4g}", fill=MUTED))
-        parts.append(
-            f'<rect class="avoidance-ceiling-outline" x="{match_left:.3f}" y="{top + 21}" '
-            f'width="{match_width:.3f}" height="{logo_bottom - top - 15:.3f}" '
-            f'fill="none" stroke="{color}" stroke-width="1.5" '
-            f'stroke-dasharray="6 4" data-score-ceiling="{score_ceiling:.17g}"/>'
-        )
-    elif match.spec_direction == "avoid" and match.spec_satisfaction is not None:
+    if match.spec_direction == "avoid":
         parts.append(text(20, top + 97, f"satisfaction {match.spec_satisfaction:.4g}", fill=MUTED))
     parts.append("</g>")
     return "".join(parts)

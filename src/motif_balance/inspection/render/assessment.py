@@ -1,4 +1,7 @@
-"""Display one inspected arrangement without rescoring models or drawing a candidate."""
+"""Display one inspected arrangement without rescoring models or drawing a candidate.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 

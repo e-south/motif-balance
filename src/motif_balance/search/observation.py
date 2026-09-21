@@ -1,4 +1,7 @@
-"""Passive, bounded recording; never draws randomness or makes search decisions."""
+"""Passive, bounded recording; never draws randomness or makes search decisions.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -9,6 +12,7 @@ from motif_balance.constants import MAX_SEARCH_OBSERVATION_BYTES
 from motif_balance.model import DesignSpec, Evaluation
 from motif_balance.model.search_observation import (
     ChainState,
+    IncumbentCheckpoint,
     ObservationSpec,
     ObservedMoveCounts,
     SearchObservation,
@@ -23,10 +27,16 @@ class SearchRecorder:
     def __init__(self, spec: DesignSpec, config: ObservationSpec) -> None:
         if spec.schema_version != "design-spec/v3":
             raise ValueError("search observations require directional design-spec/v3")
-        projected_bases = (
+        if any(count > spec.evaluations for count in config.incumbent_evaluations):
+            raise ValueError("incumbent evaluation count exceeds the requested budget")
+        record_count = (
             config.max_snapshots * 9
+            + len(config.incumbent_evaluations)
             + len(config.quality_thresholds) * config.max_sequences_per_threshold
-        ) * (spec.length + sum(item.motif.width for item in spec.specifications))
+        )
+        projected_bases = record_count * (
+            spec.length + sum(item.motif.width for item in spec.specifications)
+        )
         if projected_bases > 1_000_000:
             raise ValueError("search observation exceeds the snapshot base limit")
         # Include repeated identifiers and match metadata, not only DNA bases.
@@ -37,10 +47,6 @@ class SearchRecorder:
                 1024 + len(item.motif.motif_id.encode()) + item.motif.width
                 for item in spec.specifications
             )
-        )
-        record_count = (
-            config.max_snapshots * 9
-            + len(config.quality_thresholds) * config.max_sequences_per_threshold
         )
         projected_bytes = (
             len(spec.model_dump_json().encode()) + 65_536 + record_count * evaluation_bytes
@@ -54,6 +60,7 @@ class SearchRecorder:
         )
         self.frames: list[SearchSnapshot] = []
         self.hits: dict[float, int | None] = dict.fromkeys(config.score_targets)
+        self.incumbents: dict[int, Evaluation | None] = dict.fromkeys(config.incumbent_evaluations)
         self.counts = {
             move: dict.fromkeys(("attempted", "accepted", "changed", "improved", "decreased"), 0)
             for move in ("single", "block", "multi", "insertion")
@@ -61,8 +68,12 @@ class SearchRecorder:
         self.interval = math.ceil(spec.evaluations / max(1, config.max_snapshots - 2))
         self.next_snapshot = self.interval
 
-    def evaluated(self, result: Evaluation, count: int, *, is_new: bool) -> None:
+    def evaluated(
+        self, result: Evaluation, count: int, *, is_new: bool, incumbent: Evaluation
+    ) -> None:
         self.quality.record(result, is_new=is_new)
+        if count in self.incumbents:
+            self.incumbents[count] = incumbent
         for target, hit in self.hits.items():
             if hit is None and result.balance_score >= target:
                 self.hits[target] = count
@@ -115,6 +126,10 @@ class SearchRecorder:
             snapshots=tuple(self.frames),
             target_hits=tuple(
                 TargetHit(target=target, first_evaluation=hit) for target, hit in self.hits.items()
+            ),
+            incumbents=tuple(
+                IncumbentCheckpoint(evaluations=count, incumbent=result)
+                for count, result in self.incumbents.items()
             ),
             moves=tuple(
                 ObservedMoveCounts(

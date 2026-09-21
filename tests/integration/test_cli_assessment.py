@@ -31,6 +31,27 @@ def _models(root: Path) -> tuple[Path, Path]:
     return paths
 
 
+def test_cli_adds_explicit_joint_models_without_changing_pair_output(tmp_path):
+    left, right = _models(tmp_path)
+    third = tmp_path / "third.json"
+    third.write_text(json.dumps({**json.loads(left.read_text()), "motif_id": "third"}))
+    args = ["assess", str(left), str(right), "--additional", str(third), "--length", "3"]
+    result = runner.invoke(app, [*args, "--format", "json"])
+    assert result.exit_code == 0, result.output
+    row = json.loads(result.stdout)
+    assert row["schema_version"] == "joint-assessment/v1"
+    assert len(row["motifs"]) == 3
+    assert row["structural_score"] == pytest.approx(2 / 3)
+    assert row["proof"] == "exact_minimum_over_admitted_arrangements"
+    text = runner.invoke(app, args)
+    assert text.exit_code == 0, text.output
+    assert "Joint assessment: 3 motifs" in text.stdout
+    assert "Model 3: third; start=" in text.stdout
+    svg = runner.invoke(app, [*args, "--format", "svg"])
+    assert svg.exit_code != 0
+    assert "SVG supports two models" in svg.output
+
+
 def test_cli_assesses_a_pair_and_explains_its_scope(tmp_path: Path) -> None:
     left, right = _models(tmp_path)
     before = {path.name: path.read_bytes() for path in tmp_path.iterdir()}
@@ -103,9 +124,12 @@ def test_svg_limit_refuses_before_calculation_or_writes(tmp_path, monkeypatch):
 def test_assessment_is_a_visible_journey_with_specific_help() -> None:
     commands = get_command(app).commands
     assert sorted(name for name, child in commands.items() if not child.hidden) == [
+        "animate",
         "assess",
+        "collect",
         "design",
         "inspect",
+        "motif",
         "score",
     ]
     result = runner.invoke(app, ["assess", "--help"])
@@ -139,7 +163,16 @@ def test_occupied_output_fails_before_assessment(
     )
     assert result.exit_code == 2, result.output
     assert "Refusing to replace existing assessment output" in result.output
-    assert out.lstat() == before
+    after = out.lstat()
+    # Inspecting an occupied path may update access time; it must not modify it.
+    for field in ("st_ino", "st_mode", "st_size", "st_mtime_ns", "st_ctime_ns"):
+        assert getattr(after, field) == getattr(before, field)
+    if kind == "file":
+        assert out.read_text() == "existing"
+    elif kind == "directory":
+        assert list(out.iterdir()) == []
+    else:
+        assert out.readlink() == (left if kind == "symlink" else tmp_path / "absent")
 
 
 def test_cli_rejects_a_multimotif_format_without_silently_choosing_a_record(tmp_path: Path) -> None:

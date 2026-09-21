@@ -1,4 +1,7 @@
-"""Release-bound execution receipts and workspace resources."""
+"""Release-bound execution receipts and workspace resources.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 

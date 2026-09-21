@@ -1,3 +1,8 @@
+"""Render a navigable HTML review of verified candidates, scores, and provenance.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from html import escape
@@ -132,28 +137,22 @@ def _checkpoint_rows(inspection: ResultInspection) -> tuple[str, str]:
 
 def _motif_probability_table(inspection: ResultInspection) -> tuple[str, str]:
     rows: list[str] = []
-    total = sum(motif.width for motif in (*inspection.problem.motifs, *inspection.problem.avoiders))
+    total = sum(motif.width for motif in inspection.problem.motifs)
     shown = 0
-    for role, motifs in (
-        ("target", inspection.problem.motifs),
-        ("avoider", inspection.problem.avoiders),
-    ):
-        for motif in motifs:
-            for position, probabilities in enumerate(motif.probabilities):
-                if shown >= MAX_HTML_MOTIF_POSITIONS:
-                    break
-                rows.append(
-                    "<tr>"
-                    f'<th scope="row">{escape(motif.motif_id)}</th>'
-                    f"<td>{motif.direction or role}</td><td>{position}</td>"
-                    + "".join(f"<td>{value:.17g}</td>" for value in probabilities)
-                    + f"<td>{motif.probability_consensus[position]}</td>"
-                    f"<td>{motif.score_maximizing_sequence[position]}</td>"
-                    "</tr>"
-                )
-                shown += 1
+    for motif in inspection.problem.motifs:
+        for position, probabilities in enumerate(motif.probabilities):
             if shown >= MAX_HTML_MOTIF_POSITIONS:
                 break
+            rows.append(
+                "<tr>"
+                f'<th scope="row">{escape(motif.motif_id)}</th>'
+                f"<td>{motif.direction}</td><td>{position}</td>"
+                + "".join(f"<td>{value:.17g}</td>" for value in probabilities)
+                + f"<td>{motif.probability_consensus[position]}</td>"
+                f"<td>{motif.score_maximizing_sequence[position]}</td>"
+                "</tr>"
+            )
+            shown += 1
         if shown >= MAX_HTML_MOTIF_POSITIONS:
             break
     note = (
@@ -395,8 +394,6 @@ def _status_line(inspection: ResultInspection) -> str:
 
 def _best_observed_record(inspection: ResultInspection) -> str:
     best = inspection.portfolio.best_observed
-    if best is None:
-        return ""
     selection = (
         "not selected under the portfolio constraint"
         if best.selected_rank is None
@@ -409,32 +406,11 @@ def _best_observed_record(inspection: ResultInspection) -> str:
     )
 
 
-def _avoidance_contract(inspection: ResultInspection) -> str:
-    if not inspection.problem.avoiders:
-        return ""
-    rows = "".join(
-        "<tr>"
-        f"<td>{escape(item.motif_id)}</td>"
-        f"<td>{item.score_ceiling:.17g}</td>"
-        f"<td><code>{item.model_digest}</code></td>"
-        "</tr>"
-        for item in inspection.problem.avoiders
-    )
-    return (
-        "<h3>Hard avoidance constraints</h3>"
-        "<p>Each ceiling applies to that avoider motif's best normalized match. "
-        "Avoider scores do not enter the target balance_score.</p>"
-        + _table(("Avoider", "Maximum normalized score", "Model digest"), rows)
-    )
-
-
 def _directional_contract(inspection: ResultInspection) -> str:
-    if not all(item.direction is not None for item in inspection.problem.motifs):
-        return ""
     rows = "".join(
         "<tr>"
         f"<td>{escape(item.motif_id)}</td>"
-        f"<td>{escape(item.direction or '')}</td>"
+        f"<td>{escape(item.direction)}</td>"
         f"<td><code>{item.model_digest}</code></td>"
         "</tr>"
         for item in inspection.problem.motifs
@@ -459,17 +435,14 @@ def render_html(
     portfolio_svg = render_portfolio_svg(inspection).decode()
     best_observed = inspection.portfolio.best_observed
     best_observed_state = (
-        "Its sequence is unavailable in the source bundle schema."
-        if best_observed is None
-        else "It was not selected under the portfolio constraint."
+        "It was not selected under the portfolio constraint."
         if best_observed.selected_rank is None
         else f"It is selected at portfolio rank {best_observed.selected_rank}."
     )
-    directional = all(item.direction is not None for item in inspection.problem.motifs)
     lede = (
         f"Returned {inspection.delivery.delivered_count} of "
         f"{inspection.delivery.requested_count} requested sequences. Best observed "
-        f"weakest {'specification satisfaction' if directional else 'target attainment'} "
+        f"weakest specification satisfaction "
         "(balance_score) was "
         f"{inspection.portfolio.best_observed_score:.6g}. "
         f"{best_observed_state} The selected rank {selected.rank} candidate balances "
@@ -482,8 +455,7 @@ def render_html(
         else f"minimum distance {inspection.run.min_distance_requested:.6g}"
     )
     specification_labels = " + ".join(
-        f"{motif.motif_id}:{motif.direction}" if directional else motif.motif_id
-        for motif in inspection.problem.motifs
+        f"{motif.motif_id}:{motif.direction}" for motif in inspection.problem.motifs
     )
     contract = (
         f"{specification_labels} · "
@@ -498,10 +470,9 @@ def render_html(
             _status_line(inspection),
             f'<h2>Design contract</h2><p class="contract">{escape(contract)}</p>',
             _directional_contract(inspection),
-            _avoidance_contract(inspection),
             "<h2>Portfolio balance</h2>",
             "<p>Rows retain deterministic rank order and columns retain canonical motif order. "
-            f"The weakest {'specification satisfaction' if directional else 'target attainment'} "
+            "The weakest specification satisfaction "
             "is recorded as <code>balance_score</code>. "
             "Numeric values are authoritative; color is only a reading aid.</p>",
             '<div class="figure-scroll" aria-label="Portfolio balance figure">',

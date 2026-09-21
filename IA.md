@@ -1,242 +1,88 @@
 ---
 doc_id: motif-balance-information-architecture
-title: Motif Balance information architecture
-intent: Define the canonical ontology, semantic authorities, artifacts, and owner boundaries.
-audience:
-  - maintainers
-  - API consumers
-  - downstream integrators
+title: Information architecture
+intent: Locate the records that define inputs, evaluations and results.
+audience: [maintainers, API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-09
+last_verified: 2026-09-20
 doc_type: reference
 ---
 
-# Motif Balance information architecture
+# Information architecture
 
-Motif Balance has one product ontology for balanced inverse design. It accepts
-explicit motif models and a fixed sequence length, evaluates candidate
-sequences, searches a bounded sequence space, selects an exact portfolio, and
-publishes a verifiable bundle. The best-scoring sequence realization for each
-motif—its matched word, placement, strand, and any shared coordinates—emerges
-from candidate evaluation rather than being prescribed. The ontology is
-deliberately limited to concepts required to perform, verify, or inspect that
-operation.
+A design request defines the motif models and available DNA. An evaluation
+records how a sequence matches them. A portfolio selects evaluated sequences,
+and a result bundle preserves the inputs, outputs and search record together.
+These distinctions keep a change to search or presentation from changing the
+meaning of an existing score.
 
-## Authorities
+## Inputs and evaluations
 
-| Question | Authority | Versioned identity |
-| --- | --- | --- |
-| What is being requested? | `DesignSpec` | `design-spec/v3` (v1/v2 preserved) |
-| Which way should a motif score move? | `MotifSpecification` | `seek` or `avoid` |
-| What does a motif mean? | `MotifModel` | `motif-model/v2` (v1 read-only) |
-| How did source values become positive probabilities? | `MotifConversion` | `motif-conversion/v1` or `motif-conversion/v2` |
-| How is a sequence scored? | compile and scoring | `relative_pwm_attainment_v2` |
-| Which match wins? | scoring | `leftmost_plus_first_v1` |
-| What is the joint score? | scoring | `weakest_directional_satisfaction_v1` |
-| How are sequences proposed? | `SearchEngine` | engine name and version |
-| Which evaluated sequences ship? | selection | exact count and declared distance |
-| Which distinct architectures can a supplied pool offer? | alternatives | `architecture-ranking/v2` |
-| What crosses a repository boundary? | canonical bundle | `run-manifest/v6` (v5 for legacy v2) |
-| Which released bytes performed a run? | execution workspace | `motif-balance.execution-workspace/v1` |
-| How is one result explained without mutation? | `ResultInspection` | `motif-balance.result-inspection/v4` |
-| How is a supplied candidate explained without inventing a run? | `CandidateInspection` | `motif-balance.candidate-inspection/v1` |
+`MotifModel` contains position probabilities, an explicit background and source
+identity. `MotifSpecification` adds a `seek` or `avoid` direction. `DesignSpec`
+combines those requirements with length, output count, strand policy, evaluation
+budget, seed and optional sequence separation. See [motif inputs](docs/motif-models.md)
+and the [design reference](docs/design-spec.md) for fields and conversion rules.
 
-## Ontology
+Scoring returns an immutable `Evaluation` containing the sequence, each motif's
+selected strongest match, its score and the overall balance. Coordinates are
+zero-based, with the end excluded. Deterministic tie-breaking selects the
+leftmost match, then the plus strand. [Methods](docs/methods.md) defines the
+log-odds calculation and model-relative scale.
 
-```text
-MotifSpecification[] + design fields
-                                │
-                                ▼
-                           DesignSpec
-                                │
-                                ▼
-                         CompiledProblem
-                                │
-                 ┌──────────────┴──────────────┐
-                 ▼                             ▼
-             Evaluation                  SearchEngine
-       sequence + best matches       bounded proposal process
-                 │                             │
-                 └──────────────┬──────────────┘
-                                ▼
-                           Candidate[]
-                                │
-                                ▼
-                            Portfolio
-                                │
-                                ▼
-                     canonical result bundle
-```
+A `Candidate` adds a sequence identifier and rank to an evaluation. A
+`Portfolio` contains exactly the requested number of candidates. Search may
+propose a new sequence, and selection may choose a different evaluation, but
+neither may edit an already scored record.
 
-An `Evaluation` is the immutable boundary. Search may propose another sequence
-and selection may choose among evaluations, but neither may alter an evaluated
-sequence, match, or score. A `Portfolio` contains exactly `DesignSpec.count`
-fixed-length candidates or the operation fails.
+## Search and selection
 
-## Semantic contracts
-
-### Scoring
-
-Each motif is a positive position-by-base probability matrix with an explicit
-background. Compilation derives log-odds scores. Evaluation scans every valid
-offset and declared strand, selects one match per motif with a deterministic
-total order, and reports its relative attainment between the motif's theoretical
-minimum and maximum raw log-likelihood-ratio scores over one motif-width word.
-Both word-level extrema are exact; after retaining the best score across
-multiple placements or orientations, the lower endpoint need not be
-sequence-attainable while the upper endpoint remains attainable by embedding a
-maximizing word. The
-conventional probability consensus is recorded separately from the
-score-maximizing reference because they can differ under a nonuniform
-background. For v3, a seek specification retains attainment while an avoid
-specification transforms it to one minus attainment after the scan. The lowest
-specification satisfaction is `balance_score`. Under the preserved v2 contract,
-avoider motifs use the same scanner but have
-explicit upper ceilings; their scores and violations are separate records and
-never enter the target hard minimum. V2 snaps only endpoint-scale numerical
-excursions within tolerance and fails closed beyond it.
-
-The smooth minimum exists only inside search. It is never serialized as a
-candidate score or treated as accepted study support.
-
-Source conversion is provenance, not a scoring alternative. A caller may
-supply an already-positive probability model, a JASPAR count conversion, or a
-probability matrix mixed with an explicit positive background prior. New count
-conversion uses a position-specific background-weighted prior with
-`alpha_i = sqrt(N_i)` and records
-`motif-conversion/v2` with `count_matrix_sqrt_n_background_prior_v1`.
-Probability-matrix conversion uses
-`(p_source + prior_weight * background) / (1 + prior_weight)` and records
-`probability_matrix_prior_mixture_v1`; it never fabricates an effective count.
-Design applies no further smoothing. Source acquisition, motif choice, and
-conversion rationale remain caller-owned.
-
-### Search
-
-`evaluations` counts calls to the authoritative evaluator. By default, tractable spaces use
-complete enumeration. Larger spaces use versioned multi-start annealed search
-with single-base, block, multi-base, and motif-insertion proposals. The engine
-records logarithmic checkpoints with per-specification satisfactions,
-restart-final scores, proposal summaries, and at most 256 deterministic
-score-ranked unique elites; raw state traces and the complete v3 proposal pool
-are not product artifacts. Complete enumeration establishes an
-optimum only when the admitted sequence space is fully covered. Annealed runs
-publish the best result observed under their declared evaluator-call budget,
-not a convergence or global-optimality claim.
-
-Explicit Python method choices keep the same design problem: `greedy` uses
-strict single-coordinate improvement; `random` draws independent whole
-sequences with replacement. The latter never substitutes enumeration.
-Method identity belongs to the run, not a new scientific task hierarchy.
-The [method reference](docs/methods.md#explicit-comparison-methods) owns their
-exact policies; comparison cohorts and conclusions remain caller-owned.
-
-Hard avoidance is feasibility-first: feasible evaluations outrank infeasible
-evaluations before target score is considered. Among infeasible evaluations,
-search prefers smaller maximum ceiling excess. This lexicographic contract is
-not a weighted penalty. Exhaustive search can prove exact constraint
-infeasibility; bounded search can report only unresolved feasibility at its
-declared budget.
-
-Shared coordinates between representative target matches are inspectable
-sequence geometry. They do not establish simultaneous motif occupancy,
-co-binding, or regulatory function.
+Search records the executed method and budget separately from the scoring
+problem. The same models, directions, length and strand policy can therefore
+be compared under different [search methods](docs/methods.md#explicit-comparison-methods).
+Optional [observations](docs/reference/search-observations.md) record selected
+search states or evaluated winners without changing the search.
 
 ### Selection
 
-Selection ranks immutable evaluations by descending balance score and then
-sequence. It applies the declared distance rule without relaxation. It returns
-the exact requested count or raises a typed `SearchBudgetExhausted`,
-`ConstraintFeasibilityExhausted`, `ExactConstraintInfeasible`,
-`PortfolioInfeasible`, or `SelectionLimitReached` failure. The last state means
-the bounded subset traversal did not resolve feasibility; it is not proof that
-no feasible portfolio exists.
+Ordinary design returns an exact-size portfolio satisfying its declared
+Hamming-distance requirement, or raises a typed error. The manifest records the
+best evaluated sequence separately because a distance constraint can exclude
+it from the selected set.
 
-The best observed evaluation and the selected portfolio are distinct records.
-The manifest retains the complete score-ranked best evaluation even when a
-distance constraint excludes that sequence from the exact selected set.
-`candidates.tsv`, `matches.tsv`, and FASTA contain only selected portfolio
-members. Older readable manifests may expose only the best observed score
-because they did not retain the corresponding sequence and matches.
+[Architecture ranking](docs/choose-alternatives.md) instead groups a supplied
+pool by selected-match arrangements and ranks one representative per class.
+Its `select_up_to` operation can report a smaller delivered collection; its
+`select` operation requires the exact count. Neither enforces sequence separation.
 
-The explicit [architecture-ranking API](docs/choose-alternatives.md) is a
-separate supplied-pool operation. It scores canonical sequences, retains one
-best representative per selected-match architecture, and exposes every ranked
-prefix with separate quality and distance measurements. Its exact-count
-selection neither applies nor relaxes the portfolio's distance constraint.
-The input pool and full scoring specification remain explicit; no search,
-artifact discovery, source cohort, or acceptance policy enters this seam.
+[Constrained portfolio selection](docs/reference/portfolio-selection.md) keeps
+the full supplied pool and applies an explicit count, separation and architecture
+policy. It distinguishes a feasible set, an optimal set within that pool,
+insufficient search of the pool and demonstrated pool infeasibility.
 
-## Artifact contract
+## Saved results and inspection
 
-The canonical bundle contains:
+The result bundle contains `design.json`, `motifs.json`, `candidates.tsv`,
+`matches.tsv`, `manifest.json` and a derived `candidates.fasta`. Its manifest
+binds inputs, candidates, best observed evaluation, bounded search diagnostics
+and file digests. Publication is atomic and refuses an existing destination.
+The [public contract](docs/reference/public-contract.md#artifacts) lists current
+schema versions.
 
-```text
-design.json
-motifs.json
-candidates.tsv
-matches.tsv
-manifest.json
-```
+An [execution workspace](docs/reference/execution-receipts.md) additionally
+retains the exact wheel and runtime record. An [inspection](docs/reference/result-inspection.md)
+verifies the saved result before producing text, JSON, SVG or HTML. A supplied
+candidate can also be rescored and inspected without inventing a search history.
+Derived reviews stay outside the bundle and do not change its identity.
 
-`candidates.fasta` is a derived, verified bundle member. Every member except
-the manifest is bound by relative path, byte count, and SHA-256 digest.
-The bundle identity binds scientific inputs, the complete best observed
-evaluation, search provenance, bounded diagnostics, retained elites, exact or
-bounded completion metadata, and artifact records.
-Publication is atomic and refuses an existing destination.
+## Ownership and navigation
 
-An attested execution wraps the resolved specification, exact wheel,
-canonical bundle, runtime receipt, and content index in one independently
-verifiable execution workspace. It has no implicit active state, repository
-references, mutable cache, discovery behavior, or interpretation authority.
+The package owns model interpretation, scoring, search, selection and result
+verification. Users choose source models, experimental comparisons and downstream
+analyses. Storage systems choose placement and retention. Integrations exchange
+explicit inputs and versioned artifacts without importing neighboring source trees.
 
-Text, inspection JSON, SVG, and HTML are on-demand review projections and
-never enter the bundle.
-
-A separately requested `evaluated-pool-observation/v2` can carry the complete
-unique evaluated pool to an analysis owner. It is bounded, immutable,
-identity-checked, scientifically replayed, and path-free. Each unique row
-records its first authoritative evaluator-call index, and verification reruns
-the deterministic search to establish row coverage, discovery order, counts,
-checkpoints, and diagnostics. The advanced paired operation can derive it and
-the ordinary portfolio from the same search result. It is not a bundle
-member, public `Portfolio` field, ordinary CLI journey, or top-level noun.
-
-Bundle or execution verification and score replay produce `ResultInspection`.
-The explicit `inspect_candidate` operation instead replays one caller-supplied
-directional candidate under its supplied specification, producing
-`CandidateInspection` without run, bundle or artifact-trust fields. Its rank
-remains caller-assigned; inspection does not verify a collection's ordering or
-source history. Both use the same candidate projection and duplex/logo renderer.
-A renderer cannot read a workspace,
-rescan a sequence, recompute a score, contact a network, compare runs, or
-accept evidence. It therefore cannot create a circular artifact identity.
-Inspection is deliberately limited to one explicit result or supplied candidate. Joining results,
-discovering Storage, choosing a benchmark cohort, and accepting evidence remain
-outside the package.
-
-## Product boundary
-
-- Motif Balance owns reusable semantics, bounded execution, artifacts,
-  verification, and single-result inspection.
-- Callers own model-source choice, task cohorts, comparisons, repetitions,
-  acceptance criteria, and downstream claims.
-- Artifact stores own placement, retention, and discovery without changing
-  result meaning.
-
-Integration occurs through released software, versioned schemas, content
-digests, and immutable artifacts—not runtime source imports.
-
-## Progressive documentation
-
-Readers enter through [the documentation index](docs/index.md), then follow only
-the route their task requires:
-
-- concepts and first design for users;
-- model, specification, and result references for scientific interpretation;
-- public contract and bundle verification for integrators;
-- [result inspection](docs/reference/result-inspection.md) for read-only review;
-- this IA, [architecture](ARCHITECTURE.md), and [engineering contracts](DESIGN.md)
-  for maintainers.
+Use the [documentation hub](docs/README.md) for task instructions, the
+[module map](docs/reference/module-map.md) for implementation responsibilities,
+and [design contracts](DESIGN.md) for the invariants a change must preserve.
