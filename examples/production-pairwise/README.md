@@ -7,7 +7,7 @@ audience:
   - maintainers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-08
+last_verified: 2026-09-21
 doc_type: tutorial
 ---
 
@@ -20,9 +20,13 @@ so it uses bounded annealed search. The constructed models carry no biological
 interpretation.
 
 ```bash
+# Validate the input motifs and search settings without running a search.
 uv run motif-balance design examples/production-pairwise/design.yaml --check
+# Run the design and save its sequences, matches and scoring inputs.
 uv run motif-balance design examples/production-pairwise/design.yaml --out /tmp/motif-pair-result
+# Verify the saved result and print its sequences and motif matches.
 uv run motif-balance inspect /tmp/motif-pair-result
+# Plot the recorded best scores over the search.
 uv run motif-balance inspect /tmp/motif-pair-result \
   --format svg --view search --out /tmp/motif-pair-search.svg
 ```

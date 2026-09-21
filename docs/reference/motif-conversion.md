@@ -5,7 +5,7 @@ intent: Record how counts or source probabilities become scoring inputs.
 audience: [API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: reference
 ---
 
@@ -28,6 +28,7 @@ under an explicit background first. For observed count `n[i,b]`, column count
 `(n[i,b] + alpha[i]*q[b]) / (N[i] + alpha[i])`:
 
 ```bash
+# Convert source counts into a probability model with an explicit background.
 motif-balance motif prepare examples/formats/synthetic.jaspar \
   --motif-id regulator_a \
   --background 0.25,0.25,0.25,0.25 \

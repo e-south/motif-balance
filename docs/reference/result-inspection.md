@@ -5,7 +5,7 @@ intent: Explain verified result review and replayed supplied-candidate views wit
 audience: [users, API consumers, downstream integrators]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: reference
 journey: [inspect]
 
@@ -22,23 +22,25 @@ cannot alter the values already checked.
 ## Choose one output
 
 ```bash
-# Concise terminal review; bundle is the default source.
+# Verify the saved result and print its sequences and motif matches.
 motif-balance inspect result/
 
-# Complete typed projection.
+# Export the verified scores and match geometry as JSON.
 motif-balance inspect result/ --format json
 
-# Selected motif matches as a vector figure.
+# Draw candidate 3 and save a record identifying the inputs used.
 motif-balance inspect result/ \
   --format svg --view candidate --candidate 3 \
   --out candidate-003.svg \
   --receipt-out candidate-003.receipt.json
+# Plot the selected candidates together for comparison.
 motif-balance inspect result/ \
   --format svg --view portfolio --out portfolio.svg
+# Plot the recorded best scores over the search.
 motif-balance inspect result/ \
   --format svg --view search --out search.svg
 
-# Optional, self-contained linear review.
+# Create a browser view containing the candidate, collection and search plots.
 motif-balance inspect result/ --format html --out result-review.html
 ```
 
@@ -119,28 +121,38 @@ same layout, independently of the motif source.
 For uniform-background models, the candidate view shows each supplied motif as
 a coordinate-aligned 0–2 bit information logo over its selected match and shows
 the supplied sequence 5′→3′ with its coordinate-aligned complement 3′→5′.
+
 The observed base in each logo column uses the motif's categorical color;
 unobserved alternatives remain gray. Each selected window has a solid motif-colored
 fill and white bases on the same coordinate grid and at the same font size as
-the duplex. Forward logos and matches appear above the
+the duplex.
+
+Forward logos and matches appear above the
 primary strand and reverse logos and matches below the complement. Limiting
 motifs use an explicit bracket and label. Seek/avoid labels communicate direction
 without relying on color alone.
 
 Exact observed-base signed log-likelihood contributions remain in the JSON and
-HTML inspection, not as a second numeric grid in the molecular SVG. Each logo
-column has information height `2 − H(p)` bits; its base letters have heights
+HTML inspection, not as a second numeric grid in the molecular SVG.
+
+Each logo column has information height `2 − H(p)` bits; its base letters have heights
 `p(base) × (2 − H(p))`. Uniform columns have zero height, without artificial
 minimum-size letters. These heights are not LLRs or binding probabilities.
-Renderers use the projected
-matrix, coordinates, strand, and support records; they do not rescan a motif or
-recompute a score. Candidate SVG export fails clearly for a nonuniform scoring
+
+Renderers use the projected matrix, coordinates, strand, and support records; they do not rescan a motif or
+recompute a score.
+
+Candidate SVG export fails clearly for a nonuniform scoring
 background because a 0–2 bit logo would imply the uniform-background convention;
-text and JSON inspection remain available. The linear HTML also provides the
-exact bounded motif-probability matrix as an accessible table; the logo is an
-explanatory encoding, not a substitute for those numeric values. Shared
-coordinates are a union of positions covered by more than one representative
-window, not evidence of simultaneous occupancy. More than 32 selected matches
+text and JSON inspection remain available.
+
+The linear HTML also provides the exact bounded motif-probability matrix as an accessible table; the logo is an
+explanatory encoding, not a substitute for those numeric values.
+
+Shared coordinates are a union of positions covered by more than one representative
+window, not evidence of simultaneous occupancy.
+
+More than 32 selected matches
 fails explicitly instead of silently exporting an incomplete molecular view;
 use JSON for the complete records. No lane is dropped to fit a page.
 

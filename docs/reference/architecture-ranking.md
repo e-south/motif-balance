@@ -5,7 +5,7 @@ intent: Define the calculation, returned records and validation limits.
 audience: [API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: reference
 ---
 
@@ -15,15 +15,19 @@ doc_type: reference
 
 Reuse the `DesignSpec` that defines your sequences' scoring context. Use retained sequences from a verified bundle or an explicit sequence list.
 The [selection guide](../choose-alternatives.md) demonstrates both.
+
 Only models, directions, length, and strands determine the scores. The
 request's seed, evaluator budget, and target count remain recorded context,
 not ranking limits or search activity. `select(count)` controls the returned
 count. Even an original count that exceeds the complete sequence space does not
 prevent ranking a valid supplied pool; trying to generate that impossible
-portfolio with `design` still fails. The specification must still satisfy its
+portfolio with `design` still fails.
+
+The specification must still satisfy its
 schema and resource limits, and every motif must fit the sequence length.
 A positive `min_distance` is refused rather than silently ignored;
 use [constrained portfolio selection](portfolio-selection.md) for that contract.
+
 In particular, the first-design Python tutorial requests positive sequence
 distance. Its saved request is therefore not an architecture-ranking request.
 Changing that selection requirement must be an explicit caller decision, not
@@ -104,12 +108,17 @@ The API is `rank_architectures(sequences, spec, *, grouping="exact_offsets", dis
 or list of uppercase, fixed-length A/C/G/T strings; `spec` must be a current
 directional request with at least two specifications. Iterators, legacy
 requests, mixed lengths, and unsupported distance constraints are refused.
-The pool limit is 50,000 records and 10 million supplied bases. Scoring is
-admitted against 100 million base operations. All-prefix distance work defaults
-to ten million conservative base/pair terms. After profiling the intended pool,
-an explicit integer `distance_base_budget` may admit up to 500 million terms.
-That budget cannot override the independent caps of 500,000 representative
-pairs and 250,000 prepared motif-pair entries. Oversized requests raise
+
+| Resource | Limit |
+| --- | --- |
+| Supplied pool | 50,000 records and 10 million bases |
+| Scoring | 100 million base operations |
+| Distance calculations | 10 million base/pair terms by default |
+| Explicit `distance_base_budget` | Up to 500 million terms |
+| Representative pairs | 500,000 |
+| Prepared motif-pair entries | 250,000 |
+
+Increasing the distance budget does not override the other limits. Oversized requests raise
 `ValueError` before distance preparation; no pool is silently truncated.
 
 For `n` representatives, `m` specifications and length `L`, the term estimate is
@@ -132,9 +141,12 @@ a digest of the sorted supplied sequence multiset, input-record/literal/class
 counts, scoring calls, requested distance budget, computed distance-term count,
 grouping, representatives, and prefixes. Its validator checks that class keys
 agree with actual selected matches and that the recorded distance
-work agrees with the representatives and satisfies all three caps. Earlier
+work agrees with the representatives and satisfies all three caps.
+
+Earlier
 unreleased records are not relabeled or silently upgraded: preserve them with
 their original tool build, or rerun from trusted sequences and specification.
+
 Duplicate literals count
 as input records but are scored only once; allowed reverse complements share
 a scoring call. `search_evaluations` is always zero. Empty pools retain empty

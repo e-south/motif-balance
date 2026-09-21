@@ -7,7 +7,7 @@ audience:
   - maintainers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-08
+last_verified: 2026-09-21
 doc_type: tutorial
 ---
 
@@ -24,10 +24,15 @@ candidates, including balanced compromises rather than a hidden reverse-compleme
 The fixtures are not biological models, and their outputs support no biological claim.
 
 ```bash
+# Validate the input motifs and search settings without running a search.
 motif-balance design examples/synthetic-pairwise/design.yaml --check
+# Run the design and save its sequences, matches and scoring inputs.
 motif-balance design examples/synthetic-pairwise/design.yaml --out result
+# Verify the saved result and print its sequences and motif matches.
 motif-balance inspect result
+# Create a browser view of the saved candidates and scores.
 motif-balance inspect result --format html --out review.html
+# Draw the selected motif windows and logos on double-stranded DNA.
 motif-balance inspect result --format svg --view candidate --out candidate.svg
 ```
 

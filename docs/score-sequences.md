@@ -5,7 +5,7 @@ intent: Evaluate one caller-supplied sequence through the shared sequence-scorin
 audience: [API consumers, users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: how-to
 journey: [score]
 
@@ -16,7 +16,9 @@ journey: [score]
 Use the CLI when you already have a sequence and need the same best-match scoring used during design:
 
 ```bash
+# Score AT against the request without searching for another sequence.
 motif-balance score examples/synthetic-pairwise/design.yaml AT
+# Save the same score and motif-match details as a new JSON file.
 motif-balance score examples/synthetic-pairwise/design.yaml AT \
   --format json --out score.json
 ```
@@ -25,11 +27,15 @@ The Python verb accepts an already constructed `DesignSpec`. Start with the
 [complete Python tutorial](python-api.md) if you do not have one yet:
 
 ```python
+# Import the models and operations used in this example.
 from motif_balance import score
 
+# Score AT with the previously defined two-base request.
 evaluation = score("AT", spec)  # spec.length must be 2 for this example
 
+# Print the weakest desired motif match.
 print(evaluation.balance_score)
+# Print each motif score and whether it is desired or avoided.
 for match in evaluation.matches:
     print(match.motif_id, match.spec_direction, match.normalized_score, match.spec_satisfaction)
 ```

@@ -29,7 +29,9 @@ Run targeted checks while editing. Before completing a repository change, run
 from the repository root:
 
 ```bash
+# Prepare the environment and check the repository contracts.
 bash ./scripts/preflight --strict
+# Run tests, documentation checks and package-installation checks.
 bash ./scripts/verify
 ```
 

@@ -5,7 +5,7 @@ intent: Define the supported scientific API, ordinary CLI, and artifact formats.
 audience: [API consumers, integrators]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: reference
 journey: [integrate]
 
@@ -22,6 +22,7 @@ The main Python interface provides the input and result models, plus design
 and scoring functions:
 
 ```python
+# Import the input models, result types and two main operations.
 from motif_balance import (
     MotifModel,
     MotifSpecification,
@@ -64,6 +65,7 @@ Serialized numeric fields must be native YAML or JSON numbers; quoted numeric
 strings are rejected. Advanced review uses an explicit submodule:
 
 ```python
+# Import inspection helpers for saved results or individually scored candidates.
 from motif_balance.inspection import (
     CandidateInspection,
     ResultInspection,
@@ -104,12 +106,15 @@ evaluations for an exact quality-ranked architecture prefix or fails; it does
 not search, publish a bundle, or enforce the portfolio's distance constraint.
 See [choose alternatives](../choose-alternatives.md) for the executable example,
 equivalence rules, separate distances, resource admission, and replay boundary.
+
 The explicit `grouping` is `exact_offsets` (the preserved Python default) or
 `interval_topology` (labeled endpoint order/equality and strand). The latter
 groups spacing variants while preserving exact coordinates for inspection.
+
 `select_up_to(count)` returns an `architecture-collection/v1` with explicit
 partial delivery and weakest delivered quality. It does not turn partial
 delivery into fulfillment of an exact-count request.
+
 The same submodule's `measure_prefixes(ranking, order)` measures a complete
 explicit representative order without editing or rescoring candidates. The
 original order reuses its profile; another order incurs one bounded distance

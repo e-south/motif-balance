@@ -178,8 +178,8 @@ print("Installed collection API/CLI and source parity: ok")
 PY
 
 source_python="$(uv run --locked python -c 'import sys; print(sys.executable)')"
-for guide in python-api pair-assessment choose-alternatives reference/portfolio-selection reference/search-observations; do
-  guide_program="$(python3 - "$repo_root/docs/$guide.md" <<'PY'
+for guide in README.md docs/python-api.md docs/pair-assessment.md docs/choose-alternatives.md docs/reference/portfolio-selection.md docs/reference/search-observations.md; do
+  guide_program="$(python3 - "$repo_root/$guide" <<'PY'
 import re
 import sys
 from pathlib import Path
@@ -198,6 +198,7 @@ if guide_path.name == "search-observations.md":
 PY
 )"
   guide_name="${guide##*/}"
+  guide_name="${guide_name%.md}"
   mkdir "$smoke_root/source-$guide_name" "$smoke_root/wheel-$guide_name"
   source_guide="$(cd "$smoke_root/source-$guide_name" && "$source_python" -c "$guide_program")"
   wheel_guide="$(cd "$smoke_root/wheel-$guide_name" && "$smoke_root/venv/bin/python" -c "$guide_program")"

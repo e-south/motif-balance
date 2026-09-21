@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 from datetime import date, timedelta
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -87,10 +88,26 @@ def heading_anchors(text: str) -> set[str]:
     return anchors
 
 
+class _PreviewLinks(HTMLParser):
+    """Read image and video links used for sized documentation previews."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.targets: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attribute = {"a": "href", "img": "src", "video": "src", "source": "src"}.get(tag)
+        for name, value in attrs:
+            if name == attribute and value:
+                self.targets.append(value)
+
+
 def link_errors(path: Path, text: str) -> list[str]:
     """Check local and canonical repository-file links against this checkout."""
     errors: list[str] = []
-    for raw_target in LINK_PATTERN.findall(text):
+    previews = _PreviewLinks()
+    previews.feed(text)
+    for raw_target in [*LINK_PATTERN.findall(text), *previews.targets]:
         target_with_fragment = raw_target.strip().strip("<>")
         repository_prefix = next(
             (prefix for prefix in REPOSITORY_FILE_URLS if target_with_fragment.startswith(prefix)),

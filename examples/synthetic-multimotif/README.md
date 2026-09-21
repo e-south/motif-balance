@@ -7,7 +7,7 @@ audience:
   - maintainers
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-08
+last_verified: 2026-09-21
 doc_type: tutorial
 ---
 
@@ -20,9 +20,13 @@ example. The 2,048-evaluation budget uses bounded annealed search, not complete
 enumeration. The constructed models carry no biological interpretation.
 
 ```bash
+# Validate the input motifs and search settings without running a search.
 uv run motif-balance design examples/synthetic-multimotif/design.yaml --check
+# Run the design and save its sequences, matches and scoring inputs.
 uv run motif-balance design examples/synthetic-multimotif/design.yaml --out /tmp/motif-four-result
+# Verify the saved result and print its sequences and motif matches.
 uv run motif-balance inspect /tmp/motif-four-result
+# Plot the selected candidates together for comparison.
 uv run motif-balance inspect /tmp/motif-four-result \
   --format svg --view portfolio --out /tmp/motif-four-portfolio.svg
 ```

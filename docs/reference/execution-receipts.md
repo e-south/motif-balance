@@ -5,7 +5,7 @@ intent: Define exact-wheel execution provenance and explicit verification inputs
 audience: [integrators, execution producers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: reference
 ---
 
@@ -22,6 +22,7 @@ revision, package-tree digest, search engine, and evaluation counts.
 Create the workspace in the same operation that performs the design:
 
 ```bash
+# Run the request in an environment built from the specified release artifact.
 motif-balance orchestration execute design.yaml \
   --release-artifact dist/motif_balance-0.6.0a1-py3-none-any.whl \
   --producer-revision <40-character-commit> \
@@ -32,8 +33,11 @@ The command accepts wheels only. Before and after search it compares every file
 in the wheel's `motif_balance` package tree with the running package tree and
 fails on any difference. Wheel inspection is bounded, permits only the package
 and its declared distribution metadata, and validates every `RECORD` digest.
+
 It publishes through a temporary sibling directory, self-verifies the completed
-workspace, and refuses an existing destination. Attestation proves which
+workspace, and refuses an existing destination.
+
+Attestation proves which
 package bytes ran. The producer revision remains an externally supplied release
 identity and must be checked against the release record; it is not
 derived from the wheel. Attestation does not certify downstream acceptance or
@@ -61,6 +65,7 @@ Verification requires four values from an authority outside the object being
 checked: workspace ID, receipt digest, release digest, and producer revision.
 
 ```bash
+# Verify the saved execution against the identities retained from its producer.
 motif-balance inspect execution-workspace --source execution \
   --expected-workspace-id <execution-id> \
   --expected-receipt-sha256 <sha256> \

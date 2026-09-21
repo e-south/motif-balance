@@ -1,82 +1,74 @@
 ---
 doc_id: motif-balance-quickstart
 title: Run a first design
-intent: Design and inspect a small request before using biological profiles.
+intent: Design and inspect a small request before using transcription-factor profiles.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: tutorial
 journey: [install, design, verify]
 ---
 
 # Run a first design
 
-[Install the package](installation.md), then use this small example to check
-the complete design-to-inspection workflow. It uses two-position synthetic
-models so the result is easy to verify. For a transcription-factor application,
-continue with the [Dorsal, Twist and Zelda example](biological-example.md).
+Fit two motif preferences into one short sequence, save the result, then inspect
+where each motif matches. Start from the [installed source checkout](installation.md#install-from-source).
+For inline Python inputs, use the [README examples](../README.md#try-a-design).
 
-## Design a sequence set
+## 1. Check the inputs and run the search
 
-The commands below run from a source checkout. With a wheel installation, copy
-the complete [example directory](../examples/synthetic-pairwise/README.md),
-including its `motifs/` folder, and use `motif-balance` in place of
-`uv run motif-balance`.
+The bundled request supplies two toy motifs, a DNA length of two bases and a
+request for three sequences. Both motifs prefer different bases at each position,
+so neither can receive its ideal sequence without compromising the other.
 
 ```bash
+# Check the motif files, DNA length and search settings without running a search.
 uv run motif-balance design examples/synthetic-pairwise/design.yaml --check
+
+# Evaluate the 16 possible two-base sequences and save three candidates.
 uv run motif-balance design examples/synthetic-pairwise/design.yaml \
   --out /tmp/motif-balance-result
+
+# Verify the saved scores and print the sequences and their motif matches.
 uv run motif-balance inspect /tmp/motif-balance-result
 ```
 
-`--check` validates the motifs, length, requested count and computational limits
-without starting a search. This example is small enough to evaluate all 16
-possible sequences. The terminal summary reports the best evaluated balance
-and the selected candidate set.
+The best balance is **0.5**: the weaker motif match reaches halfway across that
+model's possible score range. `AT` is one solution. Here, all 16 sequences are
+evaluated, so the result is exact. Larger problems use a limited search budget.
 
-Choose a new destination before repeating the command. Design never replaces
-an existing result. The directory contains the input models and request,
-candidate and match tables, FASTA sequences and a manifest recording the search.
-Keep the directory intact; `inspect` checks those files and replays their scores.
+Use a new output directory when rerunning. The saved directory contains the
+request, input motifs, sequences, match tables and search record.
 
-## Inspect matches and export a figure
+## 2. View the sequence and its motif matches
 
 ```bash
+# Draw the best candidate as double-stranded DNA with aligned motif logos.
 uv run motif-balance inspect /tmp/motif-balance-result \
   --format svg --view candidate --out /tmp/motif-balance-candidate.svg
+
+# Create a browser view of the candidate set and its scores.
 uv run motif-balance inspect /tmp/motif-balance-result \
   --format html --out /tmp/motif-balance-review.html
 ```
 
-Open the SVG to see the duplex, selected motif windows and aligned information
-logos. The HTML combines candidate, portfolio and recorded-search views in one
-local file. These exports stay outside the result directory and do not alter it.
+Open the SVG in an image viewer or the HTML in a browser. The filled windows
+show the selected best match to each motif; the logos show its base preferences.
+These exports leave the saved result unchanged.
 
-## Adapt the request
+## 3. Change the design question
 
-Supply your [motif models](motif-models.md), then edit the
-[design specification](design-spec.md):
+Edit a copy of the [request](../examples/synthetic-pairwise/design.yaml):
 
-- `length` sets the available DNA and must fit every model.
-- `seek` favors a strong motif match; `avoid` favors a weak strongest unwanted match.
-- `count` requests the number of sequences to return.
-- `min_distance` optionally requires a fraction of differing sequence positions.
-- `evaluations` and `seed` set search effort and reproducibility.
+| Setting | What it changes |
+| --- | --- |
+| `length` | Available DNA; every motif must fit |
+| `direction: seek` or `avoid` | Favor or reduce that motif's strongest match |
+| `count` | Number of returned sequences |
+| `evaluations` | Number of candidate scores the search may compute |
+| `seed` | Random starting choices and search proposals |
 
-Run `--check` after changing inputs. More evaluations may recover better
-candidates, but do not guarantee a stronger score or more distinct arrangements.
-Use [collections](choose-alternatives.md) when the desired alternatives differ
-in motif arrangement rather than only sequence distance.
-
-## Understand a failure
-
-An invalid request exits nonzero and identifies the offending field or
-condition. A run can also fail to find the requested number of sufficiently
-separated sequences. It does not silently return fewer candidates or relax
-the distance rule. Use a new output path when a destination already exists;
-use `--debug` for a traceback when diagnosing a trusted input locally.
-
-Next: [biological example](biological-example.md), [Python tutorial](python-api.md),
-[score existing DNA](score-sequences.md), or [interpret the result](interpreting-results.md).
+Run `--check` before searching the edited request. To select different motif
+arrangements, continue with [collections](choose-alternatives.md). For a
+three-motif application and recorded search, follow the [example](biological-example.md).

@@ -5,7 +5,7 @@ intent: Explain and use length-aware shared-base conflict without predicting seq
 audience: [users, API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-21
 doc_type: how-to
 journey: [assess]
 
@@ -33,6 +33,7 @@ From the source checkout, use the two canonical models already supplied with
 the synthetic example:
 
 ```bash
+# Compare the two motifs at the requested length before searching DNA.
 uv run motif-balance assess \
   examples/synthetic-pairwise/motifs/motif-a.yaml \
   examples/synthetic-pairwise/motifs/motif-b.yaml \
@@ -73,30 +74,37 @@ The synthetic models prefer AAA and CCC; their equal-strength preferences
 conflict at every shared position.
 
 ```python
+# Import the models and operations used in this example.
 from motif_balance import MotifModel
 from motif_balance.assessment import assess_pair
 
+# Define the first motif and its probability preferences.
 left = MotifModel(
     motif_id="left",
     probabilities=((0.7, 0.1, 0.1, 0.1),) * 3,
     background=(0.25, 0.25, 0.25, 0.25),
 )
+# Define the second motif with different preferences at shared positions.
 right = MotifModel(
     motif_id="right",
     probabilities=((0.1, 0.7, 0.1, 0.1),) * 3,
     background=(0.25, 0.25, 0.25, 0.25),
 )
+# Compare permitted overlaps as the DNA length increases.
 for length in range(3, 7):
     result = assess_pair(left, right, length=length, strands="both")
     print(
         f"{length} nt: structural score {result.structural_score:.3f}; "
         f"{result.arrangement_count} relative arrangements"
     )
+# Read the least-conflicting arrangement at the last tested length.
 best = result.best_arrangement
+# Print its displacement, orientation and shared span.
 print(
     f"Best at 6 nt: left {best.left_start} {best.left_strand}; "
     f"right {best.right_start} {best.right_strand}"
 )
+# Confirm that assessment did not evaluate candidate DNA sequences.
 print("Sequence evaluations:", result.sequence_evaluations)
 ```
 

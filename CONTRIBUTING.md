@@ -5,8 +5,11 @@ Start with the [task documentation](docs/README.md) and [module overview](ARCHIT
 ## Development
 
 ```bash
+# Install the locked development tools and library dependencies.
 uv sync --locked --group dev
+# Prepare the environment and check the repository contracts.
 bash ./scripts/preflight --strict
+# Run tests, documentation checks and package-installation checks.
 bash ./scripts/verify
 ```
 
