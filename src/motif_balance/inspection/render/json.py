@@ -1,3 +1,8 @@
+"""Serialize validated inspection records as deterministic JSON.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from ..model import ResultInspection

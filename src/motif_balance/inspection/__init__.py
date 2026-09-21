@@ -1,4 +1,7 @@
-"""Advanced review of verified results or replayed caller-supplied candidates."""
+"""Advanced review of verified results or replayed caller-supplied candidates.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from .api import inspect_result
 from .candidate_model import CandidateInspection

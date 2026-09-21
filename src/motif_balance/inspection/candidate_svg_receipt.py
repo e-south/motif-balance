@@ -1,3 +1,8 @@
+"""Bind a candidate SVG to its verified inputs and renderer implementation.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -53,22 +58,6 @@ def _candidate(inspection: ResultInspection, rank: int) -> InspectionCandidate:
     return candidate
 
 
-def _match_projection(
-    candidate: InspectionCandidate,
-    *,
-    avoider: bool,
-) -> tuple[dict[str, object], ...]:
-    matches = candidate.avoidance_matches if avoider else candidate.matches
-    role = "avoider" if avoider else "target"
-    return tuple(
-        {
-            "role": role,
-            **match.model_dump(mode="json"),
-        }
-        for match in matches
-    )
-
-
 def render_candidate_svg_receipt(
     inspection: ResultInspection,
     *,
@@ -85,11 +74,10 @@ def render_candidate_svg_receipt(
             "candidate SVG receipt requires the canonical candidate renderer output"
         )
     candidate = _candidate(inspection, candidate_rank)
-    target_projection = _match_projection(candidate, avoider=False)
-    avoider_projection = _match_projection(candidate, avoider=True)
+    match_projection = tuple(match.model_dump(mode="json") for match in candidate.matches)
     execution = inspection.execution
     payload = {
-        "schema_version": "motif-balance.candidate-svg-receipt/v1",
+        "schema_version": "motif-balance.candidate-svg-receipt/v2",
         "bundle_id": inspection.run.bundle_id,
         "problem_id": inspection.problem.problem_id,
         "candidate": {
@@ -98,8 +86,7 @@ def render_candidate_svg_receipt(
             "sequence": candidate.sequence,
             "balance_score": candidate.balance_score,
             "limiting_motif_ids": candidate.limiting_motif_ids,
-            "target_match_projection_sha256": _digest(target_projection),
-            "avoider_match_projection_sha256": _digest(avoider_projection),
+            "match_projection_sha256": _digest(match_projection),
         },
         "svg_sha256": hashlib.sha256(svg).hexdigest(),
         "renderer_identity": CANDIDATE_SVG_RENDERER_IDENTITY,

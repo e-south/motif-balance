@@ -89,13 +89,13 @@ def test_nonuniform_background_is_not_mislabeled_as_standard_information_logo():
 
 def test_render_does_not_recompute_or_require_distinct_model_names(monkeypatch):
     view = inspect(motif("same", "AAA"), motif("same", "CCC"), 3)
-    calculation = importlib.import_module("motif_balance.assessment")
+    calculation = importlib.import_module("motif_balance.inspection.assessment.project")
 
     def forbidden(*args, **kwargs):
         pytest.fail("rendering must not calculate model terms or search")
 
     monkeypatch.setattr(calculation, "assess_pair", forbidden)
-    monkeypatch.setattr(calculation, "_terms", forbidden)
+    monkeypatch.setattr(calculation, "column_regret", forbidden)
     render = importlib.import_module("motif_balance.inspection.render").render_pair_assessment_svg
     root = ET.fromstring(render(view))
     ids = [e.get("id") for e in root.iter() if e.get("id")]

@@ -19,6 +19,8 @@ def _evaluation(sequence: str, score: float) -> Evaluation:
         strand="+",
         matched_sequence=sequence[0],
         raw_score=score,
+        spec_direction="seek",
+        spec_satisfaction=score,
         normalized_score=score,
     )
     return Evaluation(sequence=sequence, balance_score=score, matches=(match,))

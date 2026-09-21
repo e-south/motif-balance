@@ -21,18 +21,22 @@ from motif_balance.inspection.model import InspectionMatch
 
 runner = CliRunner()
 
-_DESIGN = """schema_version: design-spec/v2
-motifs:
-  motif_a:
-    schema_version: motif-model/v2
-    probabilities:
-      - [0.7, 0.1, 0.1, 0.1]
-    background: [0.25, 0.25, 0.25, 0.25]
-  motif_b:
-    schema_version: motif-model/v2
-    probabilities:
-      - [0.1, 0.1, 0.7, 0.1]
-    background: [0.25, 0.25, 0.25, 0.25]
+_DESIGN = """schema_version: design-spec/v3
+specifications:
+  - direction: seek
+    motif:
+      schema_version: motif-model/v2
+      motif_id: motif_a
+      probabilities:
+        - [0.7, 0.1, 0.1, 0.1]
+      background: [0.25, 0.25, 0.25, 0.25]
+  - direction: seek
+    motif:
+      schema_version: motif-model/v2
+      motif_id: motif_b
+      probabilities:
+        - [0.1, 0.1, 0.7, 0.1]
+      background: [0.25, 0.25, 0.25, 0.25]
 length: 2
 count: 2
 strands: both
@@ -51,9 +55,9 @@ def _write_runtime_equivalent_wheel(path: Path) -> None:
         entries[f"motif_balance/{source.relative_to(package_root).as_posix()}"] = (
             source.read_bytes()
         )
-    dist_info = "motif_balance-0.5.0a2.dist-info/"
+    dist_info = f"motif_balance-{PACKAGE_VERSION}.dist-info/"
     entries[f"{dist_info}METADATA"] = (
-        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.5.0a2\n"
+        f"Metadata-Version: 2.4\nName: motif-balance\nVersion: {PACKAGE_VERSION}\n".encode()
     )
     entries[f"{dist_info}WHEEL"] = b"Wheel-Version: 1.0\n"
     entries[f"{dist_info}entry_points.txt"] = (
@@ -82,12 +86,13 @@ def _corrupt_stored_wheel_member(path: Path, member_name: str) -> None:
     path.write_bytes(payload)
 
 
-def test_primary_cli_help_exposes_only_the_four_product_journeys() -> None:
+def test_primary_cli_help_exposes_the_five_product_journeys() -> None:
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
     assert "assess" in result.stdout
     assert "design" in result.stdout
+    assert "collect" in result.stdout
     assert "score" in result.stdout
     assert "inspect" in result.stdout
     assert "render-report" not in result.stdout
@@ -132,7 +137,7 @@ def test_cli_scores_one_sequence_and_exports_one_candidate_svg(tmp_path: Path) -
     assert rendered.exit_code == 0
     assert b'id="candidate-realization-view"' in candidate_svg.read_bytes()
     receipt = json.loads(candidate_receipt.read_bytes())
-    assert receipt["schema_version"] == "motif-balance.candidate-svg-receipt/v1"
+    assert receipt["schema_version"] == "motif-balance.candidate-svg-receipt/v2"
     assert receipt["candidate"]["rank"] == 2
     assert receipt["svg_sha256"] == hashlib.sha256(candidate_svg.read_bytes()).hexdigest()
     assert receipt["renderer_identity"] == "motif-balance.candidate-duplex-svg/v2"
@@ -180,13 +185,13 @@ def test_candidate_svg_receipt_is_deterministic_and_replays_candidate_identity(
     assert payload["bundle_id"].startswith("bundle-")
     assert payload["problem_id"].startswith("problem-")
     assert payload["candidate"]["candidate_id"].startswith("candidate-")
-    assert len(payload["candidate"]["target_match_projection_sha256"]) == 64
-    assert len(payload["candidate"]["avoider_match_projection_sha256"]) == 64
+    assert len(payload["candidate"]["match_projection_sha256"]) == 64
+    assert "avoider_match_projection_sha256" not in payload["candidate"]
     inspection = inspect_result(tmp_path / "result-0", kind="bundle")
     candidate = inspection.portfolio.candidates[0]
 
-    def projection_digest(matches: tuple[InspectionMatch, ...], role: str) -> str:
-        projection = tuple({"role": role, **match.model_dump(mode="json")} for match in matches)
+    def projection_digest(matches: tuple[InspectionMatch, ...]) -> str:
+        projection = tuple(match.model_dump(mode="json") for match in matches)
         canonical = json.dumps(
             projection,
             sort_keys=True,
@@ -195,14 +200,7 @@ def test_candidate_svg_receipt_is_deterministic_and_replays_candidate_identity(
         ).encode()
         return hashlib.sha256(canonical).hexdigest()
 
-    assert payload["candidate"]["target_match_projection_sha256"] == projection_digest(
-        candidate.matches,
-        "target",
-    )
-    assert payload["candidate"]["avoider_match_projection_sha256"] == projection_digest(
-        candidate.avoidance_matches,
-        "avoider",
-    )
+    assert payload["candidate"]["match_projection_sha256"] == projection_digest(candidate.matches)
     implementation = hashlib.sha256()
     package = resources.files("motif_balance.inspection.render")
     for name in (
@@ -366,7 +364,7 @@ def test_cli_check_compiles_without_search_or_output(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert result.stdout.startswith("valid problem-")
-    assert "motifs=2" in result.stdout
+    assert "specifications=2" in result.stdout
     assert "length=2" in result.stdout
     assert "count=2" in result.stdout
     assert "evaluations=16" in result.stdout
@@ -640,7 +638,7 @@ def test_cli_convert_motif_sanitizes_an_unwritable_destination(tmp_path: Path) -
 def test_cli_executes_and_verifies_an_atomic_execution_workspace(tmp_path: Path) -> None:
     spec = tmp_path / "design.yaml"
     workspace = tmp_path / "execution"
-    release = tmp_path / "motif_balance-0.5.0a2-py3-none-any.whl"
+    release = tmp_path / f"motif_balance-{PACKAGE_VERSION}-py3-none-any.whl"
     spec.write_text(_DESIGN)
     _write_runtime_equivalent_wheel(release)
 
@@ -737,7 +735,7 @@ def test_cli_rejects_a_wheel_with_a_corrupt_member_without_a_traceback(
 ) -> None:
     spec = tmp_path / "design.yaml"
     workspace = tmp_path / "execution"
-    release = tmp_path / "motif_balance-0.5.0a2-py3-none-any.whl"
+    release = tmp_path / f"motif_balance-{PACKAGE_VERSION}-py3-none-any.whl"
     spec.write_text(_DESIGN)
     _write_runtime_equivalent_wheel(release)
     _corrupt_stored_wheel_member(release, "motif_balance/__init__.py")

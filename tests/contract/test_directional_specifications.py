@@ -13,7 +13,7 @@ from motif_balance.artifacts import read_verified_portfolio, verify_portfolio_re
 from motif_balance.cli import app
 from motif_balance.compile import compile_design
 from motif_balance.errors import ArtifactError, InvalidDesign
-from motif_balance.execution import _resolved_spec_bytes
+from motif_balance.execution.workspace import _resolved_spec_bytes
 from motif_balance.formats.design import load_design_spec
 from motif_balance.inspection import inspect_result
 from motif_balance.inspection.render import (
@@ -23,7 +23,6 @@ from motif_balance.inspection.render import (
     render_text,
 )
 from motif_balance.model import Evaluation, RunManifest, SearchDiagnostics
-from motif_balance.observation import observe_evaluated_pool
 from motif_balance.search.moves import _motif_insertion_word
 
 
@@ -141,33 +140,16 @@ def test_directional_satisfaction_is_computed_after_one_model_scan() -> None:
     )
 
 
-def test_all_seek_directional_contract_preserves_target_only_scientific_results() -> None:
-    motifs = (_base_motif("prefer_a", "A"), _base_motif("prefer_c", "C"))
-    legacy = DesignSpec(
-        motifs=motifs,
-        length=1,
-        count=1,
-        strands="forward",
-        evaluations=4,
-        seed=11,
+def test_all_seek_balance_is_the_weakest_attainment() -> None:
+    spec = _directional_spec(
+        MotifSpecification(motif=_base_motif("prefer_a", "A"), direction="seek"),
+        MotifSpecification(motif=_base_motif("prefer_c", "C"), direction="seek"),
     )
-    directional = _directional_spec(
-        *(MotifSpecification(motif=motif, direction="seek") for motif in motifs)
-    )
-
     for sequence in "ACGT":
-        old = score(sequence, legacy)
-        new = score(sequence, directional)
-        assert new.balance_score == old.balance_score
-        assert tuple(match.normalized_score for match in new.matches) == tuple(
-            match.normalized_score for match in old.matches
-        )
-
-    old_result = design(legacy)
-    new_result = design(directional)
-    assert new_result.best.sequence == old_result.best.sequence
-    assert new_result.best.balance_score == old_result.best.balance_score
-    assert new_result.manifest.evaluation_count == old_result.manifest.evaluation_count
+        evaluation = score(sequence, spec)
+        assert evaluation.balance_score == 0.0
+        assert evaluation.balance_score == min(m.normalized_score for m in evaluation.matches)
+    assert design(spec).best.balance_score == 0.0
 
 
 def test_adding_directional_specification_cannot_raise_exact_optimum() -> None:
@@ -190,7 +172,7 @@ def test_directional_schema_is_canonical_and_rejects_legacy_thresholds() -> None
     ]
     assert spec.objective_semantics == "weakest_directional_satisfaction_v1"
 
-    with pytest.raises(ValidationError, match="legacy hard avoidance"):
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         DesignSpec(
             schema_version="design-spec/v3",
             specifications=(MotifSpecification(motif=motif, direction="seek"),),
@@ -217,8 +199,8 @@ def test_directional_schema_rejects_duplicate_motif_identity_across_directions()
     ("updates", "message"),
     (
         ({"specifications": ()}, "requires at least one motif specification"),
-        ({"motifs": (_base_motif("legacy", "C"),)}, "uses specifications"),
-        ({"objective_semantics": "weakest_score_v1"}, "requires objective_semantics"),
+        ({"motifs": (_base_motif("legacy", "C"),)}, "Extra inputs are not permitted"),
+        ({"objective_semantics": "weakest_score_v1"}, "objective_semantics"),
         (
             {
                 "specifications": (
@@ -254,10 +236,9 @@ def test_directional_schema_fails_closed_on_incompatible_contracts(
 def test_legacy_schema_refuses_directional_specifications() -> None:
     motif = _base_motif("seek_a", "A")
 
-    with pytest.raises(ValidationError, match="directional specifications require design-spec/v3"):
+    with pytest.raises(ValidationError, match="schema_version"):
         DesignSpec(
             schema_version="design-spec/v2",
-            motifs=(motif,),
             specifications=(MotifSpecification(motif=motif, direction="seek"),),
             length=1,
             count=1,
@@ -274,25 +255,13 @@ def test_directional_match_and_evaluation_consistency_fail_closed() -> None:
     )
     match_payload = evaluation.matches[0].model_dump(mode="python")
 
-    with pytest.raises(ValidationError, match="declared together"):
+    with pytest.raises(ValidationError, match="spec_direction"):
         MotifMatch.model_validate({**match_payload, "spec_direction": None})
     with pytest.raises(ValidationError, match="does not match direction"):
         MotifMatch.model_validate({**match_payload, "spec_satisfaction": 0.5})
 
-    legacy_match = MotifMatch.model_validate(
-        {
-            **match_payload,
-            "motif_id": "legacy",
-            "spec_direction": None,
-            "spec_satisfaction": None,
-        }
-    )
-    with pytest.raises(ValidationError, match="satisfaction for every specification"):
-        Evaluation(
-            sequence="A",
-            balance_score=evaluation.balance_score,
-            matches=(*evaluation.matches, legacy_match),
-        )
+    with pytest.raises(ValidationError, match="spec_satisfaction"):
+        MotifMatch.model_validate({**match_payload, "spec_satisfaction": None})
     with pytest.raises(ValidationError, match="weakest specification satisfaction"):
         Evaluation(
             sequence="A",
@@ -309,7 +278,7 @@ def test_directional_exact_run_records_completion_checkpoints_and_complete_small
 
     manifest = design(spec).manifest
 
-    assert manifest.schema_version == "run-manifest/v6"
+    assert manifest.schema_version == "run-manifest/v7"
     assert manifest.exact_completion_status == "complete"
     assert manifest.state_space_size == 4
     assert manifest.expected_candidate_count == 4
@@ -424,28 +393,6 @@ def test_directional_manifest_rejects_false_exactness_and_invalid_elites() -> No
             RunManifest.model_validate({**payload, **updates})
 
 
-@pytest.mark.parametrize(
-    "field",
-    ("state_space_size", "expected_candidate_count", "completed_candidate_count"),
-)
-def test_legacy_manifest_rejects_v6_exact_count_claims(field: str) -> None:
-    legacy_manifest = design(
-        DesignSpec(
-            motifs=(_base_motif("seek_a", "A"),),
-            length=1,
-            count=1,
-            strands="forward",
-            evaluations=4,
-            seed=7,
-        )
-    ).manifest
-
-    with pytest.raises(ValidationError, match="prospective run metadata requires run-manifest/v6"):
-        RunManifest.model_validate(
-            {**legacy_manifest.model_dump(mode="python"), field: legacy_manifest.evaluation_count}
-        )
-
-
 def test_directional_bounded_elite_reservoir_is_capacity_limited_and_deterministic() -> None:
     motifs = tuple(
         MotifSpecification(motif=_base_motif(f"seek_{base.lower()}", base), direction="seek")
@@ -527,8 +474,8 @@ def test_directional_yaml_resolves_one_canonical_specification_list(tmp_path) ->
     assert tuple((item.motif.motif_id, item.direction) for item in spec.specifications) == (
         ("seek_a", "seek"),
     )
-    assert not spec.motifs
-    assert not spec.avoiders
+    assert tuple(m.motif_id for m in spec.scored_motifs) == ("seek_a",)
+    assert "avoiders" not in type(spec).model_fields
 
 
 @pytest.mark.parametrize(
@@ -562,13 +509,6 @@ def test_directional_yaml_rejects_ambiguous_specification_shapes(
 
     with pytest.raises(InvalidDesign, match=message):
         load_design_spec(design_path)
-
-
-def test_directional_runs_refuse_legacy_complete_pool_export() -> None:
-    spec = _directional_spec(MotifSpecification(motif=_base_motif("seek_a", "A"), direction="seek"))
-
-    with pytest.raises(ArtifactError, match="bounded elite snapshot"):
-        observe_evaluated_pool(spec)
 
 
 def test_directional_cli_discloses_specification_directions(tmp_path: Path) -> None:

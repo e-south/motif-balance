@@ -1,4 +1,7 @@
-"""Path-free review of a supplied candidate, without invented search provenance."""
+"""Path-free review of a supplied candidate, without invented search provenance.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from typing import Literal, Self
 
@@ -10,8 +13,8 @@ from .model import InspectionCandidate, InspectionProblem
 
 
 class CandidateInspection(FrozenModel):
-    schema_version: Literal["motif-balance.candidate-inspection/v1"] = (
-        "motif-balance.candidate-inspection/v1"
+    schema_version: Literal["motif-balance.candidate-inspection/v2"] = (
+        "motif-balance.candidate-inspection/v2"
     )
     subject_kind: Literal["caller_supplied_candidate"] = "caller_supplied_candidate"
     rank_scope: Literal["caller_supplied_order"] = "caller_supplied_order"
@@ -27,8 +30,6 @@ class CandidateInspection(FrozenModel):
             or len(candidate.sequence) != problem.length
             or tuple(match.motif_id for match in candidate.matches)
             != tuple(motif.motif_id for motif in problem.motifs)
-            or candidate.avoidance_matches
-            or problem.avoiders
             or candidate.nearest_neighbor_distance is not None
         ):
             raise ValueError(

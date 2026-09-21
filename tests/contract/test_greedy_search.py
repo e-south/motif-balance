@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from motif_balance import design, score
+from motif_balance import MotifSpecification, design, score
 from motif_balance.api import design_observed, read_search_observation
 from motif_balance.artifacts import read_verified_portfolio
 from motif_balance.model.search_observation import ObservationSpec
@@ -80,7 +80,7 @@ def test_greedy_relabeling_cannot_pass_observation_replay():
 
 
 def test_neutral_trials_keep_the_current_state_but_still_consume_budget():
-    from motif_balance import DesignSpec, MotifModel, MotifSpecification
+    from motif_balance import DesignSpec, MotifModel
 
     models = tuple(
         MotifModel(
@@ -114,21 +114,14 @@ def test_neutral_trials_keep_the_current_state_but_still_consume_budget():
 
 def test_greedy_refuses_legacy_constraints_before_evaluation(monkeypatch):
     import motif_balance.search.greedy
-    from motif_balance import DesignSpec
     from motif_balance.errors import IncompatibleDesign
 
     directional = _spec()
-    spec = DesignSpec(
-        motifs=tuple(s.motif for s in directional.specifications),
-        length=7,
-        evaluations=127,
-        count=1,
-        seed=7,
-    )
+    spec = directional.model_copy(update={"schema_version": "design-spec/v2"})
     monkeypatch.setattr(
         motif_balance.search.greedy,
         "evaluate",
         lambda *_: pytest.fail("legacy request was evaluated"),
     )
-    with pytest.raises(IncompatibleDesign, match="directional"):
+    with pytest.raises(IncompatibleDesign, match=r"[Uu]nsupported"):
         design(spec, method="greedy")

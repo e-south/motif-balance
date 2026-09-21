@@ -2,26 +2,22 @@
 doc_id: motif-balance-result-inspection
 title: Result inspection
 intent: Explain verified result review and replayed supplied-candidate views without conflating their provenance.
-audience:
-  - users
-  - API consumers
-  - downstream integrators
+audience: [users, API consumers, downstream integrators]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-11
+last_verified: 2026-09-20
 doc_type: reference
-journey:
-  - inspect
+journey: [inspect]
+
 ---
 
 # Result inspection
 
 `inspect` verifies one explicit result, replays every published match and
-score, and creates one immutable `motif-balance.result-inspection/v4`
+score, and creates one immutable `motif-balance.result-inspection/v5`
 projection. Text, JSON, SVG, and HTML all render that same projection. They do
-not enter the result bundle or change its identity. Bundle members are read
-once into a descriptor-bound byte snapshot; parsing, score replay, and rendering
-do not return to mutable paths.
+not enter the result bundle or change its identity. Verification uses a bounded snapshot of the input files, so later file changes
+cannot alter the values already checked.
 
 ## Choose one output
 
@@ -32,7 +28,7 @@ motif-balance inspect result/
 # Complete typed projection.
 motif-balance inspect result/ --format json
 
-# One vector computational review artifact.
+# Selected motif matches as a vector figure.
 motif-balance inspect result/ \
   --format svg --view candidate --candidate 3 \
   --out candidate-003.svg \
@@ -60,7 +56,7 @@ are explicit, and semantic group IDs support later composition.
 verified bundle, selected candidate and match-projection digests, source-result
 package version, current renderer package version, and a digest of the exact
 renderer module bytes. Execution inspection also records the verified release
-identity. The sidecar is derived review custody; it does not enter or change the
+identity. The sidecar is an export record; it does not enter or change the
 canonical result bundle.
 
 ## Inspect a supplied candidate
@@ -70,7 +66,7 @@ member of its published portfolio. Use the explicit Python API
 `inspect_candidate(candidate: Candidate, spec: DesignSpec) -> CandidateInspection`
 from `motif_balance.inspection` to explain that candidate without inventing a
 result bundle. The [alternative-selection guide](../choose-alternatives.md#inspect-a-ranked-alternative)
-contains a runnable example. This API is unreleased and has no separate CLI.
+contains a runnable example. This operation is available through Python.
 
 The operation revalidates both models, checks projection limits, compiles the
 supplied scoring context, and evaluates the sequence exactly once. Every stored
@@ -80,7 +76,7 @@ It accepts only current directional `design-spec/v3`; no legacy conversion or
 path discovery occurs. The original portfolio count does not have to be
 attainable, because inspection generates no portfolio.
 
-The immutable `motif-balance.candidate-inspection/v1` contains the scoring
+The immutable `motif-balance.candidate-inspection/v2` contains the scoring
 problem, supplied model identities and candidate projection, with
 `rank_scope="caller_supplied_order"` and `validation_scope="score_replay"`.
 Serialize it with `model_dump_json()`. Pass it to the same
@@ -114,13 +110,11 @@ its artifact bytes may still be externally verified.
 The review leads with the portfolio because that is the product output. The
 best observed evaluation remains separate from the constrained selected set.
 For current bundles the portfolio view reports whether that sequence is a
-selected member and at which rank. Older readable bundles may provide only its
-recorded hard score when the sequence was never serialized.
+selected member and at which rank.
 
 The current candidate visual contract is `motif-balance.candidate-duplex/v2`.
-There is one candidate view, not a legacy/current display switch. It consumes
-verified result inspection or replayed supplied-candidate inspection; it does not
-depend on a study directory, another renderer, or a particular motif source.
+It renders either verified results or rescored supplied candidates through the
+same layout, independently of the motif source.
 
 For uniform-background models, the candidate view shows each supplied motif as
 a coordinate-aligned 0–2 bit information logo over its selected match and shows
@@ -130,8 +124,8 @@ unobserved alternatives remain gray. Each selected window has a solid motif-colo
 fill and white bases on the same coordinate grid and at the same font size as
 the duplex. Forward logos and matches appear above the
 primary strand and reverse logos and matches below the complement. Limiting
-motifs use an explicit bracket and label. Hard-ceiling avoiders use a dashed
-outline and display their ceiling, so neither state depends on color alone.
+motifs use an explicit bracket and label. Seek/avoid labels communicate direction
+without relying on color alone.
 
 Exact observed-base signed log-likelihood contributions remain in the JSON and
 HTML inspection, not as a second numeric grid in the molecular SVG. Each logo
@@ -155,19 +149,12 @@ satisfaction. The weakest satisfaction limits balance; avoid satisfaction is
 one minus the strongest scanned attainment. A strong unwanted match therefore
 reduces balance rather than disappearing from the review.
 
-Explicit hard-ceiling results display avoider matches on separate lanes with
-their ceilings and feasibility state. The portfolio remains ranked by target
-`balance_score`; avoider scores are never presented as target objectives or a
-weighted penalty.
-
 The portfolio view is a candidate-by-motif matrix in deterministic rank and
-canonical motif order. Values remain numeric. Under
-`relative_pwm_attainment_v2`, the color scale spans zero to one: the theoretical
-raw-LLR extrema over one motif-width word. Neither endpoint is a probability.
-After retaining the best score across multiple placements or orientations, one
-remains sequence-attainable by embedding a score-maximizing word; zero need not
-be attainable as the sequence's reported best match. Explicitly versioned
-historical results retain their original scoring interpretation.
+canonical motif order. Cells show directional satisfaction on a zero-to-one
+scale: attainment for seek, and one minus attainment for avoid. The same high
+value therefore means greater satisfaction in either direction. Raw attainment
+remains available in the projected match record. Neither quantity is a binding
+probability.
 
 The search view is a closed diagnostic in HTML and remains directly exportable
 as SVG. It is the running maximum of recorded published hard-minimum scores
@@ -176,10 +163,7 @@ climbing, chain dynamics, convergence evidence, or a global-optimality claim.
 Held steps preserve the recorded checkpoint values; improvement times between
 checkpoints are unknown. If the display must omit score changes, it uses
 unconnected sampled markers and discloses displayed and total counts.
-It is omitted when a result has no checkpoints. Current diagnostics retain a
-feasible/infeasible status beside every restart-final target score so a target
-score from a constraint-violating endpoint cannot be mistaken for an
-admissible result.
+It is omitted when a result has no checkpoints.
 
 ## Trust and bounds
 
@@ -196,8 +180,6 @@ narrow screen.
 
 ## Boundary
 
-Product inspection explains one result. Research workflows own matched
-controls, repeated seeds, exhaustive comparisons, uncertainty, failures,
-cross-task summaries, scaling, and scientific claim acceptance. The package
-does not join result summaries, discover storage, define a cohort, rank results
-across runs, or accept evidence.
+Inspection explains one result. Comparisons across runs require matching the
+inputs and effort, accounting for failures, and choosing appropriate repetitions
+and statistical summaries in the analysis that consumes those results.

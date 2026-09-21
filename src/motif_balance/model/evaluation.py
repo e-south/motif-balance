@@ -1,4 +1,7 @@
-"""Immutable scanned matches, evaluations, and selected candidates."""
+"""Immutable scanned matches, evaluations, and selected candidates.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -29,12 +32,8 @@ class MotifMatch(FrozenModel):
     matched_sequence: str
     raw_score: Annotated[float, Field(strict=True)]
     normalized_score: Annotated[float, Field(strict=True, ge=0.0)]
-    spec_direction: Literal["seek", "avoid"] | None = Field(
-        default=None, exclude_if=lambda value: value is None
-    )
-    spec_satisfaction: (
-        Annotated[float, Field(strict=True, ge=0.0, le=1.0, allow_inf_nan=False)] | None
-    ) = Field(default=None, exclude_if=lambda value: value is None)
+    spec_direction: Literal["seek", "avoid"]
+    spec_satisfaction: Annotated[float, Field(strict=True, ge=0.0, le=1.0, allow_inf_nan=False)]
 
     @model_validator(mode="after")
     def validate_coordinates(self) -> Self:
@@ -46,18 +45,11 @@ class MotifMatch(FrozenModel):
             raise ValueError("matched_sequence must contain only A, C, G, and T")
         if not math.isfinite(self.raw_score) or not math.isfinite(self.normalized_score):
             raise ValueError("match scores must be finite")
-        if (self.spec_direction is None) != (self.spec_satisfaction is None):
-            raise ValueError("specification direction and satisfaction must be declared together")
-        if self.spec_satisfaction is not None:
-            expected = (
-                self.normalized_score
-                if self.spec_direction == "seek"
-                else 1.0 - self.normalized_score
-            )
-            if not math.isclose(self.spec_satisfaction, expected, abs_tol=1.0e-12):
-                raise ValueError(
-                    "specification satisfaction does not match direction and attainment"
-                )
+        expected = (
+            self.normalized_score if self.spec_direction == "seek" else 1.0 - self.normalized_score
+        )
+        if not math.isclose(self.spec_satisfaction, expected, abs_tol=1.0e-12):
+            raise ValueError("specification satisfaction does not match direction and attainment")
         return self
 
 
@@ -65,10 +57,6 @@ class Evaluation(FrozenModel):
     sequence: str
     balance_score: Annotated[float, Field(strict=True, ge=0.0)]
     matches: tuple[MotifMatch, ...]
-    avoidance_matches: tuple[MotifMatch, ...] = ()
-    constraint_status: Literal["feasible", "infeasible"] = "feasible"
-    max_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
-    total_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
 
     @model_validator(mode="after")
     def validate_balance(self) -> Self:
@@ -76,34 +64,13 @@ class Evaluation(FrozenModel):
             raise ValueError("sequence must contain only A, C, G, and T")
         if not self.matches:
             raise ValueError("evaluation must contain at least one motif match")
-        has_directional = any(match.spec_satisfaction is not None for match in self.matches)
-        if has_directional and any(match.spec_satisfaction is None for match in self.matches):
-            raise ValueError("directional evaluations require satisfaction for every specification")
-        weakest = min(
-            match.spec_satisfaction
-            if match.spec_satisfaction is not None
-            else match.normalized_score
-            for match in self.matches
-        )
+        weakest = min(match.spec_satisfaction for match in self.matches)
         if not math.isclose(self.balance_score, weakest, abs_tol=1.0e-12):
             raise ValueError("balance_score must equal the weakest specification satisfaction")
-        target_ids = {match.motif_id for match in self.matches}
-        avoider_ids = {match.motif_id for match in self.avoidance_matches}
-        if len(target_ids) != len(self.matches) or len(avoider_ids) != len(self.avoidance_matches):
+        ids = {match.motif_id for match in self.matches}
+        if len(ids) != len(self.matches):
             raise ValueError("evaluation contains duplicate motif match identifiers")
-        if target_ids & avoider_ids:
-            raise ValueError("target and avoider matches must be disjoint")
-        if not self.avoidance_matches and (
-            self.constraint_status != "feasible"
-            or self.max_avoidance_excess != 0.0
-            or self.total_avoidance_excess != 0.0
-        ):
-            raise ValueError("an evaluation without avoiders must be constraint feasible")
         return self
-
-    @property
-    def constraint_feasible(self) -> bool:
-        return self.constraint_status == "feasible"
 
     @property
     def limiting_specification_ids(self) -> tuple[str, ...]:
@@ -111,9 +78,7 @@ class Evaluation(FrozenModel):
             match.motif_id
             for match in self.matches
             if math.isclose(
-                match.spec_satisfaction
-                if match.spec_satisfaction is not None
-                else match.normalized_score,
+                match.spec_satisfaction,
                 self.balance_score,
                 abs_tol=1.0e-12,
             )
@@ -126,10 +91,6 @@ class Candidate(FrozenModel):
     sequence: str
     balance_score: Annotated[float, Field(strict=True, ge=0.0)]
     matches: tuple[MotifMatch, ...]
-    avoidance_matches: tuple[MotifMatch, ...] = ()
-    constraint_status: Literal["feasible", "infeasible"] = "feasible"
-    max_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
-    total_avoidance_excess: Annotated[float, Field(strict=True, ge=0.0)] = 0.0
 
     @model_validator(mode="after")
     def validate_candidate(self) -> Self:
@@ -137,16 +98,8 @@ class Candidate(FrozenModel):
             sequence=self.sequence,
             balance_score=self.balance_score,
             matches=self.matches,
-            avoidance_matches=self.avoidance_matches,
-            constraint_status=self.constraint_status,
-            max_avoidance_excess=self.max_avoidance_excess,
-            total_avoidance_excess=self.total_avoidance_excess,
         )
         return self
-
-    @property
-    def constraint_feasible(self) -> bool:
-        return self.constraint_status == "feasible"
 
     @property
     def limiting_specification_ids(self) -> tuple[str, ...]:
@@ -157,8 +110,4 @@ class Candidate(FrozenModel):
             sequence=self.sequence,
             balance_score=self.balance_score,
             matches=self.matches,
-            avoidance_matches=self.avoidance_matches,
-            constraint_status=self.constraint_status,
-            max_avoidance_excess=self.max_avoidance_excess,
-            total_avoidance_excess=self.total_avoidance_excess,
         )

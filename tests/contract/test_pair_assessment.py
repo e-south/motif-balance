@@ -61,11 +61,12 @@ def test_nonuniform_background_constant_columns_have_no_artificial_conflict() ->
 @pytest.mark.parametrize("length", [True, "3", 3.0, 0, -1, 2, 10_001])
 def test_assessment_rejects_invalid_lengths_before_compilation(length, monkeypatch) -> None:
     from motif_balance import assessment
+    from motif_balance.assessment import terms
 
     def unexpected_compile(_model):
         pytest.fail("invalid assessment reached matrix compilation")
 
-    monkeypatch.setattr(assessment, "_compile_motif", unexpected_compile)
+    monkeypatch.setattr(terms, "_compile_motif", unexpected_compile)
     with pytest.raises(IncompatibleDesign, match="length"):
         assessment.assess_pair(motif("AAA", "a"), motif("CCC", "b"), length=length)
 
@@ -84,7 +85,7 @@ def test_assessment_rejects_unqualified_models_and_zero_information() -> None:
     a = motif("A", "a")
     with pytest.raises(IncompatibleDesign, match="MotifModel"):
         assess_pair(a.model_dump(), a, length=1)
-    old = MotifModel.model_validate({**a.model_dump(), "schema_version": "motif-model/v1"})
+    old = a.model_copy(update={"schema_version": "motif-model/v1"})
     with pytest.raises(IncompatibleDesign, match="motif-model/v2"):
         assess_pair(old, a, length=1)
     # Uniform probabilities can have log-odds variation under a nonuniform
@@ -100,11 +101,12 @@ def test_assessment_rejects_unqualified_models_and_zero_information() -> None:
 
 def test_assessment_bounds_work_before_compiling_or_building_arrangements(monkeypatch) -> None:
     from motif_balance import assessment
+    from motif_balance.assessment import terms
 
     def unexpected_compile(_model):
         pytest.fail("over-limit assessment reached matrix compilation")
 
-    monkeypatch.setattr(assessment, "_compile_motif", unexpected_compile)
+    monkeypatch.setattr(terms, "_compile_motif", unexpected_compile)
     a = motif("A" * 1_000, "a")
     with pytest.raises(IncompatibleDesign, match="operation limit"):
         assessment.assess_pair(a, a, length=10_000)

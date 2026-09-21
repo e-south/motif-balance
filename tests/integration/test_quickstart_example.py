@@ -63,7 +63,7 @@ def test_bounded_examples_use_current_directional_contract(
     assert len(portfolio.candidates) == count
     assert all(len(candidate.sequence) == length for candidate in portfolio.candidates)
     assert portfolio.manifest.evaluation_count == budget
-    assert portfolio.manifest.schema_version == "run-manifest/v6"
+    assert portfolio.manifest.schema_version == "run-manifest/v7"
     assert portfolio.manifest.search_engine == "annealed_multistart_v1"
     assert portfolio.manifest.completion_status == "budget_exhausted"
     portfolio.write(tmp_path / "result")

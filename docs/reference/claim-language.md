@@ -2,23 +2,20 @@
 doc_id: motif-balance-claim-language
 title: Claim-language check
 intent: Define the bounded advisory wording check for downstream study and manuscript text.
-audience:
-  - study authors
-  - manuscript authors
-  - maintainers
+audience: [study authors, manuscript authors, maintainers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-08
+last_verified: 2026-09-20
 doc_type: reference
-journey:
-  - integrate
+journey: [integrate]
+
 ---
 
 # Claim-language check
 
 `motif_balance.claim_language.check_claim_text(text)` deterministically reports
 a small set of wording hazards known to matter when Motif Balance results are
-used in studies or manuscripts. It is an intentional advanced submodule seam,
+used in studies or manuscripts. It is an optional submodule,
 not a top-level API or CLI command.
 
 Each immutable `ClaimFinding` gives a stable rule ID, severity, one-based source

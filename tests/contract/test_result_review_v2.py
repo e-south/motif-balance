@@ -7,20 +7,15 @@ import subprocess
 import xml.etree.ElementTree as ET
 from itertools import pairwise
 from pathlib import Path
-from typing import Literal
 
 import pytest
 from pydantic import ValidationError
 
+from motif_balance import MotifSpecification
 from motif_balance.api import design, score
 from motif_balance.artifacts import (
-    artifact_records,
-    base_artifact_payloads,
-    bundle_id,
     manifest_bytes,
 )
-from motif_balance.compile import build_run_id, compile_design
-from motif_balance.constants import BUILD_LOCK_SHA256, RUNTIME_CONTRACT
 from motif_balance.errors import ArtifactError
 from motif_balance.inspection import ResultInspection, inspect_result
 from motif_balance.inspection.model import (
@@ -46,16 +41,12 @@ from motif_balance.inspection.render.information_logo import (
     render_coordinate_aligned_information_logo,
 )
 from motif_balance.model import (
-    ArtifactDigest,
     Candidate,
     DesignSpec,
     MotifModel,
-    RunManifest,
     SearchCheckpoint,
     candidate_id_for_sequence,
 )
-from motif_balance.search import search
-from motif_balance.selection import select_candidates
 
 
 def _candidate_for(sequence: str, spec: DesignSpec) -> Candidate:
@@ -104,87 +95,6 @@ def _assert_svg_text_is_legible(payload: bytes) -> None:
     assert min(float(node.attrib["font-size"]) for node in text_nodes) >= 12
 
 
-def _write_legacy_bundle(
-    bundle: Path,
-    current_spec: DesignSpec,
-    *,
-    schema: Literal["run-manifest/v2", "run-manifest/v3", "run-manifest/v4"],
-) -> str:
-    """Build an exact v1-scored fixture; never relabel current v2 records."""
-
-    legacy_motifs = tuple(
-        MotifModel.model_validate(
-            {**motif.model_dump(mode="python"), "schema_version": "motif-model/v1"}
-        )
-        for motif in current_spec.motifs
-    )
-    spec = DesignSpec(
-        schema_version="design-spec/v1",
-        motifs=legacy_motifs,
-        length=current_spec.length,
-        count=current_spec.count,
-        strands=current_spec.strands,
-        evaluations=current_spec.evaluations,
-        seed=current_spec.seed,
-        min_distance=current_spec.min_distance,
-        scoring_semantics="normalized_llr_v1",
-    )
-    problem = compile_design(spec)
-    result = search(problem)
-    legacy_diagnostics = result.diagnostics.model_copy(
-        update={
-            "schema_version": "search-diagnostics/v1",
-            "restart_final_constraint_statuses": (),
-        }
-    )
-    package_version = "0.2.0a3" if schema == "run-manifest/v2" else "0.3.0a3"
-    candidates = select_candidates(
-        result.evaluations,
-        count=spec.count,
-        min_distance=spec.min_distance,
-        evaluations_used=result.evaluations_used,
-    )
-    best_observed = min(
-        result.evaluations,
-        key=lambda evaluation: (-evaluation.balance_score, evaluation.sequence),
-    )
-    run_id = build_run_id(
-        spec,
-        problem.problem_id,
-        result.engine,
-        result.engine_version,
-        package_version=package_version,
-    )
-    payloads = base_artifact_payloads(spec, candidates)
-    if schema == "run-manifest/v2":
-        payloads["report.html"] = b"<!doctype html><title>Legacy v2 report</title>\n"
-    provisional = RunManifest(
-        schema_version=schema,
-        package_version=package_version,
-        runtime_contract=RUNTIME_CONTRACT,
-        build_lock_sha256=BUILD_LOCK_SHA256,
-        problem_id=problem.problem_id,
-        run_id=run_id,
-        bundle_id="bundle-000000000000000000000000",
-        search_engine=result.engine,
-        search_engine_version=result.engine_version,
-        rng=result.rng,
-        evaluation_count=result.evaluations_used,
-        unique_evaluations=result.unique_evaluations,
-        completion_status=result.completion_status,
-        search_validation_status=result.search_validation_status,
-        search_diagnostics=legacy_diagnostics,
-        best_observed=best_observed if schema == "run-manifest/v4" else None,
-        artifacts=artifact_records(payloads),
-    )
-    manifest = provisional.model_copy(update={"bundle_id": bundle_id(provisional)})
-    bundle.mkdir()
-    for name, payload in payloads.items():
-        (bundle / name).write_bytes(payload)
-    (bundle / "manifest.json").write_bytes(manifest_bytes(manifest))
-    return manifest.bundle_id
-
-
 def test_projection_separates_delivery_search_and_integrity(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
@@ -194,7 +104,7 @@ def test_projection_separates_delivery_search_and_integrity(
 
     inspection = inspect_result(bundle, kind="bundle")
 
-    assert inspection.schema_version == "motif-balance.result-inspection/v4"
+    assert inspection.schema_version == "motif-balance.result-inspection/v5"
     assert inspection.problem.scoring_semantics == "relative_pwm_attainment_v2"
     for motif in inspection.problem.motifs:
         assert motif.score_min < motif.score_max
@@ -210,67 +120,19 @@ def test_projection_separates_delivery_search_and_integrity(
     assert inspection.integrity.checked_identities == ()
 
 
-def test_new_writer_uses_v5_and_inspection_reads_strict_released_v2_bundle(
-    tmp_path: Path,
-    pairwise_spec: DesignSpec,
+@pytest.mark.parametrize("schema", ("run-manifest/v2", "run-manifest/v3", "run-manifest/v4"))
+def test_inspection_rejects_retired_manifest_before_reading_members(
+    tmp_path: Path, pairwise_spec: DesignSpec, schema: str
 ) -> None:
     bundle = tmp_path / "bundle"
-    assert design(pairwise_spec).manifest.schema_version == "run-manifest/v5"
-    expected_bundle_id = _write_legacy_bundle(bundle, pairwise_spec, schema="run-manifest/v2")
-
-    inspection = inspect_result(
-        bundle,
-        kind="bundle",
-        expected_bundle_id=expected_bundle_id,
-    )
-
-    assert inspection.run.bundle_id == expected_bundle_id
-    assert inspection.run.package_version == "0.2.0a3"
-    assert "report.html" not in {artifact.path for artifact in inspection.artifacts}
-
-
-def test_released_v2_inventory_remains_schema_strict(
-    tmp_path: Path,
-    pairwise_spec: DesignSpec,
-) -> None:
-    bundle = tmp_path / "bundle"
-    expected_bundle_id = _write_legacy_bundle(bundle, pairwise_spec, schema="run-manifest/v2")
-    (bundle / "unexpected.txt").write_text("not declared")
-
-    with pytest.raises(ArtifactError, match="inventory mismatch"):
-        inspect_result(bundle, kind="bundle", expected_bundle_id=expected_bundle_id)
-
-
-def test_readback_rejects_v2_result_relabelled_as_v5(
-    tmp_path: Path,
-    pairwise_spec: DesignSpec,
-) -> None:
-    bundle = tmp_path / "bundle"
-    _write_legacy_bundle(bundle, pairwise_spec, schema="run-manifest/v4")
-    payload = json.loads((bundle / "manifest.json").read_bytes())
-    payload["schema_version"] = "run-manifest/v5"
-    artifacts = tuple(
-        ArtifactDigest(path=path, **record) for path, record in sorted(payload["artifacts"].items())
-    )
-    with pytest.raises(ValidationError, match="search-diagnostics/v2"):
-        RunManifest.model_validate({**payload, "artifacts": artifacts})
-
-
-def test_released_v3_remains_readable_without_inventing_best_observed_sequence(
-    tmp_path: Path,
-    pairwise_spec: DesignSpec,
-) -> None:
-    bundle = tmp_path / "bundle"
-    expected_bundle_id = _write_legacy_bundle(bundle, pairwise_spec, schema="run-manifest/v3")
-    expected_score = json.loads((bundle / "manifest.json").read_bytes())["search_diagnostics"][
-        "best_score"
-    ]
-
-    inspection = inspect_result(bundle, kind="bundle", expected_bundle_id=expected_bundle_id)
-
-    assert inspection.portfolio.best_observed is None
-    assert inspection.portfolio.best_observed_score == expected_score
-    assert b"sequence unavailable in source schema" in render_portfolio_svg(inspection)
+    portfolio = design(pairwise_spec)
+    bundle.mkdir()
+    payload = json.loads(manifest_bytes(portfolio.manifest))
+    payload["schema_version"] = schema
+    # No members exist: schema rejection must precede any attempted fallback read.
+    (bundle / "manifest.json").write_text(json.dumps(payload))
+    with pytest.raises(ValidationError, match="schema_version"):
+        inspect_result(bundle, kind="bundle")
 
 
 def test_projection_replays_position_support_and_reverse_coordinates() -> None:
@@ -280,7 +142,7 @@ def test_projection_replays_position_support_and_reverse_coordinates() -> None:
         background=(0.25, 0.25, 0.25, 0.25),
     )
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=2,
         count=1,
         strands="both",
@@ -315,7 +177,10 @@ def test_projection_represents_overlap_as_a_coordinate_union() -> None:
         background=(0.25, 0.25, 0.25, 0.25),
     )
     spec = DesignSpec(
-        motifs=(first, second),
+        specifications=(
+            MotifSpecification(motif=first, direction="seek"),
+            MotifSpecification(motif=second, direction="seek"),
+        ),
         length=3,
         count=1,
         strands="forward",
@@ -367,7 +232,7 @@ def test_review_svg_views_are_semantic_accessible_and_truthful(
     assert b'data-visual-contract="motif-balance.candidate-duplex/v2"' in candidate
     assert "5\u2032\u21923\u2032".encode() in candidate
     assert "3\u2032\u21925\u2032".encode() in candidate
-    assert b"score-maximizing PWM reference" in balance
+    assert b"fully satisfied directional specification" in balance
     assert b"balance_score" in balance
     assert b"Evaluator calls" in search_record
     assert b"Best observed balance_score" in search_record
@@ -381,7 +246,7 @@ def test_candidate_molecular_cells_remain_readable_for_realistic_long_motifs(
     word = "ACGTACGTACGTACGTACGTAC"
     motif = _motif_for_word("long_motif", word)
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=len(word),
         count=1,
         strands="both",
@@ -405,23 +270,19 @@ def test_candidate_molecular_cells_remain_readable_for_realistic_long_motifs(
     _assert_candidate_text_is_legible(payload)
 
 
-def test_portfolio_labels_are_scoring_version_specific(
+def test_portfolio_labels_describe_attainable_score_references(
     tmp_path: Path,
     pairwise_spec: DesignSpec,
 ) -> None:
     current_bundle = tmp_path / "current"
     design(pairwise_spec).write(current_bundle)
     current = render_portfolio_svg(inspect_result(current_bundle, kind="bundle"))
-    assert b"attainable raw-LLR minimum" in current
-    assert b"score-maximizing PWM reference" in current
-
-    legacy_bundle = tmp_path / "legacy"
-    legacy_id = _write_legacy_bundle(legacy_bundle, pairwise_spec, schema="run-manifest/v4")
-    legacy = render_portfolio_svg(
-        inspect_result(legacy_bundle, kind="bundle", expected_bundle_id=legacy_id)
+    assert (
+        b"directional specification satisfaction derived from model-relative attainment" in current
     )
-    assert b"null-mean-to-score-maximum" in legacy
-    assert b"attainable raw-LLR minimum" not in legacy
+    assert b"fully satisfied directional specification" in current
+
+    assert b"null-mean-to-score-maximum" not in current
 
 
 def test_one_html_compositor_uses_result_reading_order_and_scrolls_wide_figures(
@@ -455,7 +316,7 @@ def test_one_html_compositor_uses_result_reading_order_and_scrolls_wide_figures(
     assert "Position" in html
     assert "Probability A" in html
     assert "0.69999999999999996" in html
-    assert "weakest target attainment" in html
+    assert "weakest specification satisfaction" in html
     assert "sequence_space_exhausted" in html
     assert "model-defined sequence evidence, not measurements" in html
     assert "figure-scroll" in html
@@ -480,9 +341,13 @@ def test_realistic_width_overlapping_both_strand_fixture_is_legible(
     forward_word = "ACGTTGCA"
     reverse_word = "TGCAACGT"
     spec = DesignSpec(
-        motifs=(
-            _motif_for_word("forward_model", forward_word),
-            _motif_for_word("reverse_model", reverse_word),
+        specifications=(
+            MotifSpecification(
+                motif=_motif_for_word("forward_model", forward_word), direction="seek"
+            ),
+            MotifSpecification(
+                motif=_motif_for_word("reverse_model", reverse_word), direction="seek"
+            ),
         ),
         length=8,
         count=1,
@@ -572,7 +437,7 @@ def test_information_logo_fails_clearly_for_nonuniform_scoring_background(
         background=(0.4, 0.3, 0.2, 0.1),
     )
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=1,
         count=1,
         strands="forward",
@@ -589,37 +454,10 @@ def test_information_logo_fails_clearly_for_nonuniform_scoring_background(
         render_candidate_svg(inspection)
 
 
-def test_avoider_information_logo_requires_its_declared_ceiling(
-    tmp_path: Path,
-    pairwise_spec: DesignSpec,
-) -> None:
-    bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
-    inspection = inspect_result(bundle, kind="bundle")
-    motif = inspection.problem.motifs[0]
-    match = next(
-        item
-        for item in inspection.portfolio.candidates[0].matches
-        if item.motif_id == motif.motif_id
-    )
-
-    with pytest.raises(ArtifactError, match="avoider information logo requires a score ceiling"):
-        render_coordinate_aligned_information_logo(
-            motif,
-            match,
-            top=0,
-            left=200,
-            cell=44,
-            limiting=False,
-            avoider=True,
-            score_ceiling=None,
-        )
-
-
 def test_information_logo_baseline_is_locked_to_a_nonzero_match_span() -> None:
     motif = _motif_for_word("offset", "AC")
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=4,
         count=1,
         strands="forward",
@@ -637,8 +475,6 @@ def test_information_logo_baseline_is_locked_to_a_nonzero_match_span() -> None:
         left=210,
         cell=44,
         limiting=False,
-        avoider=False,
-        score_ceiling=None,
     )
     root = ET.fromstring(fragment)
     baseline = root.find(".//line[@class='information-logo-baseline']")
@@ -653,7 +489,7 @@ def test_long_candidate_review_preserves_horizontal_reading_width(
 ) -> None:
     motif = _motif_for_word("long_model", "ACGTTGCA")
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=40,
         count=1,
         strands="both",
@@ -792,7 +628,7 @@ def test_inspection_contracts_reject_internally_inconsistent_projection_rows(
                 **inspection.search.model_dump(mode="python"),
                 "restart_final_constraint_statuses": (),
             },
-            "restart statuses",
+            "Extra inputs are not permitted",
         ),
         (
             IntegrityInspection,
@@ -958,7 +794,7 @@ def test_portfolio_view_keeps_limiting_motifs_when_columns_are_bounded(
         for index in range(18)
     )
     spec = DesignSpec(
-        motifs=motifs,
+        specifications=tuple(MotifSpecification(motif=motif, direction="seek") for motif in motifs),
         length=1,
         count=1,
         strands="forward",

@@ -1,3 +1,8 @@
+"""Plot recorded search checkpoints and best observed balance without rescoring.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from typing import Literal

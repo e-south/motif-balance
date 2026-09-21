@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from motif_balance import DesignSpec, MotifModel, design
+from motif_balance import DesignSpec, MotifModel, MotifSpecification, design
 from motif_balance.artifacts import read_verified_portfolio, verify_bundle
 from motif_balance.errors import ArtifactError
 from motif_balance.model import MotifConversion
@@ -72,7 +72,7 @@ def test_target_background_conversion_survives_bundle_replay(tmp_path: Path) -> 
         ),
     )
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=1,
         count=1,
         strands="both",
@@ -85,8 +85,8 @@ def test_target_background_conversion_survives_bundle_replay(tmp_path: Path) -> 
     portfolio.write(output)
     reread = read_verified_portfolio(output)
 
-    assert reread.spec.motifs[0].conversion == motif.conversion
-    assert reread.spec.motifs[0].model_digest == motif.model_digest
+    assert reread.spec.scored_motifs[0].conversion == motif.conversion
+    assert reread.spec.scored_motifs[0].model_digest == motif.model_digest
     assert verify_bundle(output) == portfolio.manifest.bundle_id
 
 

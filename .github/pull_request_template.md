@@ -6,7 +6,7 @@
 ## Evidence
 
 - [ ] Failing or negative-path test added where behavior changed
-- [ ] `bash ./scripts/agent-verify` passes locally
+- [ ] `bash ./scripts/verify` passes locally
 - [ ] Documentation updated where required
 - [ ] Public-safety and dependency checks pass
 - [ ] Compatibility and migration impact stated

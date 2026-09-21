@@ -1,29 +1,24 @@
-# Contributing to Motif Balance
+# Contributing
 
-Contributions should preserve the package's reusable software boundary and
-scientific contracts. Start with [the documentation index](docs/index.md),
-[architecture](ARCHITECTURE.md), and [engineering contracts](DESIGN.md).
+Start with the [task documentation](docs/README.md) and [module overview](ARCHITECTURE.md).
 
-## Development loop
+## Development
 
 ```bash
-uv sync --locked
-bash ./scripts/agent-preflight --strict
-bash ./scripts/agent-verify
+uv sync --locked --group dev
+bash ./scripts/preflight --strict
+bash ./scripts/verify
 ```
 
-Add a failing test before behavior changes. Public schema, scoring, or ownership
-changes require a compatibility statement and matching documentation. Keep
-refactors separate from semantic changes.
+Run relevant tests while editing and the full verification command before submitting.
+Add a regression test for behavior changes. Preserve the [scoring and selection
+contracts](DESIGN.md); describe compatibility changes to scores or schemas explicitly.
 
 ## Pull requests
 
-Keep changes narrow enough to review. State the contract affected, negative
-paths exercised, compatibility impact, and verification commands. Do not add
-private datasets, application-specific identities, credentials, local paths,
-or generated output from neighboring repositories. See
-[the security policy](SECURITY.md) for sensitive reports.
+Explain the problem, what changed and how you checked it. Update examples or
+command documentation when needed. Keep numerical changes separate from refactors.
+Public motif examples need source identifiers and redistribution terms.
 
-Prerelease preparation and independent download verification use the
-single owner command documented in the
-[prerelease procedure](docs/reference/prerelease.md).
+See the [security policy](SECURITY.md) for sensitive reports and the
+[release procedure](docs/reference/prerelease.md) for distribution builds.

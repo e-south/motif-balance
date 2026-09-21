@@ -5,7 +5,7 @@ from dataclasses import replace
 import pytest
 from pydantic import ValidationError
 
-from motif_balance import DesignSpec, MotifModel
+from motif_balance import DesignSpec, MotifModel, MotifSpecification
 from motif_balance.compile import compile_design
 from motif_balance.search import (
     AnnealedSearchEngine,
@@ -31,7 +31,9 @@ def _problem(*, evaluations: int = 128, seed: int = 19):
     )
     return compile_design(
         DesignSpec(
-            motifs=motifs,
+            specifications=tuple(
+                MotifSpecification(motif=motif, direction="seek") for motif in motifs
+            ),
             length=8,
             count=4,
             strands="both",
@@ -67,7 +69,6 @@ def test_production_engine_uses_the_exact_public_evaluation_budget() -> None:
     assert result.completion_status == "budget_exhausted"
     assert result.search_validation_status == "contract_tested"
     assert result.diagnostics.restarts == 8
-    assert len(result.diagnostics.restart_final_constraint_statuses) == 8
     assert result.diagnostics.checkpoints[-1].evaluations == 127
     assert result.diagnostics.checkpoints[-1].best_score == max(
         item.balance_score for item in result.evaluations
@@ -108,12 +109,12 @@ def test_search_result_and_diagnostics_reject_incomplete_discovery_and_status_re
 
     diagnostic_payload = result.diagnostics.model_dump(mode="python")
     diagnostic_payload["restart_final_constraint_statuses"] = ()
-    with pytest.raises(ValidationError, match="one status per restart"):
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         type(result.diagnostics).model_validate(diagnostic_payload)
 
     diagnostic_payload = result.diagnostics.model_dump(mode="python")
     diagnostic_payload["schema_version"] = "search-diagnostics/v1"
-    with pytest.raises(ValidationError, match="cannot contain constraint statuses"):
+    with pytest.raises(ValidationError, match="schema_version"):
         type(result.diagnostics).model_validate(diagnostic_payload)
 
 

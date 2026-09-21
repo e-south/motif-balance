@@ -1,3 +1,8 @@
+"""Carry a verified byte snapshot and its trust basis into result projection.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

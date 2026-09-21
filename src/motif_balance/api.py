@@ -1,3 +1,8 @@
+"""Design DNA and score supplied sequences through the public Python API.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,10 +30,7 @@ from motif_balance.constants import (
 )
 from motif_balance.errors import (
     ArtifactError,
-    ConstraintFeasibilityExhausted,
-    ExactConstraintInfeasible,
     IncompatibleDesign,
-    PortfolioInfeasible,
 )
 from motif_balance.model import (
     DesignSpec,
@@ -62,7 +64,7 @@ class Portfolio(PortfolioRecord):
 
     def write(self, path: str | Path) -> Path:
         if (
-            self.manifest.schema_version not in {"run-manifest/v5", "run-manifest/v6"}
+            self.manifest.schema_version != "run-manifest/v7"
             or self.manifest.package_version != PACKAGE_VERSION
             or self.manifest.runtime_contract != RUNTIME_CONTRACT
             or self.manifest.build_lock_sha256 != BUILD_LOCK_SHA256
@@ -83,11 +85,11 @@ def score(sequence: str, spec: DesignSpec) -> Evaluation:
 
 
 def _require_publishable_design(spec: DesignSpec) -> None:
-    if spec.schema_version not in {"design-spec/v2", "design-spec/v3"}:
+    if spec.schema_version != "design-spec/v3":
         raise IncompatibleDesign(
-            "design-spec/v1 is read-only and cannot publish a new result",
+            "Unsupported design schema",
             field="schema_version",
-            hint="Use design-spec/v2 or design-spec/v3 with motif-model/v2 for new runs.",
+            hint="Use design-spec/v3 with motif-model/v2 for new runs.",
         )
 
 
@@ -98,54 +100,7 @@ def _portfolio_from_search_result(
 ) -> Portfolio:
     """Construct the ordinary immutable portfolio from one authoritative search result."""
 
-    feasible = tuple(item for item in result.evaluations if item.constraint_feasible)
-    best_infeasible = min(
-        (item for item in result.evaluations if not item.constraint_feasible),
-        key=lambda item: (
-            item.max_avoidance_excess,
-            item.total_avoidance_excess,
-            -item.balance_score,
-            item.sequence,
-        ),
-        default=None,
-    )
-    if spec.avoiders and not feasible:
-        if result.completion_status == "exhaustive":
-            raise ExactConstraintInfeasible(sequence_space_size=result.evaluations_used)
-        raise ConstraintFeasibilityExhausted(
-            requested_count=spec.count,
-            feasible_count=0,
-            evaluations_used=result.evaluations_used,
-            best_max_excess=(
-                None if best_infeasible is None else best_infeasible.max_avoidance_excess
-            ),
-            best_total_excess=(
-                None if best_infeasible is None else best_infeasible.total_avoidance_excess
-            ),
-        )
-    if spec.avoiders and len(feasible) < spec.count:
-        if result.completion_status == "exhaustive":
-            raise PortfolioInfeasible(
-                requested_count=spec.count,
-                valid_count=len(feasible),
-                candidate_pool_size=len(feasible),
-                minimum_distance=spec.min_distance,
-                evaluations_used=result.evaluations_used,
-                best_score=max((item.balance_score for item in feasible), default=None),
-                design_space_exhausted=True,
-            )
-        raise ConstraintFeasibilityExhausted(
-            requested_count=spec.count,
-            feasible_count=len(feasible),
-            evaluations_used=result.evaluations_used,
-            best_max_excess=(
-                None if best_infeasible is None else best_infeasible.max_avoidance_excess
-            ),
-            best_total_excess=(
-                None if best_infeasible is None else best_infeasible.total_avoidance_excess
-            ),
-        )
-    candidate_pool = feasible if spec.avoiders else result.evaluations
+    candidate_pool = result.evaluations
     best_observed = min(
         candidate_pool,
         key=lambda evaluation: (-evaluation.balance_score, evaluation.sequence),
@@ -168,18 +123,11 @@ def _portfolio_from_search_result(
     strand_factor = 2 if spec.strands == "both" else 1
     score_operations_per_evaluation = sum(
         (spec.length - motif.width + 1) * motif.width * strand_factor
-        for motif in (*spec.scored_motifs, *(item.motif for item in spec.avoiders))
+        for motif in spec.scored_motifs
     )
-    is_directional = spec.schema_version == "design-spec/v3"
     is_exact = result.completion_status == "exhaustive"
     provisional_manifest = RunManifest(
-        schema_version=(
-            "run-manifest/v6"
-            if spec.schema_version == "design-spec/v3"
-            else "run-manifest/v5"
-            if spec.schema_version == "design-spec/v2"
-            else "run-manifest/v4"
-        ),
+        schema_version="run-manifest/v7",
         package_version=PACKAGE_VERSION,
         runtime_contract=RUNTIME_CONTRACT,
         build_lock_sha256=BUILD_LOCK_SHA256,
@@ -195,18 +143,14 @@ def _portfolio_from_search_result(
         search_validation_status=result.search_validation_status,
         search_diagnostics=result.diagnostics,
         best_observed=best_observed,
-        exact_completion_status=(
-            ("complete" if is_exact else "not_exact") if is_directional else None
-        ),
-        state_space_size=result.evaluations_used if is_directional and is_exact else None,
-        expected_candidate_count=result.evaluations_used if is_directional and is_exact else None,
-        completed_candidate_count=result.evaluations_used if is_directional and is_exact else None,
-        score_operation_count=(
-            result.evaluations_used * score_operations_per_evaluation if is_directional else None
-        ),
-        elite_capacity=result.elite_capacity if is_directional else None,
-        elite_fill_count=len(result.elites) if is_directional else None,
-        elites=result.elites if is_directional else (),
+        exact_completion_status="complete" if is_exact else "not_exact",
+        state_space_size=result.evaluations_used if is_exact else None,
+        expected_candidate_count=result.evaluations_used if is_exact else None,
+        completed_candidate_count=result.evaluations_used if is_exact else None,
+        score_operation_count=result.evaluations_used * score_operations_per_evaluation,
+        elite_capacity=result.elite_capacity,
+        elite_fill_count=len(result.elites),
+        elites=result.elites,
         artifacts=artifacts,
     )
     manifest = provisional_manifest.model_copy(

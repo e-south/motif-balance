@@ -1,3 +1,8 @@
+"""Draw duplex bases, matched intervals, and coordinate-aligned motif logos.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -57,8 +62,7 @@ def _molecular_lanes(
     candidate: InspectionCandidate,
     layout: CandidateLayout,
 ) -> list[str]:
-    motifs = {motif.motif_id: motif for motif in (*problem.motifs, *problem.avoiders)}
-    ceilings = {motif.motif_id: motif.score_ceiling for motif in problem.avoiders}
+    motifs = {motif.motif_id: motif for motif in problem.motifs}
     parts = [
         f'<g id="motif-models" data-total-matches="{len(layout.shown)}" '
         f'data-displayed-matches="{len(layout.shown)}">'
@@ -77,8 +81,6 @@ def _molecular_lanes(
                     left=layout.left,
                     cell=layout.cell,
                     limiting=match.motif_id in candidate.limiting_motif_ids,
-                    avoider=match.motif_id in ceilings,
-                    score_ceiling=ceilings.get(match.motif_id),
                 )
             )
             parts.append(

@@ -12,8 +12,11 @@ from pydantic import ValidationError
 
 import motif_balance
 import motif_balance.artifacts.publication as artifacts_module
-import motif_balance.execution as execution_module
+import motif_balance.execution.release as release_module
+import motif_balance.execution.workspace as execution_module
+import motif_balance.execution.workspace_io as workspace_io_module
 from motif_balance import DesignSpec
+from motif_balance.constants import PACKAGE_VERSION
 from motif_balance.errors import ArtifactError
 from motif_balance.execution import execute_design_workspace, verify_execution_workspace
 from motif_balance.inspection import ResultInspection, inspect_result
@@ -84,9 +87,9 @@ def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
         if alter_api and relative == "api.py":
             payload += b"# substituted\n"
         entries[f"motif_balance/{relative}"] = payload
-    dist_info = "motif_balance-0.5.0a2.dist-info/"
+    dist_info = f"motif_balance-{PACKAGE_VERSION}.dist-info/"
     entries[f"{dist_info}METADATA"] = (
-        b"Metadata-Version: 2.4\nName: motif-balance\nVersion: 0.5.0a2\n"
+        f"Metadata-Version: 2.4\nName: motif-balance\nVersion: {PACKAGE_VERSION}\n".encode()
     )
     entries[f"{dist_info}WHEEL"] = b"Wheel-Version: 1.0\n"
     entries[f"{dist_info}entry_points.txt"] = (
@@ -105,17 +108,13 @@ def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
 
 @pytest.fixture
 def design_path(tmp_path: Path, pairwise_spec: DesignSpec) -> Path:
-    payload = pairwise_spec.model_dump(mode="json", exclude={"motifs"})
-    payload["motifs"] = {
-        motif.motif_id: motif.model_dump(mode="json") for motif in pairwise_spec.motifs
-    }
     path = tmp_path / "design.json"
-    path.write_text(json.dumps(payload))
+    path.write_text(pairwise_spec.model_dump_json())
     return path
 
 
 def _execute(tmp_path: Path, specification: Path) -> tuple[Path, Path, dict[str, object]]:
-    release = tmp_path / "motif_balance-0.5.0a2-py3-none-any.whl"
+    release = tmp_path / f"motif_balance-{PACKAGE_VERSION}-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     workspace = execute_design_workspace(
@@ -162,7 +161,7 @@ def test_execute_refuses_a_substituted_release_tree(
     tmp_path: Path,
     design_path: Path,
 ) -> None:
-    release = tmp_path / "motif_balance-0.5.0a2-py3-none-any.whl"
+    release = tmp_path / f"motif_balance-{PACKAGE_VERSION}-py3-none-any.whl"
     _write_runtime_wheel(release, alter_api=True)
 
     with pytest.raises(ArtifactError, match="does not match the running package"):
@@ -181,7 +180,7 @@ def test_execute_publishes_a_relative_destination(
     design_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    release = tmp_path / "motif_balance-0.5.0a2-py3-none-any.whl"
+    release = tmp_path / f"motif_balance-{PACKAGE_VERSION}-py3-none-any.whl"
     _write_runtime_wheel(release)
     monkeypatch.chdir(tmp_path)
 
@@ -298,7 +297,7 @@ def test_execution_inspection_binds_projected_receipt_bytes(
     forged_record = json.loads(genuine)
     forged_record["platform_machine"] = "FORGED-INTERMEDIATE"
     forged = (json.dumps(forged_record, indent=2, sort_keys=True) + "\n").encode()
-    original_read = execution_module._read_workspace_file
+    original_read = workspace_io_module._read_workspace_file
     receipt_reads = 0
 
     def substitute_intermediate_receipt(root: Path, relative: str) -> bytes:
@@ -310,7 +309,9 @@ def test_execution_inspection_binds_projected_receipt_bytes(
                 return forged
         return payload
 
-    monkeypatch.setattr(execution_module, "_read_workspace_file", substitute_intermediate_receipt)
+    monkeypatch.setattr(
+        workspace_io_module, "_read_workspace_file", substitute_intermediate_receipt
+    )
 
     with pytest.raises(ArtifactError, match="resource digest mismatch"):
         inspect_result(
@@ -369,7 +370,7 @@ def test_execute_refuses_existing_destination(
     tmp_path: Path,
     design_path: Path,
 ) -> None:
-    release = tmp_path / "motif_balance-0.5.0a2-py3-none-any.whl"
+    release = tmp_path / f"motif_balance-{PACKAGE_VERSION}-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     output.mkdir()
@@ -388,7 +389,7 @@ def test_execute_does_not_replace_a_concurrently_created_empty_destination(
     design_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    release = tmp_path / "motif_balance-0.5.0a2-py3-none-any.whl"
+    release = tmp_path / f"motif_balance-{PACKAGE_VERSION}-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     publish = execution_module._publish_directory_no_replace
@@ -421,7 +422,7 @@ def test_execute_rejects_member_mutation_during_workspace_publication(
     design_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    release = tmp_path / "motif_balance-0.5.0a2-py3-none-any.whl"
+    release = tmp_path / f"motif_balance-{PACKAGE_VERSION}-py3-none-any.whl"
     output = tmp_path / "execution"
     _write_runtime_wheel(release)
     library = _WorkspaceMutatingLibrary()
@@ -448,7 +449,7 @@ def test_release_read_rejects_file_substitution_between_check_and_open(
     release.write_bytes(b"trusted release bytes")
     replacement = tmp_path / "replacement.whl"
     replacement.write_bytes(b"substituted release bytes")
-    real_open = execution_module.os.open
+    real_open = release_module.os.open
     substituted = False
 
     def substitute_then_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
@@ -459,10 +460,10 @@ def test_release_read_rejects_file_substitution_between_check_and_open(
             replacement.replace(release)
         return real_open(path, flags, *args, **kwargs)
 
-    monkeypatch.setattr(execution_module.os, "open", substitute_then_open)
+    monkeypatch.setattr(release_module.os, "open", substitute_then_open)
 
     with pytest.raises(ArtifactError, match=r"changed.*open|unsafe"):
-        execution_module._read_release(release)
+        release_module._read_release(release)
 
 
 def test_release_read_rejects_symlink_substitution(
@@ -473,7 +474,7 @@ def test_release_read_rejects_symlink_substitution(
     release.write_bytes(b"trusted release bytes")
     replacement = tmp_path / "replacement.whl"
     replacement.write_bytes(b"substituted release bytes")
-    real_open = execution_module.os.open
+    real_open = release_module.os.open
     substituted = False
 
     def substitute_then_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
@@ -484,10 +485,10 @@ def test_release_read_rejects_symlink_substitution(
             release.symlink_to(replacement)
         return real_open(path, flags, *args, **kwargs)
 
-    monkeypatch.setattr(execution_module.os, "open", substitute_then_open)
+    monkeypatch.setattr(release_module.os, "open", substitute_then_open)
 
     with pytest.raises(ArtifactError, match=r"unsafe|symbolic link"):
-        execution_module._read_release(release)
+        release_module._read_release(release)
 
 
 def test_release_read_is_bounded_when_file_grows_during_read(
@@ -496,8 +497,8 @@ def test_release_read_is_bounded_when_file_grows_during_read(
 ) -> None:
     release = tmp_path / "release.whl"
     release.write_bytes(b"12345678")
-    monkeypatch.setattr(execution_module, "MAX_BUNDLE_ARTIFACT_BYTES", 16)
-    real_read = execution_module.os.read
+    monkeypatch.setattr(release_module, "MAX_BUNDLE_ARTIFACT_BYTES", 16)
+    real_read = release_module.os.read
     grown = False
 
     def grow_then_read(descriptor: int, count: int) -> bytes:
@@ -508,13 +509,13 @@ def test_release_read_is_bounded_when_file_grows_during_read(
                 handle.write(b"x" * 32)
         return real_read(descriptor, count)
 
-    monkeypatch.setattr(execution_module.os, "read", grow_then_read)
+    monkeypatch.setattr(release_module.os, "read", grow_then_read)
 
     with pytest.raises(
         ArtifactError,
         match=r"no larger than 16 bytes|changed while it was read",
     ):
-        execution_module._read_release(release)
+        release_module._read_release(release)
 
 
 def test_execution_verification_rejects_inventory_drift(
@@ -555,7 +556,7 @@ def test_execution_verification_rejects_workspace_member_substitution(
     arguments = _verification_arguments(output, release, index)
     target = output / "execution-workspace.json"
     original = output / "execution-workspace-original.json"
-    real_open = execution_module.os.open
+    real_open = workspace_io_module.os.open
     substituted = False
 
     def substitute_then_open(path: object, flags: int, *args: object, **kwargs: object) -> int:
@@ -571,7 +572,7 @@ def test_execution_verification_rejects_workspace_member_substitution(
                 os.mkfifo(target)
         return real_open(path, flags, *args, **kwargs)
 
-    monkeypatch.setattr(execution_module.os, "open", substitute_then_open)
+    monkeypatch.setattr(workspace_io_module.os, "open", substitute_then_open)
 
     with pytest.raises(ArtifactError, match=r"unsafe|changed"):
         verify_execution_workspace(**arguments)
@@ -586,7 +587,7 @@ def test_execution_verification_rejects_member_growth_during_snapshot(
     arguments = _verification_arguments(output, release, index)
     target = output / "execution-workspace.json"
     target_inode = target.stat().st_ino
-    real_read = execution_module.os.read
+    real_read = workspace_io_module.os.read
     grown = False
 
     def grow_then_read(descriptor: int, count: int) -> bytes:
@@ -597,7 +598,7 @@ def test_execution_verification_rejects_member_growth_during_snapshot(
                 handle.write(b"\n")
         return real_read(descriptor, count)
 
-    monkeypatch.setattr(execution_module.os, "read", grow_then_read)
+    monkeypatch.setattr(workspace_io_module.os, "read", grow_then_read)
 
     with pytest.raises(ArtifactError, match="changed"):
         verify_execution_workspace(**arguments)
@@ -611,7 +612,7 @@ def test_execution_member_size_is_checked_before_path_read_allocation(
     root.mkdir()
     resource = root / "large.json"
     resource.write_bytes(b"x" * 17)
-    monkeypatch.setattr(execution_module, "MAX_BUNDLE_ARTIFACT_BYTES", 16)
+    monkeypatch.setattr(workspace_io_module, "MAX_BUNDLE_ARTIFACT_BYTES", 16)
 
     def reject_path_read(_path: Path) -> bytes:
         raise AssertionError("UNBOUNDED_PATH_READ_REACHED")
@@ -619,7 +620,7 @@ def test_execution_member_size_is_checked_before_path_read_allocation(
     monkeypatch.setattr(Path, "read_bytes", reject_path_read)
 
     with pytest.raises(ArtifactError, match="byte limit"):
-        execution_module._read_workspace_file(root, "large.json")
+        workspace_io_module._read_workspace_file(root, "large.json")
 
 
 def test_no_replace_publication_fails_closed_on_unsupported_platform(

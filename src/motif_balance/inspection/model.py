@@ -1,3 +1,8 @@
+"""Define immutable records for inspecting motifs, candidates, searches, and provenance.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import math
@@ -29,7 +34,7 @@ class InspectionMotif(FrozenModel):
     background: tuple[float, float, float, float]
     score_min: float = Field(allow_inf_nan=False)
     score_max: float = Field(allow_inf_nan=False)
-    score_reference_semantics: Literal["null_mean_to_score_max_v1", "attainable_min_max_v2"]
+    score_reference_semantics: Literal["attainable_min_max_v2"]
     probability_consensus: str
     score_maximizing_sequence: str
     source_name: str | None = None
@@ -37,7 +42,7 @@ class InspectionMotif(FrozenModel):
     canonical_file_name: str | None = None
     canonical_file_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     conversion: MotifConversion | None = None
-    direction: Literal["seek", "avoid"] | None = None
+    direction: Literal["seek", "avoid"]
 
     @model_validator(mode="after")
     def validate_width(self) -> Self:
@@ -53,17 +58,12 @@ class InspectionMotif(FrozenModel):
         return self
 
 
-class InspectionAvoider(InspectionMotif):
-    score_ceiling: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
-
-
 class InspectionProblem(FrozenModel):
     problem_id: str = Field(pattern=r"^problem-[0-9a-f]{24}$")
     motifs: tuple[InspectionMotif, ...]
-    avoiders: tuple[InspectionAvoider, ...] = ()
     length: Annotated[int, Field(gt=0)]
     strands: Literal["forward", "both"]
-    scoring_semantics: str
+    scoring_semantics: Literal["relative_pwm_attainment_v2"]
     objective_semantics: str
     tie_break_semantics: str
 
@@ -72,26 +72,6 @@ class InspectionProblem(FrozenModel):
         ids = tuple(motif.motif_id for motif in self.motifs)
         if not ids or ids != tuple(sorted(ids)) or len(ids) != len(set(ids)):
             raise ValueError("inspection motifs must be nonempty, unique, and canonical")
-        expected_reference = (
-            "null_mean_to_score_max_v1"
-            if self.scoring_semantics == "normalized_llr_v1"
-            else "attainable_min_max_v2"
-        )
-        avoider_ids = tuple(motif.motif_id for motif in self.avoiders)
-        if avoider_ids != tuple(sorted(avoider_ids)) or len(avoider_ids) != len(set(avoider_ids)):
-            raise ValueError("inspection avoiders must be unique and canonical")
-        if set(ids) & set(avoider_ids):
-            raise ValueError("inspection target and avoider identifiers must be disjoint")
-        if any(
-            motif.score_reference_semantics != expected_reference
-            for motif in (*self.motifs, *self.avoiders)
-        ):
-            raise ValueError("inspection score references do not match scoring semantics")
-        directions = tuple(motif.direction for motif in self.motifs)
-        if any(direction is not None for direction in directions) and any(
-            direction is None for direction in directions
-        ):
-            raise ValueError("directional inspection requires a direction for every specification")
         return self
 
 
@@ -131,7 +111,6 @@ class SearchInspection(FrozenModel):
     checkpoints: tuple[SearchCheckpoint, ...]
     restarts: Annotated[int, Field(gt=0)]
     restart_final_scores: tuple[Annotated[float, Field(ge=0.0)], ...]
-    restart_final_constraint_statuses: tuple[Literal["feasible", "infeasible"], ...]
     proposals: tuple[ProposalSummary, ...]
 
     @model_validator(mode="after")
@@ -149,8 +128,6 @@ class SearchInspection(FrozenModel):
             raise ValueError("search checkpoints must end at evaluator_calls")
         if len(self.restart_final_scores) != self.restarts:
             raise ValueError("restart scores must contain one value per restart")
-        if len(self.restart_final_constraint_statuses) != self.restarts:
-            raise ValueError("restart statuses must contain one value per restart")
         return self
 
 
@@ -200,8 +177,8 @@ class InspectionMatch(FrozenModel):
     matched_sequence: str
     raw_score: float = Field(allow_inf_nan=False)
     normalized_score: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
-    spec_direction: Literal["seek", "avoid"] | None = None
-    spec_satisfaction: Annotated[float, Field(ge=0.0, le=1.0, allow_inf_nan=False)] | None = None
+    spec_direction: Literal["seek", "avoid"]
+    spec_satisfaction: Annotated[float, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
     position_support: tuple[PositionSupport, ...]
 
     @model_validator(mode="after")
@@ -228,16 +205,11 @@ class InspectionMatch(FrozenModel):
         )
         if tuple(item.candidate_position for item in self.position_support) != expected_positions:
             raise ValueError("position support does not follow strand-aware candidate coordinates")
-        if (self.spec_direction is None) != (self.spec_satisfaction is None):
-            raise ValueError("inspection direction and satisfaction must be declared together")
-        if self.spec_satisfaction is not None:
-            expected_satisfaction = (
-                self.normalized_score
-                if self.spec_direction == "seek"
-                else 1.0 - self.normalized_score
-            )
-            if not math.isclose(self.spec_satisfaction, expected_satisfaction, abs_tol=1.0e-12):
-                raise ValueError("inspection satisfaction does not match direction and attainment")
+        expected_satisfaction = (
+            self.normalized_score if self.spec_direction == "seek" else 1.0 - self.normalized_score
+        )
+        if not math.isclose(self.spec_satisfaction, expected_satisfaction, abs_tol=1.0e-12):
+            raise ValueError("inspection satisfaction does not match direction and attainment")
         return self
 
 
@@ -251,9 +223,6 @@ class InspectionCandidate(FrozenModel):
     shared_coordinates: tuple[Annotated[int, Field(ge=0)], ...]
     nearest_neighbor_distance: Annotated[float, Field(ge=0.0, le=1.0)] | None = None
     matches: tuple[InspectionMatch, ...]
-    avoidance_matches: tuple[InspectionMatch, ...] = ()
-    constraint_status: Literal["feasible", "infeasible"] = "feasible"
-    max_avoidance_excess: Annotated[float, Field(ge=0.0, allow_inf_nan=False)] = 0.0
 
     @model_validator(mode="after")
     def validate_candidate(self) -> Self:
@@ -264,12 +233,7 @@ class InspectionCandidate(FrozenModel):
             raise ValueError("complement sequence must be coordinate-aligned to the primary strand")
         if not self.matches:
             raise ValueError("inspection candidate requires motif matches")
-        weakest = min(
-            match.spec_satisfaction
-            if match.spec_satisfaction is not None
-            else match.normalized_score
-            for match in self.matches
-        )
+        weakest = min(match.spec_satisfaction for match in self.matches)
         if not math.isclose(self.balance_score, weakest, abs_tol=1.0e-12):
             raise ValueError("balance_score must equal the weakest normalized score")
         limiting = tuple(
@@ -277,9 +241,7 @@ class InspectionCandidate(FrozenModel):
                 match.motif_id
                 for match in self.matches
                 if math.isclose(
-                    match.spec_satisfaction
-                    if match.spec_satisfaction is not None
-                    else match.normalized_score,
+                    match.spec_satisfaction,
                     weakest,
                     abs_tol=1.0e-12,
                 )
@@ -287,12 +249,8 @@ class InspectionCandidate(FrozenModel):
         )
         if self.limiting_motif_ids != limiting:
             raise ValueError("limiting motif identities do not match the hard minimum")
-        if not self.avoidance_matches and (
-            self.constraint_status != "feasible" or self.max_avoidance_excess != 0.0
-        ):
-            raise ValueError("candidate without avoiders must be constraint feasible")
         coverage = [0] * len(self.sequence)
-        for match in (*self.matches, *self.avoidance_matches):
+        for match in self.matches:
             if match.end > len(self.sequence):
                 raise ValueError("match coordinates exceed the candidate sequence")
             for position in range(match.start, match.end):
@@ -312,9 +270,6 @@ class BestObservedInspection(FrozenModel):
     shared_coordinates: tuple[Annotated[int, Field(ge=0)], ...]
     selected_rank: Annotated[int, Field(gt=0)] | None = None
     matches: tuple[InspectionMatch, ...]
-    avoidance_matches: tuple[InspectionMatch, ...] = ()
-    constraint_status: Literal["feasible", "infeasible"] = "feasible"
-    max_avoidance_excess: Annotated[float, Field(ge=0.0, allow_inf_nan=False)] = 0.0
 
     @model_validator(mode="after")
     def validate_best_observed(self) -> Self:
@@ -327,9 +282,6 @@ class BestObservedInspection(FrozenModel):
             limiting_motif_ids=self.limiting_motif_ids,
             shared_coordinates=self.shared_coordinates,
             matches=self.matches,
-            avoidance_matches=self.avoidance_matches,
-            constraint_status=self.constraint_status,
-            max_avoidance_excess=self.max_avoidance_excess,
         )
         if candidate.nearest_neighbor_distance is not None:  # pragma: no cover - construction
             raise ValueError("best observed projection cannot carry portfolio distance")
@@ -364,7 +316,7 @@ class DistanceInspection(FrozenModel):
 
 class InspectionPortfolio(FrozenModel):
     best_observed_score: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
-    best_observed: BestObservedInspection | None = None
+    best_observed: BestObservedInspection
     score_min: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
     score_max: Annotated[float, Field(ge=0.0, allow_inf_nan=False)]
     distance: DistanceInspection
@@ -382,31 +334,28 @@ class InspectionPortfolio(FrozenModel):
             raise ValueError("score_max does not match the candidate portfolio")
         if self.score_max > self.best_observed_score + 1.0e-12:
             raise ValueError("selected portfolio score cannot exceed the best observed score")
-        if self.best_observed is not None:
-            if not math.isclose(
-                self.best_observed.balance_score,
-                self.best_observed_score,
-                abs_tol=1.0e-12,
+        if not math.isclose(
+            self.best_observed.balance_score,
+            self.best_observed_score,
+            abs_tol=1.0e-12,
+        ):
+            raise ValueError("best observed projection does not match its score")
+        if self.best_observed.selected_rank is not None:
+            selected = next(
+                (
+                    candidate
+                    for candidate in self.candidates
+                    if candidate.rank == self.best_observed.selected_rank
+                ),
+                None,
+            )
+            if selected is None or (
+                selected.candidate_id != self.best_observed.candidate_id
+                or selected.sequence != self.best_observed.sequence
+                or selected.balance_score != self.best_observed.balance_score
+                or selected.matches != self.best_observed.matches
             ):
-                raise ValueError("best observed projection does not match its score")
-            if self.best_observed.selected_rank is not None:
-                selected = next(
-                    (
-                        candidate
-                        for candidate in self.candidates
-                        if candidate.rank == self.best_observed.selected_rank
-                    ),
-                    None,
-                )
-                if selected is None or (
-                    selected.candidate_id != self.best_observed.candidate_id
-                    or selected.sequence != self.best_observed.sequence
-                    or selected.balance_score != self.best_observed.balance_score
-                    or selected.matches != self.best_observed.matches
-                ):
-                    raise ValueError(
-                        "best observed selected rank does not identify the same candidate"
-                    )
+                raise ValueError("best observed selected rank does not identify the same candidate")
         return self
 
 
@@ -437,8 +386,8 @@ class ExecutionInspection(FrozenModel):
 
 
 class ResultInspection(FrozenModel):
-    schema_version: Literal["motif-balance.result-inspection/v4"] = (
-        "motif-balance.result-inspection/v4"
+    schema_version: Literal["motif-balance.result-inspection/v5"] = (
+        "motif-balance.result-inspection/v5"
     )
     subject_kind: Literal["bundle", "execution"]
     integrity: IntegrityInspection

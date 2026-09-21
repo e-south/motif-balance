@@ -1,10 +1,21 @@
+"""Define shared schema identities, search versions, and bounded resource limits.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from typing import Final, Literal
 
-PACKAGE_VERSION: Final = "0.5.0a2"
+# Exact model-only joint assessment bounds, checked before compiling columns.
+MAX_JOINT_ASSESSMENT_MOTIFS: Final = 4
+MAX_JOINT_ASSESSMENT_ARRANGEMENTS: Final = 100_000
+MAX_JOINT_ASSESSMENT_BASE_OPERATIONS: Final = 20_000_000
+
+
+PACKAGE_VERSION: Final = "0.6.0a1"
 RUNTIME_CONTRACT: Final = "python>=3.12,<3.15"
-BUILD_LOCK_SHA256: Final = "991ecdf1bb15fcfe02b9cf155db42b78d7e9f15bc862c0f23408dbf8040e8ae7"
+BUILD_LOCK_SHA256: Final = "3656e7866beefc74e6bd1d4bf9598b4597452e258219c34420924aa10438777e"
 MAX_INPUT_BYTES: Final = 1_000_000
 MAX_RUN_MANIFEST_BYTES: Final = 64 * 1024 * 1024
 MAX_SEARCH_OBSERVATION_BYTES: Final = 64 * 1024 * 1024
@@ -23,10 +34,8 @@ MAX_ARCHITECTURE_DISTANCE_BASE_BUDGET: Final = 500_000_000
 MAX_ARCHITECTURE_DISTANCE_PAIRS: Final = 500_000
 MAX_ARCHITECTURE_PREPARED_PAIRS: Final = 250_000
 DEFAULT_ELITE_CAPACITY: Final = 256
-LEGACY_SCORING_SEMANTICS: Final[Literal["normalized_llr_v1"]] = "normalized_llr_v1"
 SCORING_SEMANTICS: Final[Literal["relative_pwm_attainment_v2"]] = "relative_pwm_attainment_v2"
-OBJECTIVE_SEMANTICS: Final[Literal["weakest_score_v1"]] = "weakest_score_v1"
-DIRECTIONAL_OBJECTIVE_SEMANTICS: Final[Literal["weakest_directional_satisfaction_v1"]] = (
+OBJECTIVE_SEMANTICS: Final[Literal["weakest_directional_satisfaction_v1"]] = (
     "weakest_directional_satisfaction_v1"
 )
 TIE_BREAK_SEMANTICS: Final[Literal["leftmost_plus_first_v1"]] = "leftmost_plus_first_v1"

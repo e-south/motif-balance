@@ -1,3 +1,8 @@
+"""Read bounded regular files and reject duplicate keys in JSON and YAML inputs.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import json

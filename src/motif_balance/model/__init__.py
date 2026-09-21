@@ -1,7 +1,10 @@
-"""Stable model imports; implementations are grouped by contract responsibility."""
+"""Stable model imports; implementations are grouped by contract responsibility.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from .base import FrozenModel
-from .design import AvoidanceConstraint, DesignSpec, MotifSpecification
+from .design import DesignSpec, MotifSpecification
 from .evaluation import Candidate, Evaluation, MotifMatch, candidate_id_for_sequence
 from .execution import (
     ExecutionBundleResource,
@@ -23,7 +26,6 @@ from .search import (
 
 __all__ = [
     "ArtifactDigest",
-    "AvoidanceConstraint",
     "Candidate",
     "CheckpointSpecificationSatisfaction",
     "DesignSpec",

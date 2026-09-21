@@ -2,12 +2,10 @@
 doc_id: motif-balance-reliability
 title: Motif Balance reliability contract
 intent: Define determinism, bounded execution, artifact integrity, and degraded behavior.
-audience:
-  - maintainers
-  - bundle consumers
+audience: [maintainers, bundle consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-06
+last_verified: 2026-09-20
 doc_type: reference
 ---
 
@@ -15,7 +13,7 @@ doc_type: reference
 
 ## Determinism
 
-Within one declared package and runtime environment, the same normalized
+Within one declared package and runtime environment, the same validated
 specification, motif content, scoring version, seed, and budgets must produce
 the same evaluated records, selection, and canonical artifact bytes. Canonical
 JSON is UTF-8, key-sorted, human-readable, and ends with one newline. Tables
@@ -24,10 +22,9 @@ trailing newline. Host paths, usernames, timestamps, thread completion order,
 and environment mapping order do not enter content identity.
 
 Hosted CI verifies behavior on Linux with CPython 3.12-3.14, but it does not
-currently fan artifact digests into a cross-runtime equality check. Local macOS
-checks establish alpha operability. The project therefore does not claim
-same-byte identity across Python versions, operating systems, or architectures
-without a separate release-attested replay that compares those exact bytes.
+currently compare artifact digests across that matrix. Local checks cover macOS.
+Reproducing exact bytes across runtimes therefore requires a direct comparison
+of those environments.
 
 `build_lock_sha256` identifies the repository lock used to build this alpha;
 it is not a claim that a wheel consumer installed that exact environment.
@@ -53,18 +50,15 @@ counts every draw and retains exact unique evaluations internally. The
 before raising an experiment's budget. Observation/replay is separate work,
 not part of the reported search-call budget.
 
-Hard avoider ceilings are feasibility constraints, not score penalties.
-Complete enumeration may report an exact infeasibility proof. A heuristic run
-that finds too few feasible sequences reports budget exhaustion without
-generalizing beyond its evaluated pool. Portfolio infeasibility and the
-distance-selection node limit remain separate outcomes.
+Avoidance contributes a directional satisfaction to the objective; it is not
+a hard exclusion guarantee. Portfolio infeasibility and the distance-selection
+node limit remain separate outcomes.
 
 The public specification also caps sequence length, candidate count, evaluator
 calls, total portfolio bases, and canonical match rows. Sequence-space
 classification stops once the declared bound is exceeded; it never computes
 an arbitrarily large exponent or allocates a sequence-space-sized collection.
-The compiled null expectation uses linearity of expectation over motif
-positions; it does not materialize the combinatorial null-score distribution.
+Compilation computes attainable raw-score extrema directly from motif columns.
 
 ## Artifact integrity
 
@@ -90,25 +84,23 @@ Consumers must verify a bundle or execution workspace again at the point of
 use.
 
 Bulk traces and optimizer state are not canonical bundle members. Directional
-v6 manifests retain only logarithmic checkpoints and a deterministic reservoir
+v7 manifests retain only logarithmic checkpoints and a deterministic reservoir
 of at most 256 unique elites. External
 systems may register their locations and digests without changing the software
 artifact identity.
 
-Directional v6 manifests have a 64 MiB transport ceiling, enforced before reads
+Directional v7 manifests have a 64 MiB transport ceiling, enforced before reads
 and before canonical manifest publication. This accommodates the bounded elite
-reservoir's per-specification realizations. Model/specification inputs and
-legacy manifests retain their 1 MB limits; all schema, row-count, and semantic
-replay checks remain independent of the transport ceiling. Version 0.5.0a2
-corrects the inherited input-sized manifest ceiling without changing scoring,
-search, or elite retention. Before search, v3 admission conservatively projects
+reservoir's per-specification realizations. Model/specification inputs retain
+their 1 MB limits; all schema, row-count, and semantic
+replay checks remain independent of the transport ceiling. Before search, v3 admission conservatively projects
 manifest bytes from the bounded elite count, specification identifiers and
 widths, sequence length, and logarithmic checkpoint count. Requests exceeding
 the transport ceiling are refused before evaluation; the actual serialized
 byte ceiling remains an independent publication check.
 
 Result inspections are derived after verification and are never inserted into
-`run-manifest/v2` through `run-manifest/v6`. Inspection accepts one explicit result;
+canonical manifests. Inspection accepts one explicit result;
 cross-result joining remains a caller responsibility. Exact
 pairwise distance inspection has an explicit base-comparison limit and reports
 `not_computed_limit` instead of entering unbounded quadratic work. HTML and SVG
@@ -118,26 +110,16 @@ and are horizontally scrollable rather than illegibly compressed. Print output
 uses a bounded print-only copy of progressively disclosed tables because
 Chromium does not print descendants of closed `details` elements.
 
-Evaluated-pool observations are separate bounded JSON exports. They contain at
-most 32,768 unique evaluations and 64 MiB, refuse overwrite, use a nonblocking
-descriptor-bound no-symlink reader, bind their content identity, and replay
-every score before publication and after reading. Construction verifies the
-canonical byte ceiling before either observation API returns. The advanced
-paired design operation performs one exploratory search; independent pool
-publication and reading continue to replay that search at their trust
-boundaries.
-
 Directional search observations are opt-in, bounded side records, separate
-from both canonical bundles and legacy complete-pool observations. Their
+from canonical bundles. Their
 [contract](docs/reference/search-observations.md) bounds snapshots, quality
 samples, bases, and bytes before search, checks actual serialized size before
 return, and replays all observations on reading. Passive retention and
 instrumentation do not change the canonical portfolio or evaluator-call budget.
 
-## Degraded behavior
+## Failure behavior
 
-There is no permissive fallback for an unknown schema, scoring version, strand
-rule, corrupted motif model, incomplete artifact inventory, or unavailable
-candidate count. Derived FASTA is a verified bundle member. On-demand text,
+Unknown schemas, scoring versions or strand rules, corrupted models, incomplete
+artifact inventories and unavailable candidate counts fail explicitly. Derived FASTA is a verified bundle member. On-demand text,
 JSON, SVG, and HTML reviews are not bundle members or scientific authorities;
 they may not recompute candidate or match state.

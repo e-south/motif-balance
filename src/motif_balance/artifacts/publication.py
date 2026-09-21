@@ -1,4 +1,7 @@
-"""Atomic no-replace bundle publication with post-publication replay."""
+"""Atomic no-replace bundle publication with post-publication replay.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -17,7 +20,7 @@ from motif_balance.model import (
 )
 
 from .encoding import artifact_records, manifest_bytes
-from .snapshot import _V5_FILES, read_portfolio_record
+from .snapshot import _BUNDLE_FILES, read_portfolio_record
 
 _PublicationIdentity = tuple[int, int, int]
 
@@ -139,9 +142,9 @@ def write_bundle(
         output.parent.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         raise ArtifactError("unable to create the bundle publication directory") from exc
-    if portfolio.manifest.schema_version not in {"run-manifest/v5", "run-manifest/v6"}:
-        raise ArtifactError("new bundle publication requires run-manifest/v5 or v6")
-    if set(payloads) != _V5_FILES - {"manifest.json"}:
+    if portfolio.manifest.schema_version != "run-manifest/v7":
+        raise ArtifactError("new bundle publication requires run-manifest/v7")
+    if set(payloads) != _BUNDLE_FILES - {"manifest.json"}:
         raise ArtifactError("bundle payload inventory is incomplete")
     records = artifact_records(payloads)
     if records != portfolio.manifest.artifacts:

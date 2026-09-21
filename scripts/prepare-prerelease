@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# motif-balance | scripts/prepare-prerelease
+# Build and attest release files from a verified source commit.
+# Author: Eric J. South, Dunlop Lab
+# -----------------------------------------------------------------------------
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -97,7 +102,7 @@ fi
 mkdir -- "$out_dir"
 out_identity="$(output_identity)"
 
-bash ./scripts/agent-verify
+bash ./scripts/verify
 [[ "$(git rev-parse HEAD)" == "$release_revision" ]] || {
   echo "release source revision changed during verification" >&2
   exit 1

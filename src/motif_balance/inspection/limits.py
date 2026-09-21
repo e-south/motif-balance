@@ -1,4 +1,7 @@
-"""Hard bounds for derived result review."""
+"""Hard bounds for derived result review.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 MAX_CATALOG_ENTRIES = 100
 MAX_HTML_CANDIDATES = 500

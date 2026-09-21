@@ -1,4 +1,7 @@
-"""Replay one caller-owned candidate through the existing score and projection authorities."""
+"""Replay one caller-owned candidate through the existing score and projection authorities.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from motif_balance.compile import compile_scoring
 from motif_balance.errors import ArtifactError

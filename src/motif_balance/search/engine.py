@@ -1,3 +1,8 @@
+"""Run exhaustive or annealed search under a shared candidate-evaluation budget.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import itertools
@@ -14,7 +19,6 @@ from motif_balance.constants import (
     INDEPENDENT_SEARCH_ENGINE,
     SEARCH_ENGINE,
 )
-from motif_balance.errors import IncompatibleDesign
 from motif_balance.model import (
     Evaluation,
     ProposalSummary,
@@ -40,7 +44,6 @@ class ExhaustiveSearchEngine:
             raise ValueError("exhaustive search requires a budget covering the sequence space")
         ledger = _SearchLedger(
             budget=sequence_space,
-            directional=problem.spec.schema_version == "design-spec/v3",
             observer=self.observer,
         )
         for bases in itertools.product(DNA_ALPHABET, repeat=problem.spec.length):
@@ -53,20 +56,11 @@ class ExhaustiveSearchEngine:
                     force=ledger.evaluations_used in (1, sequence_space),
                 )
         diagnostics = SearchDiagnostics(
-            schema_version=(
-                "search-diagnostics/v3"
-                if problem.spec.schema_version == "design-spec/v3"
-                else "search-diagnostics/v2"
-            ),
+            schema_version="search-diagnostics/v4",
             restarts=1,
-            best_score=ledger.best_feasible_score,
+            best_score=ledger.best_score,
             checkpoints=tuple(ledger.checkpoints),
-            restart_final_scores=(ledger.best_feasible_score,),
-            restart_final_constraint_statuses=(
-                "feasible"
-                if any(item.constraint_feasible for item in ledger.evaluations.values())
-                else "infeasible",
-            ),
+            restart_final_scores=(ledger.best_score,),
             proposals=(),
         )
         evaluations = tuple(ledger.evaluations.values())
@@ -105,18 +99,11 @@ class AnnealedSearchEngine(SearchMoves):
             raise ValueError("initialization must be related or independent")
 
     def search(self, problem: CompiledProblem) -> SearchResult:
-        if self.initialization == "independent" and problem.spec.schema_version != "design-spec/v3":
-            raise IncompatibleDesign(
-                "independent initialization requires directional design-spec/v3",
-                field="initialization",
-                hint="Use an explicit directional specification for method comparisons.",
-            )
         if sequence_space_at_most(problem.spec.length, problem.spec.evaluations) is not None:
             return ExhaustiveSearchEngine(observer=self.observer).search(problem)
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
         ledger = _SearchLedger(
             budget=problem.spec.evaluations,
-            directional=problem.spec.schema_version == "design-spec/v3",
             observer=self.observer,
         )
         states, current = initial_states(
@@ -198,16 +185,11 @@ class AnnealedSearchEngine(SearchMoves):
                 )
             chain = (chain + 1) % len(states)
         diagnostics = SearchDiagnostics(
-            schema_version=(
-                "search-diagnostics/v3"
-                if problem.spec.schema_version == "design-spec/v3"
-                else "search-diagnostics/v2"
-            ),
+            schema_version="search-diagnostics/v4",
             restarts=len(states),
-            best_score=ledger.best_feasible_score,
+            best_score=ledger.best_score,
             checkpoints=tuple(ledger.checkpoints),
             restart_final_scores=tuple(result.balance_score for result in current),
-            restart_final_constraint_statuses=tuple(result.constraint_status for result in current),
             proposals=tuple(
                 ProposalSummary(move=move, attempted=attempted[move], accepted=accepted[move])
                 for move in move_names
@@ -237,25 +219,8 @@ class AnnealedSearchEngine(SearchMoves):
         progress: float,
         rng: np.random.Generator,
     ) -> bool:
-        if current.constraint_feasible != proposed.constraint_feasible:
-            return proposed.constraint_feasible
         soft_beta = 0.5 + 11.5 * progress
-        if proposed.constraint_feasible:
-            delta = _soft_min(proposed, beta=soft_beta) - _soft_min(current, beta=soft_beta)
-        elif not math.isclose(
-            current.max_avoidance_excess,
-            proposed.max_avoidance_excess,
-            abs_tol=1.0e-12,
-        ):
-            delta = current.max_avoidance_excess - proposed.max_avoidance_excess
-        elif not math.isclose(
-            current.total_avoidance_excess,
-            proposed.total_avoidance_excess,
-            abs_tol=1.0e-12,
-        ):
-            delta = current.total_avoidance_excess - proposed.total_avoidance_excess
-        else:
-            delta = proposed.balance_score - current.balance_score
+        delta = _soft_min(proposed, beta=soft_beta) - _soft_min(current, beta=soft_beta)
         return delta >= 0.0 or math.log(max(float(rng.random()), 1.0e-300)) < (
             _annealing_beta(progress) * delta
         )

@@ -1,4 +1,7 @@
-"""Compact checkpoints and search diagnostics, without proposal history."""
+"""Compact checkpoints and search diagnostics, without proposal history.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -51,14 +54,11 @@ class ProposalSummary(FrozenModel):
 
 
 class SearchDiagnostics(FrozenModel):
-    schema_version: Literal[
-        "search-diagnostics/v1", "search-diagnostics/v2", "search-diagnostics/v3"
-    ] = "search-diagnostics/v2"
+    schema_version: Literal["search-diagnostics/v4"] = "search-diagnostics/v4"
     restarts: Annotated[int, Field(gt=0)]
     best_score: Annotated[float, Field(ge=0.0)]
     checkpoints: tuple[SearchCheckpoint, ...]
     restart_final_scores: tuple[Annotated[float, Field(ge=0.0)], ...]
-    restart_final_constraint_statuses: tuple[Literal["feasible", "infeasible"], ...] = ()
     proposals: tuple[ProposalSummary, ...]
 
     @model_validator(mode="after")
@@ -67,13 +67,6 @@ class SearchDiagnostics(FrozenModel):
             raise ValueError("search diagnostics must contain at least one checkpoint")
         if len(self.restart_final_scores) != self.restarts:
             raise ValueError("restart_final_scores must contain one score per restart")
-        if self.schema_version == "search-diagnostics/v1":
-            if self.restart_final_constraint_statuses:
-                raise ValueError("search-diagnostics/v1 cannot contain constraint statuses")
-        elif len(self.restart_final_constraint_statuses) != self.restarts:
-            raise ValueError(
-                "restart_final_constraint_statuses must contain one status per restart"
-            )
         previous_evaluations = 0
         previous_best = -math.inf
         for checkpoint in self.checkpoints:
@@ -83,44 +76,39 @@ class SearchDiagnostics(FrozenModel):
                 raise ValueError("search checkpoint best scores cannot decrease")
             previous_evaluations = checkpoint.evaluations
             previous_best = checkpoint.best_score
-            if self.schema_version == "search-diagnostics/v3":
-                if not checkpoint.specification_satisfactions:
-                    raise ValueError(
-                        "search-diagnostics/v3 checkpoints require specification satisfactions"
-                    )
-                if not checkpoint.limiting_specification_ids:
-                    raise ValueError(
-                        "search-diagnostics/v3 checkpoints require limiting specifications"
-                    )
-                motif_ids = tuple(item.motif_id for item in checkpoint.specification_satisfactions)
-                if motif_ids != tuple(sorted(motif_ids)) or len(motif_ids) != len(set(motif_ids)):
-                    raise ValueError(
-                        "checkpoint specification satisfactions must be unique and sorted"
-                    )
-                if not math.isclose(
-                    checkpoint.best_score,
-                    min(item.satisfaction for item in checkpoint.specification_satisfactions),
-                    abs_tol=1.0e-12,
-                ):
-                    raise ValueError(
-                        "checkpoint best score must equal its weakest specification satisfaction"
-                    )
-                expected_limiting = tuple(
-                    item.motif_id
-                    for item in checkpoint.specification_satisfactions
-                    if math.isclose(
-                        item.satisfaction,
-                        checkpoint.best_score,
-                        abs_tol=1.0e-12,
-                    )
+            if not checkpoint.specification_satisfactions:
+                raise ValueError(
+                    "search-diagnostics/v4 checkpoints require specification satisfactions"
                 )
-                if checkpoint.limiting_specification_ids != expected_limiting:
-                    raise ValueError(
-                        "checkpoint limiting specifications must exactly match its weakest "
-                        "specification satisfactions"
-                    )
-            elif checkpoint.specification_satisfactions or checkpoint.limiting_specification_ids:
-                raise ValueError("directional checkpoint details require search-diagnostics/v3")
+            if not checkpoint.limiting_specification_ids:
+                raise ValueError(
+                    "search-diagnostics/v4 checkpoints require limiting specifications"
+                )
+            motif_ids = tuple(item.motif_id for item in checkpoint.specification_satisfactions)
+            if motif_ids != tuple(sorted(motif_ids)) or len(motif_ids) != len(set(motif_ids)):
+                raise ValueError("checkpoint specification satisfactions must be unique and sorted")
+            if not math.isclose(
+                checkpoint.best_score,
+                min(item.satisfaction for item in checkpoint.specification_satisfactions),
+                abs_tol=1.0e-12,
+            ):
+                raise ValueError(
+                    "checkpoint best score must equal its weakest specification satisfaction"
+                )
+            expected_limiting = tuple(
+                item.motif_id
+                for item in checkpoint.specification_satisfactions
+                if math.isclose(
+                    item.satisfaction,
+                    checkpoint.best_score,
+                    abs_tol=1.0e-12,
+                )
+            )
+            if checkpoint.limiting_specification_ids != expected_limiting:
+                raise ValueError(
+                    "checkpoint limiting specifications must exactly match its weakest "
+                    "specification satisfactions"
+                )
         if not math.isclose(self.checkpoints[-1].best_score, self.best_score, abs_tol=1.0e-12):
             raise ValueError("final checkpoint must equal the diagnostic best score")
         moves = [proposal.move for proposal in self.proposals]

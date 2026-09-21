@@ -1,3 +1,8 @@
+"""Validate a design request or run a bounded DNA search from the command line.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import os
@@ -30,19 +35,15 @@ def design_command(
         problem_id = compile_design(spec).problem_id
         if check:
             typer.echo(f"valid {problem_id}")
-            if spec.schema_version == "design-spec/v3":
-                specification_summary = " ".join(
-                    (
-                        f"specifications={len(spec.specifications)}",
-                        "directions="
-                        + ",".join(
-                            f"{item.motif.motif_id}:{item.direction}"
-                            for item in spec.specifications
-                        ),
-                    )
+            specification_summary = " ".join(
+                (
+                    f"specifications={len(spec.specifications)}",
+                    "directions="
+                    + ",".join(
+                        f"{item.motif.motif_id}:{item.direction}" for item in spec.specifications
+                    ),
                 )
-            else:
-                specification_summary = f"motifs={len(spec.motifs)} avoiders={len(spec.avoiders)}"
+            )
             typer.echo(
                 f"{specification_summary} length={spec.length} count={spec.count} "
                 f"strands={spec.strands} evaluations={spec.evaluations} "
@@ -65,14 +66,9 @@ def design_command(
         portfolio.write(out)
         best = portfolio.best
         best_observed = portfolio.best_observed
-        if best_observed is None:  # pragma: no cover - required by current writer
-            raise ArtifactError("current result is missing the best observed evaluation")
-        if spec.schema_version == "design-spec/v3":
-            motif_summary = ", ".join(
-                f"{item.motif.motif_id}:{item.direction}" for item in spec.specifications
-            )
-        else:
-            motif_summary = ", ".join(motif.motif_id for motif in spec.motifs)
+        motif_summary = ", ".join(
+            f"{item.motif.motif_id}:{item.direction}" for item in spec.specifications
+        )
         typer.echo(
             f"Returned {len(portfolio.candidates)} of {spec.count} candidates for "
             f"{motif_summary}, each {spec.length} nt."
@@ -85,11 +81,6 @@ def design_command(
             typer.echo(f"Best selected balance score: {best.balance_score:.6g}.")
         if spec.min_distance is not None and spec.min_distance > 0.0:
             typer.echo(f"Requested minimum distance: {spec.min_distance:.6g}.")
-        if spec.avoiders:
-            ceilings = ", ".join(
-                f"{item.motif.motif_id}<={item.score_ceiling:.6g}" for item in spec.avoiders
-            )
-            typer.echo(f"Hard avoidance satisfied: {ceilings}.")
         if portfolio.manifest.completion_status == "exhaustive":
             typer.echo(
                 "Search completed after exhausting all "

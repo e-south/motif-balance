@@ -15,6 +15,7 @@ FORBIDDEN_PRODUCT_SURFACES = (
     Path("docs/reproduce-paper.md"),
     Path("migration"),
     Path("tests/migration"),
+    Path("src/motif_balance/observation.py"),
 )
 _FALLBACK_IGNORED_PARTS = {
     ".git",
@@ -26,7 +27,6 @@ _FALLBACK_IGNORED_PARTS = {
 }
 
 KNOWN_LAYERS = {
-    "admissibility",
     "alternatives",
     "assessment",
     "api",
@@ -40,7 +40,7 @@ KNOWN_LAYERS = {
     "formats",
     "inspection",
     "model",
-    "observation",
+    "playback",
     "receipt",
     "scoring",
     "search",
@@ -54,15 +54,13 @@ ALLOWED_IMPORTS = {
     "formats": {"constants", "errors", "model"},
     "compile": {"constants", "errors", "model"},
     "scoring": {"compile", "constants", "errors", "model"},
-    "admissibility": {"compile", "model"},
     "assessment": {"compile", "constants", "errors", "model"},
-    "alternatives": {"compile", "constants", "model", "scoring"},
-    "search": {"admissibility", "compile", "constants", "errors", "model", "scoring"},
+    "alternatives": {"compile", "constants", "model", "scoring", "selection"},
+    "search": {"compile", "constants", "errors", "model", "scoring"},
     "selection": {"constants", "errors", "model", "scoring"},
     "artifacts": {"compile", "constants", "errors", "model", "scoring", "selection"},
     "receipt": {"constants", "errors", "model"},
     "api": {
-        "admissibility",
         "artifacts",
         "compile",
         "constants",
@@ -72,8 +70,8 @@ ALLOWED_IMPORTS = {
         "search",
         "selection",
     },
-    "observation": {"api", "compile", "constants", "errors", "model", "scoring", "search"},
     "execution": {"api", "artifacts", "constants", "errors", "formats", "model", "receipt"},
+    "playback": {"api", "errors", "inspection", "model"},
     "inspection": {
         "assessment",
         "artifacts",
@@ -85,7 +83,18 @@ ALLOWED_IMPORTS = {
         "receipt",
         "scoring",
     },
-    "cli": {"api", "assessment", "compile", "errors", "execution", "formats", "inspection"},
+    "cli": {
+        "alternatives",
+        "api",
+        "artifacts",
+        "assessment",
+        "compile",
+        "errors",
+        "execution",
+        "formats",
+        "inspection",
+        "playback",
+    },
 }
 
 
@@ -224,7 +233,12 @@ def repository_owned_paths(repo_root: Path) -> set[Path]:
             check=True,
             capture_output=True,
         )
-        return {Path(raw.decode("utf-8")) for raw in result.stdout.split(b"\0") if raw}
+        indexed = {Path(raw.decode("utf-8")) for raw in result.stdout.split(b"\0") if raw}
+        return {
+            path
+            for path in indexed
+            if (repo_root / path).exists() or (repo_root / path).is_symlink()
+        }
     return {
         path.relative_to(repo_root)
         for path in repo_root.rglob("*")

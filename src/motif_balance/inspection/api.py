@@ -1,3 +1,8 @@
+"""Verify result snapshots before producing an immutable inspection record.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -5,11 +10,8 @@ from typing import Literal
 
 from motif_balance.artifacts import BundleSnapshot, read_verified_portfolio_snapshot
 from motif_balance.errors import ArtifactError
-from motif_balance.execution import (
-    _read_workspace_file,
-    _verify_resource,
-    verify_execution_workspace,
-)
+from motif_balance.execution import verify_execution_workspace
+from motif_balance.execution.workspace_io import _read_workspace_file, _verify_resource
 from motif_balance.model import ArtifactDigest
 from motif_balance.receipt import parse_execution_receipt, parse_execution_workspace
 

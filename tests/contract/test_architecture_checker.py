@@ -177,3 +177,18 @@ def test_repository_owned_paths_ignore_cache_residue_but_keep_new_source(tmp_pat
     assert checker.forbidden_surface_violations(owned) == [
         "non-product surface must live with its owning workflow: tests/migration"
     ]
+
+
+def test_live_inventory_excludes_deleted_tracked_files_but_keeps_broken_links(
+    tmp_path: Path,
+) -> None:
+    checker = _checker()
+    subprocess.run(("git", "init", "-q", str(tmp_path)), check=True)
+    source = tmp_path / "retired.py"
+    source.write_text("retired = True\n")
+    link = tmp_path / "broken.py"
+    link.symlink_to("absent.py")
+    subprocess.run(("git", "add", "retired.py", "broken.py"), cwd=tmp_path, check=True)
+    source.unlink()
+
+    assert checker.repository_owned_paths(tmp_path) == {Path("broken.py")}

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from motif_balance import DesignSpec, MotifModel, design
+from motif_balance import DesignSpec, MotifModel, MotifSpecification, design
 from motif_balance.inspection import inspect_result
 from motif_balance.inspection.render import render_html, render_portfolio_svg, render_text
 
@@ -14,7 +14,7 @@ def _distance_blocked_best_spec() -> DesignSpec:
         background=(0.25, 0.25, 0.25, 0.25),
     )
     return DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=4,
         count=2,
         strands="forward",
@@ -31,7 +31,7 @@ def test_bundle_distinguishes_best_observed_from_selected_portfolio(
     portfolio = design(spec)
     best_score = portfolio.manifest.search_diagnostics.best_score
 
-    assert portfolio.manifest.schema_version == "run-manifest/v5"
+    assert portfolio.manifest.schema_version == "run-manifest/v7"
     assert portfolio.best_observed is not None
     assert portfolio.best_observed.sequence == "ACAA"
     assert [candidate.sequence for candidate in portfolio.candidates] == ["ACAG", "ACCA"]

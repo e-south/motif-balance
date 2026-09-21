@@ -1,75 +1,31 @@
 ---
 doc_id: motif-balance-motif-models
-title: Motif model reference
-intent: Describe accepted motif-model meaning and validation.
-audience:
-  - API consumers
-  - CLI users
+title: Supply motif models
+intent: Prepare explicit probability models from count or probability matrices.
+audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-08-27
-doc_type: reference
+last_verified: 2026-09-20
+doc_type: how-to
 ---
 
-# Motif model reference
+# Supply motif models
 
-`MotifModel` is the immutable scoring input for one named motif. A model must
-carry a stable identifier, a rectangular position-by-base matrix, an explicit
-background distribution, and a schema or scoring version. Base order and
-strand policy are explicit rather than inferred from a file convention.
+Start with transcription-factor motif profiles or other DNA preference models
+appropriate to your question. Motif Balance accepts position probabilities
+and an explicit background distribution. It converts these to log-odds weights
+when scoring; it does not fetch a database or choose profiles for you.
 
-Validation rejects unknown fields, duplicate identifiers, missing bases,
-non-finite or negative values, inconsistent row widths, non-normalized
-probability rows, invalid backgrounds, and a motif longer than the designed
-sequence. Reverse-strand evaluation uses the declared DNA reverse-complement
-rule; it is not a second independently authored motif.
+Keep the source identifier and version with each profile. If you compare
+models, record how you prepared their probabilities and why you chose the
+scoring background. A shared representation makes the calculation consistent;
+it does not erase differences in the experiments used to estimate the models.
 
-The canonical artifact `motifs.json` records the validated model content and
-content digest used for the run. A filename, database row number, or mutable
-external URL is not sufficient identity.
+## Prepare a JASPAR count matrix
 
-Current `motif-model/v2` identities bind `relative_pwm_attainment_v2`. For each
-position the conventional probability consensus chooses the highest supplied
-probability, while the score-maximizing reference chooses the highest
-log-likelihood ratio against the declared background. These references can
-differ. The theoretical minimum and maximum raw LLR over one motif-width word
-are the sums of the position-wise minimum and maximum log odds. Both are exact
-word-level extrema; after retaining the best score across multiple placements
-or orientations, the lower endpoint need not be attainable as that sequence's
-reported match score.
-
-Structured YAML and JSON motif files must declare `schema_version` explicitly.
-This prevents a previously valid unversioned v1 file from being reinterpreted
-under v2 scoring. The MEME and explicit JASPAR readers are named format
-adapters and therefore construct v2 models explicitly; direct Python
-construction also defaults to v2.
-
-Explicit `motif-model/v1` records retain their original
-`normalized_llr_v1` digest and null-mean/consensus-relative interpretation so
-existing receipts and bundles remain verifiable. They are dispatched as v1;
-they are never converted to v2 or emitted as new v2 evidence.
-
-Motif Balance does not fetch, choose, or curate model collections. The caller
-supplies a content-bound model and owns the source-selection and conversion
-rationale.
-
-## Explicit conversion
-
-Motif Balance recognizes four named conversion methods across two schema
-versions:
-
-| Method | Use |
-| --- | --- |
-| `count_matrix_sqrt_n_background_prior_v1` | `motif-conversion/v2`; convert a count matrix with a position-specific background-weighted prior of `sqrt(N_i)`. New JASPAR preparation uses this method. |
-| `jaspar_counts_to_probabilities_v1` | Historical alpha conversion using a caller-supplied probability-mixture weight; readable but no longer emitted. |
-| `probability_matrix_prior_mixture_v1` | Record an upstream, data-owner conversion of a probability matrix containing zero values. |
-| `probability_matrix_target_background_v1` | `motif-conversion/v2`; record the source-declared background separately from an explicit target background used for regularization and scoring. |
-
-JASPAR count matrices are not silently interpreted during `design`. Convert one
-under an explicit background first. For observed count `n[i,b]`, column count
-`N[i]`, and background `q[b]`, the conversion uses the position-specific prior
-`alpha[i] = sqrt(N[i])` and
-`(n[i,b] + alpha[i]*q[b]) / (N[i] + alpha[i])`:
+Download one profile in JASPAR count format, preserving its accession and
+version. From the repository checkout, this small format example demonstrates
+conversion with an equal-frequency A/C/G/T background:
 
 ```bash
 motif-balance motif prepare examples/formats/synthetic.jaspar \
@@ -78,20 +34,74 @@ motif-balance motif prepare examples/formats/synthetic.jaspar \
   --out regulator-a.yaml
 ```
 
-Probability matrices have no effective sample size. Their separate declared
-conversion uses `(p + a*q) / (1 + a)` and requires a positive prior weight and
-an explicit source motif identity. Motif Balance validates that provenance
-when reading a canonical motif model; it does not fetch the source or choose
-the probability-matrix prior. When a data owner converts a source matrix under
-an explicit target background, the v2 conversion also records the source
-background, target background, and `explicit_target_background_v1` policy.
-Motif Balance requires the model's scoring background to equal that declared
-target; disagreement fails before compilation or scoring.
+Replace the source path and ID with your chosen profile. For each position,
+the converter adds a background-weighted pseudocount mass equal to the square
+root of the observed count, then divides by the resulting total. This makes
+all base probabilities positive and avoids undefined log odds for zero counts.
+The output records the source and conversion parameters. The precise formula
+and metadata are in [conversion records](reference/motif-conversion.md).
 
-A converted file embeds the original source digest/name and conversion method.
-Count conversion also embeds the observed count, prior mass, and denominator
-for every position; probability conversion embeds its declared prior weight. A
-file cannot embed its own whole-file digest. When Motif Balance reads the
-converted file, the returned model and eventual bundle add that file's computed
-digest/name as `canonical_file_digest` and `canonical_file_name`. Design applies
-no second hidden correction.
+Use the [Dorsal, Twist and Zelda example](biological-example.md) to follow this process
+with attributed biological profiles.
+
+## Read a MEME probability profile
+
+Use the MEME record identifier explicitly when reading a file that contains
+more than one motif:
+
+```python
+from pathlib import Path
+from motif_balance.formats import read_motif
+
+model = read_motif(Path("profiles.meme"), motif_id="selected_record_id")
+with Path("selected-model.json").open("x") as output:
+    output.write(model.model_dump_json(indent=2) + "\n")
+```
+
+Replace the filename and identifier with your source. This reader expects an
+A/C/G/T probability matrix and declared background frequencies. It does not
+run MEME or apply smoothing. If the source contains zero probabilities, prepare
+positive probabilities explicitly and retain the conversion record rather than
+silently replacing zero values. Probability matrices have no known sample size;
+their smoothing parameters are distinct from count pseudocounts.
+
+## Author or inspect a canonical model
+
+A YAML or JSON model declares its schema and stable ID. Each matrix row is one
+motif position; columns are always A, C, G, T:
+
+```yaml
+schema_version: motif-model/v2
+motif_id: example_ac
+probabilities:
+  - [0.7, 0.1, 0.1, 0.1]
+  - [0.1, 0.7, 0.1, 0.1]
+background: [0.25, 0.25, 0.25, 0.25]
+```
+
+This two-position example explains the format. Use experimentally derived
+profiles for your own design question. All entries and background probabilities
+must be finite and positive, and each row and the background must sum to one.
+Unknown fields, malformed matrices and unsupported versions are rejected.
+
+## Add models to a design
+
+Keep motif files in the design directory or a subdirectory and reference them
+from `specifications`:
+
+```yaml
+specifications:
+  - motif: motifs/desired.yaml
+    direction: seek
+  - motif: motifs/unwanted.yaml
+    direction: avoid
+```
+
+The [complete design reference](design-spec.md) supplies the other required
+fields. Motif references must remain within the design directory and cannot
+traverse symlinks. The chosen DNA length must fit every motif. Both-strand
+scoring derives reverse complements from each model; do not supply a second
+model just to request reverse-strand scanning.
+
+The saved `motifs.json` retains validated model content and its digest, so
+later inspection uses the exact probabilities used during design.

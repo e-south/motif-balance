@@ -1,3 +1,8 @@
+"""Render one inspected DNA candidate using its selected motif matches.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from motif_balance.errors import ArtifactError

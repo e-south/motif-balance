@@ -1,4 +1,7 @@
-"""Fixed-budget multi-start greedy coordinate search; never an optimum claim."""
+"""Fixed-budget multi-start greedy coordinate search; never an optimum claim.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
@@ -53,9 +56,7 @@ class GreedySearchEngine:
         if sequence_space_at_most(problem.spec.length, problem.spec.evaluations) is not None:
             return ExhaustiveSearchEngine(observer=self.observer).search(problem)
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
-        ledger = _SearchLedger(
-            budget=problem.spec.evaluations, directional=True, observer=self.observer
-        )
+        ledger = _SearchLedger(budget=problem.spec.evaluations, observer=self.observer)
         states, current = initial_states(
             problem, rng=rng, ledger=ledger, initialization=self.initialization
         )
@@ -93,12 +94,11 @@ class GreedySearchEngine:
             chain = (chain + 1) % len(states)
         evaluations = tuple(ledger.evaluations.values())
         diagnostics = SearchDiagnostics(
-            schema_version="search-diagnostics/v3",
+            schema_version="search-diagnostics/v4",
             restarts=len(states),
-            best_score=ledger.best_feasible_score,
+            best_score=ledger.best_score,
             checkpoints=tuple(ledger.checkpoints),
             restart_final_scores=tuple(item.balance_score for item in current),
-            restart_final_constraint_statuses=tuple(item.constraint_status for item in current),
             proposals=(ProposalSummary(move="single", attempted=attempted, accepted=accepted),),
         )
         return SearchResult(

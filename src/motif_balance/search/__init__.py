@@ -1,4 +1,7 @@
-"""Bounded search entry point; scoring, moves, and recording remain separate."""
+"""Bounded search entry point; scoring, moves, and recording remain separate.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from .engine import AnnealedSearchEngine, ExhaustiveSearchEngine, search
 from .greedy import GreedySearchEngine

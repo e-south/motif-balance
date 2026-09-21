@@ -1,9 +1,13 @@
+"""Count evaluations and retain deterministic best candidates and search checkpoints.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
-from motif_balance.admissibility import is_preferred
 from motif_balance.compile import CompiledProblem
 from motif_balance.constants import (
     DEFAULT_ELITE_CAPACITY,
@@ -59,60 +63,50 @@ class SearchEngine(Protocol):
 @dataclass(slots=True)
 class _SearchLedger:
     budget: int
-    directional: bool
     observer: SearchRecorder | None = None
     evaluations: dict[str, Evaluation] = field(default_factory=dict)
     first_evaluation_indices: dict[str, int] = field(default_factory=dict)
     checkpoints: list[SearchCheckpoint] = field(default_factory=list)
     evaluations_used: int = 0
     best_evaluation: Evaluation | None = None
-    best_feasible_score: float = 0.0
+    best_score: float = 0.0
 
     def record(self, result: Evaluation) -> None:
         if self.evaluations_used >= self.budget:
             raise RuntimeError("search engine exceeded the public evaluation budget")
         self.evaluations_used += 1
-        if self.observer is not None:
-            self.observer.evaluated(
-                result, self.evaluations_used, is_new=result.sequence not in self.evaluations
-            )
-        if result.sequence not in self.evaluations:
+        is_new = result.sequence not in self.evaluations
+        if is_new:
             self.evaluations[result.sequence] = result
             self.first_evaluation_indices[result.sequence] = self.evaluations_used
-        if is_preferred(result, self.best_evaluation):
-            self.best_evaluation = result
-        if result.constraint_feasible:
-            self.best_feasible_score = max(self.best_feasible_score, result.balance_score)
-        interval = max(1, self.budget // 20)
-        logarithmic_checkpoint = self.evaluations_used & (self.evaluations_used - 1) == 0
-        if self.evaluations_used == self.budget or (
-            logarithmic_checkpoint
-            if self.directional
-            else self.evaluations_used == 1 or self.evaluations_used % interval == 0
+        if self.best_evaluation is None or (-result.balance_score, result.sequence) < (
+            -self.best_evaluation.balance_score,
+            self.best_evaluation.sequence,
         ):
-            details = (
-                tuple(
-                    CheckpointSpecificationSatisfaction(
-                        motif_id=match.motif_id,
-                        direction=match.spec_direction,
-                        attainment=match.normalized_score,
-                        satisfaction=match.spec_satisfaction,
-                    )
-                    for match in self.best_evaluation.matches
-                    if match.spec_direction is not None and match.spec_satisfaction is not None
+            self.best_evaluation = result
+        if self.observer is not None:
+            assert self.best_evaluation is not None
+            self.observer.evaluated(
+                result, self.evaluations_used, is_new=is_new, incumbent=self.best_evaluation
+            )
+        self.best_score = max(self.best_score, result.balance_score)
+        logarithmic_checkpoint = self.evaluations_used & (self.evaluations_used - 1) == 0
+        if self.evaluations_used == self.budget or logarithmic_checkpoint:
+            assert self.best_evaluation is not None
+            details = tuple(
+                CheckpointSpecificationSatisfaction(
+                    motif_id=match.motif_id,
+                    direction=match.spec_direction,
+                    attainment=match.normalized_score,
+                    satisfaction=match.spec_satisfaction,
                 )
-                if self.directional and self.best_evaluation is not None
-                else ()
+                for match in self.best_evaluation.matches
             )
             checkpoint = SearchCheckpoint(
                 evaluations=self.evaluations_used,
-                best_score=self.best_feasible_score,
+                best_score=self.best_score,
                 specification_satisfactions=details,
-                limiting_specification_ids=(
-                    self.best_evaluation.limiting_specification_ids
-                    if self.directional and self.best_evaluation is not None
-                    else ()
-                ),
+                limiting_specification_ids=self.best_evaluation.limiting_specification_ids,
             )
             if self.checkpoints and self.checkpoints[-1].evaluations == self.evaluations_used:
                 self.checkpoints[-1] = checkpoint

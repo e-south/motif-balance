@@ -302,7 +302,7 @@ def test_release_workflow_and_manual_path_share_one_preparation_command() -> Non
     assert "gh release create" not in workflow
     preparation_text = preparation.read_text(encoding="utf-8")
     release_revision = preparation_text.index('release_revision="$(git rev-parse HEAD)"')
-    verification = preparation_text.index("bash ./scripts/agent-verify")
+    verification = preparation_text.index("bash ./scripts/verify")
     archive = preparation_text.index('git archive --format=tar "$release_revision"')
     output_creation = preparation_text.index('mkdir -- "$out_dir"')
     assert release_revision < verification < archive

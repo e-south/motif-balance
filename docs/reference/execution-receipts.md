@@ -1,17 +1,15 @@
 ---
 doc_id: motif-balance-execution-receipts
-title: Attested execution workspaces
+title: Reproduce the exact software environment
 intent: Define exact-wheel execution provenance and explicit verification inputs.
-audience:
-  - integrators
-  - execution producers
+audience: [integrators, execution producers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-08
+last_verified: 2026-09-20
 doc_type: reference
 ---
 
-# Attested execution workspaces
+# Reproduce the exact software environment
 
 The canonical bundle is deterministic scientific output. Runtime facts such as
 Python, operating system, architecture, installed dependency versions, and wall
@@ -25,7 +23,7 @@ Create the workspace in the same operation that performs the design:
 
 ```bash
 motif-balance orchestration execute design.yaml \
-  --release-artifact dist/motif_balance-0.5.0a2-py3-none-any.whl \
+  --release-artifact dist/motif_balance-0.6.0a1-py3-none-any.whl \
   --producer-revision <40-character-commit> \
   --out execution-workspace
 ```
@@ -85,9 +83,9 @@ remain separate artifacts, not extra members of the workspace or bundle.
 
 ## Supported schemas
 
-The current `0.5` line verifies `run-manifest/v2` through `run-manifest/v6`,
+The current reader verifies `run-manifest/v7`,
 execution receipt v1, and execution workspace v1. Unknown schemas fail explicitly;
 the [public contract](public-contract.md#artifacts) owns the supported read/write
 matrix. Retain the exact wheel: a package version alone does not identify the
-bytes that ran. New schema support requires an explicit dispatcher and tests,
-not permissive parsing.
+bytes that ran. Retired formats require their original software; there is no
+compatibility reader or automatic migration.

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from motif_balance import DesignSpec, MotifModel, design
+from motif_balance import DesignSpec, MotifModel, MotifSpecification, design
 from motif_balance.compile import compile_design, sequence_space_at_most
 from motif_balance.constants import (
     MAX_CANDIDATE_COUNT,
@@ -16,7 +16,7 @@ from motif_balance.constants import (
     MAX_SEQUENCE_LENGTH,
 )
 from motif_balance.errors import IncompatibleDesign
-from motif_balance.model import MotifConversion, PortfolioRecord
+from motif_balance.model import MotifConversion, PortfolioRecord, RunManifest
 
 
 def test_public_models_are_strict_and_frozen(motif_a: MotifModel) -> None:
@@ -32,51 +32,90 @@ def test_public_models_are_strict_and_frozen(motif_a: MotifModel) -> None:
         motif_a.motif_id = "changed"
 
 
-def test_model_identity_preserves_v1_receipts_and_distinguishes_v2() -> None:
+def test_current_model_identity_is_stable_and_retired_scoring_is_rejected() -> None:
     payload = {
         "motif_id": "identity",
         "probabilities": ((0.7, 0.1, 0.1, 0.1),),
         "background": (0.25, 0.25, 0.25, 0.25),
     }
-    legacy = MotifModel(schema_version="motif-model/v1", **payload)
     current = MotifModel(schema_version="motif-model/v2", **payload)
-
-    assert legacy.model_digest == (
-        "b18f59802cb2e905ce66b79b198f001a766f970fc5c2ec758a70ed3755093a05"
-    )
     assert current.model_digest == (
         "0653221b1809dbded9e936d72f0dcef5cfefb466fdbda0d9e4a399539647f144"
     )
-    assert legacy.model_digest != current.model_digest
+    with pytest.raises(ValidationError, match="schema_version"):
+        MotifModel(schema_version="motif-model/v1", **payload)
 
 
-def test_v1_design_is_read_only_and_cannot_publish_v5() -> None:
-    motif = MotifModel(
-        schema_version="motif-model/v1",
-        motif_id="legacy",
-        probabilities=((0.7, 0.1, 0.1, 0.1),),
-        background=(0.25, 0.25, 0.25, 0.25),
+def test_design_schema_does_not_offer_retired_normalization() -> None:
+    properties = DesignSpec.model_json_schema()["properties"]
+    assert properties["schema_version"]["const"] == "design-spec/v3"
+    assert properties["scoring_semantics"]["const"] == "relative_pwm_attainment_v2"
+
+
+def test_design_contract_exposes_only_directional_specifications() -> None:
+    schema = DesignSpec.model_json_schema()
+    fields = schema["properties"]
+    assert fields["schema_version"] == {
+        "const": "design-spec/v3",
+        "default": "design-spec/v3",
+        "title": "Schema Version",
+        "type": "string",
+    }
+    assert "specifications" in schema["required"]
+    assert not {"motifs", "avoiders"} & fields.keys()
+    assert fields["objective_semantics"]["const"] == "weakest_directional_satisfaction_v1"
+
+
+@pytest.mark.parametrize("name", ("Evaluation", "Candidate"))
+def test_directional_results_have_no_hard_ceiling_state(name: str) -> None:
+    from motif_balance import model
+
+    fields = getattr(model, name).model_json_schema()["properties"]
+    assert (
+        not {
+            "avoidance_matches",
+            "constraint_status",
+            "max_avoidance_excess",
+            "total_avoidance_excess",
+        }
+        & fields.keys()
     )
-    spec = DesignSpec(
-        schema_version="design-spec/v1",
-        motifs=(motif,),
-        length=1,
-        count=1,
-        strands="forward",
-        evaluations=4,
-        seed=1,
-        scoring_semantics="normalized_llr_v1",
-    )
 
-    with pytest.raises(IncompatibleDesign, match="read-only"):
-        design(spec)
+
+def test_directional_manifest_uses_only_the_new_result_record() -> None:
+    from motif_balance.model import SearchDiagnostics
+
+    assert (
+        RunManifest.model_json_schema()["properties"]["schema_version"]["const"]
+        == "run-manifest/v7"
+    )
+    assert (
+        SearchDiagnostics.model_json_schema()["properties"]["schema_version"]["const"]
+        == "search-diagnostics/v4"
+    )
+    assert "restart_final_constraint_statuses" not in SearchDiagnostics.model_fields
+
+
+@pytest.mark.parametrize(
+    "schema",
+    ("run-manifest/v2", "run-manifest/v3", "run-manifest/v4", "run-manifest/v5", "run-manifest/v6"),
+)
+def test_retired_manifests_are_rejected_instead_of_reinterpreted(pairwise_spec, schema):
+    payload = design(pairwise_spec).manifest.model_dump(mode="python")
+    payload["schema_version"] = schema
+    payload["search_diagnostics"]["schema_version"] = "search-diagnostics/v1"
+    payload["search_diagnostics"]["restart_final_constraint_statuses"] = ()
+    if schema != "run-manifest/v4":
+        payload["best_observed"] = None
+    with pytest.raises(ValidationError, match="schema_version"):
+        RunManifest.model_validate(payload)
 
 
 def test_manifest_matrix_rejects_relabelled_current_portfolio(pairwise_spec: DesignSpec) -> None:
     payload = design(pairwise_spec).model_dump(mode="python")
     payload["manifest"]["schema_version"] = "run-manifest/v4"
 
-    with pytest.raises(ValidationError, match="run-manifest/v4 requires search-diagnostics/v1"):
+    with pytest.raises(ValidationError, match="schema_version"):
         PortfolioRecord.model_validate(payload)
 
 
@@ -96,7 +135,7 @@ def test_design_rejects_boolean_numeric_values(
     value: bool,
 ) -> None:
     payload = {
-        "motifs": (motif_a,),
+        "specifications": (MotifSpecification(motif=motif_a, direction="seek"),),
         "length": 2,
         "count": 1,
         "strands": "forward",
@@ -175,7 +214,7 @@ def test_count_matrix_sqrt_n_conversion_is_explicit_and_width_bound() -> None:
             conversion=conversion,
         )
 
-    with pytest.raises(ValidationError, match="requires motif-model/v2"):
+    with pytest.raises(ValidationError, match="schema_version"):
         MotifModel(
             schema_version="motif-model/v1",
             motif_id="historical_semantics",
@@ -218,7 +257,7 @@ def test_probability_matrix_target_background_conversion_is_explicit_and_model_b
     )
     assert motif.model_digest == without_provenance.model_digest
 
-    with pytest.raises(ValidationError, match="requires motif-model/v2"):
+    with pytest.raises(ValidationError, match="schema_version"):
         MotifModel(
             schema_version="motif-model/v1",
             motif_id="historical_semantics",
@@ -472,20 +511,22 @@ def test_motif_rejects_malformed_or_undefined_probabilities(
         )
 
 
-def test_design_canonicalizes_mapping_and_rejects_key_identity_drift(motif_a: MotifModel) -> None:
+def test_design_requires_explicit_directions_and_rejects_implicit_motif_mapping(
+    motif_a: MotifModel,
+) -> None:
     spec = DesignSpec(
-        motifs={"motif_a": motif_a},
+        specifications=(MotifSpecification(motif=motif_a, direction="seek"),),
         length=2,
         count=1,
         strands="forward",
         evaluations=4,
         seed=3,
     )
-    assert spec.motifs == (motif_a,)
+    assert spec.scored_motifs == (motif_a,)
 
-    with pytest.raises(ValidationError, match="motif key"):
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         DesignSpec(
-            motifs={"different": motif_a},
+            motifs={"motif_a": motif_a},
             length=2,
             count=1,
             strands="forward",
@@ -496,7 +537,7 @@ def test_design_canonicalizes_mapping_and_rejects_key_identity_drift(motif_a: Mo
 
 def test_compile_rejects_motif_wider_than_design(motif_a: MotifModel) -> None:
     spec = DesignSpec(
-        motifs=(motif_a,),
+        specifications=(MotifSpecification(motif=motif_a, direction="seek"),),
         length=1,
         count=1,
         strands="forward",
@@ -514,7 +555,7 @@ def test_compile_rejects_uninformative_motif() -> None:
         background=(0.25, 0.25, 0.25, 0.25),
     )
     spec = DesignSpec(
-        motifs=(motif,),
+        specifications=(MotifSpecification(motif=motif, direction="seek"),),
         length=1,
         count=1,
         strands="forward",
@@ -540,7 +581,7 @@ def test_design_rejects_values_above_public_resource_limits(
     value: int,
 ) -> None:
     payload = {
-        "motifs": (motif_a,),
+        "specifications": (MotifSpecification(motif=motif_a, direction="seek"),),
         "length": 2,
         "count": 1,
         "strands": "forward",
@@ -558,7 +599,7 @@ def test_design_rejects_values_above_public_resource_limits(
 def test_design_rejects_portfolios_above_public_base_limit(motif_a: MotifModel) -> None:
     with pytest.raises(ValidationError, match="portfolio-base limit"):
         DesignSpec(
-            motifs=(motif_a,),
+            specifications=(MotifSpecification(motif=motif_a, direction="seek"),),
             length=10_000,
             count=1_001,
             strands="forward",
@@ -572,7 +613,9 @@ def test_design_rejects_match_tables_above_public_row_limit(motif_a: MotifModel)
 
     with pytest.raises(ValidationError, match="match-row limit"):
         DesignSpec(
-            motifs=motifs,
+            specifications=tuple(
+                MotifSpecification(motif=motif, direction="seek") for motif in motifs
+            ),
             length=2,
             count=100_000,
             strands="forward",
@@ -584,7 +627,7 @@ def test_design_rejects_match_tables_above_public_row_limit(motif_a: MotifModel)
 def test_design_rejects_pathological_scoring_work(motif_a: MotifModel) -> None:
     with pytest.raises(ValidationError, match="score-operation limit"):
         DesignSpec(
-            motifs=(motif_a,),
+            specifications=(MotifSpecification(motif=motif_a, direction="seek"),),
             length=10_000,
             count=1,
             strands="both",
@@ -596,7 +639,7 @@ def test_design_rejects_pathological_scoring_work(motif_a: MotifModel) -> None:
 def test_design_rejects_pathological_evaluated_bases(motif_a: MotifModel) -> None:
     with pytest.raises(ValidationError, match="evaluated-base limit"):
         DesignSpec(
-            motifs=(motif_a,),
+            specifications=(MotifSpecification(motif=motif_a, direction="seek"),),
             length=300,
             count=1,
             strands="forward",
@@ -608,7 +651,7 @@ def test_design_rejects_pathological_evaluated_bases(motif_a: MotifModel) -> Non
 def test_design_rejects_pathological_distance_validation(motif_a: MotifModel) -> None:
     with pytest.raises(ValidationError, match="distance-comparison limit"):
         DesignSpec(
-            motifs=(motif_a,),
+            specifications=(MotifSpecification(motif=motif_a, direction="seek"),),
             length=100,
             count=20_000,
             strands="forward",
@@ -624,17 +667,17 @@ def test_sequence_space_is_computed_only_within_a_trusted_bound() -> None:
     assert sequence_space_at_most(10_000, 1_000_000) is None
 
 
-def test_public_contract_schemas_survive_semantic_decomposition() -> None:
+def test_public_contract_schema_fingerprints() -> None:
     from motif_balance import model
 
     expected = {
-        "MotifModel": "ffd3e785f8f6d44c7c36c4b444d29ed0e2834eab9d9d749ea2412174bdc90cea",
-        "DesignSpec": "81baefd8b5f295da629401b87767da78479dfee0b978ed248fbefb335a224e1d",
-        "Evaluation": "ab0bfd51af2fcd03546eef5e713d84d7d7d20be0149450f09f6020e473e074ea",
-        "Candidate": "1394929ba6d3a3524c6285c89ccbb2f2407091944454f5d39f657e849941ca51",
-        "SearchDiagnostics": "b853fd12b4d8d64d980c15dfffa5711fdae4ec05c89dfb47566a172bf3fbdcf2",
-        "RunManifest": "6fe6b72977dc036c3b6c369690a7d30a532bc63b7747dd3183617894004414dc",
-        "PortfolioRecord": "e90cc66c309e5621c8ddc3bbd57d0b7dc4ca609a7c08d2327132e135a0190b8d",
+        "MotifModel": "676ec07431bcf7a32756c7980d6ca84009bd187c540cfeb67526aa3ecf62d1c8",
+        "DesignSpec": "039b99e38d96c245347de5ebda3f5a85e521e57973e0388c76225409eec08fb6",
+        "Evaluation": "cf3aa1bb9c04b91b281f49ed99520c1b61000cf026a6e82215340cca0269cee2",
+        "Candidate": "2c6d94476efc388ccf5870b2df2b51d917ee9872b1926a96a205d5bc8790af6b",
+        "SearchDiagnostics": "d34dc3dc61c805a55ed8645619767eb4f46077aeed2063b0ebaea285bfc22b73",
+        "RunManifest": "ba38d4be73752260ddbf73078840687b73174ef4e159e13fc6c61918a7f2fb55",
+        "PortfolioRecord": "d8c0e2bf3acd5cce4a007c2eb9541b4fb688b12f63260ceae635f42577eec926",
         "ExecutionReceipt": "9637673465f1de551d006c9bd7e2c0ee1e4c865a9f1c239a6bc7cfcafee7198c",
         "ExecutionWorkspace": "ad1dcbb4f33d5ea548fe8ac10455b46ea90642c6a3d3caf17503b96572461ccc",
     }
@@ -652,6 +695,7 @@ def test_model_facade_routes_to_bounded_semantic_contract_modules() -> None:
     assert {p.stem for p in facade.parent.glob("*.py")} == {
         "__init__",
         "alternatives",
+        "architecture",
         "assessment",
         "base",
         "motif",
@@ -662,5 +706,6 @@ def test_model_facade_routes_to_bounded_semantic_contract_modules() -> None:
         "execution",
         "manifest",
         "portfolio",
+        "selection",
     }
     assert all(len(p.read_text().splitlines()) < 400 for p in facade.parent.glob("*.py"))

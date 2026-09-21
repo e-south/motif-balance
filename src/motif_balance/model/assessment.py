@@ -1,12 +1,22 @@
-"""Immutable, path-free records for a pre-search seek-pair assessment."""
+"""Define immutable records and work bounds for pair and joint motif assessments.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
+from math import prod
 from typing import Annotated, Literal, Self
 
 from pydantic import Field, model_validator
 
-from motif_balance.constants import MAX_PAIR_ASSESSMENT_BASE_OPERATIONS, MAX_SEQUENCE_LENGTH
+from motif_balance.constants import (
+    MAX_JOINT_ASSESSMENT_ARRANGEMENTS,
+    MAX_JOINT_ASSESSMENT_BASE_OPERATIONS,
+    MAX_JOINT_ASSESSMENT_MOTIFS,
+    MAX_PAIR_ASSESSMENT_BASE_OPERATIONS,
+    MAX_SEQUENCE_LENGTH,
+)
 
 from .base import FrozenModel
 
@@ -122,3 +132,74 @@ class PairAssessment(FrozenModel):
     def best_arrangement(self) -> PairArrangement:
         """One deterministically chosen best arrangement, not a designed sequence."""
         return self.arrangements[self.best_arrangement_index]
+
+
+def joint_assessment_work_bound(
+    widths: tuple[int, ...], length: int, strands: str
+) -> tuple[int, int]:
+    """Count translation classes and bound base additions/minima before enumeration."""
+    starts = tuple(length - width + 1 for width in widths)
+    count = (prod(starts) - prod(n - 1 for n in starts)) * (
+        2 ** (len(widths) - 1) if strands == "both" else 1
+    )
+    return count, 4 * (sum(widths) + count * (sum(widths) + length))
+
+
+class JointArrangement(FrozenModel):
+    starts: tuple[_NonnegativeInt, ...] = Field(
+        min_length=2, max_length=MAX_JOINT_ASSESSMENT_MOTIFS
+    )
+    strands: tuple[Literal["+", "-"], ...] = Field(
+        min_length=2, max_length=MAX_JOINT_ASSESSMENT_MOTIFS
+    )
+
+
+class JointAssessment(FrozenModel):
+    schema_version: Literal["joint-assessment/v1"] = "joint-assessment/v1"
+    formula: Literal["information_weighted_shared_base_conflict_v1"] = (
+        "information_weighted_shared_base_conflict_v1"
+    )
+    scope: Literal["seek_joint_arrangements"] = "seek_joint_arrangements"
+    proof: Literal["exact_minimum_over_admitted_arrangements"] = (
+        "exact_minimum_over_admitted_arrangements"
+    )
+    length: Annotated[int, Field(strict=True, gt=0, le=MAX_SEQUENCE_LENGTH)]
+    strands: Literal["forward", "both"]
+    motifs: tuple[AssessedMotif, ...] = Field(min_length=2, max_length=MAX_JOINT_ASSESSMENT_MOTIFS)
+    equivalence: Literal["translation", "translation_and_reverse_complement"]
+    effective_information_bits: Annotated[float, Field(strict=True, gt=0, allow_inf_nan=False)]
+    base_operation_upper_bound: Annotated[
+        int, Field(strict=True, gt=0, le=MAX_JOINT_ASSESSMENT_BASE_OPERATIONS)
+    ]
+    arrangement_count: Annotated[
+        int, Field(strict=True, gt=0, le=MAX_JOINT_ASSESSMENT_ARRANGEMENTS)
+    ]
+    sequence_evaluations: Literal[0] = 0
+    structural_score: _Score
+    best_arrangement: JointArrangement
+
+    @model_validator(mode="after")
+    def validate_projection(self) -> Self:
+        widths = tuple(m.width for m in self.motifs)
+        count, operations = joint_assessment_work_bound(widths, self.length, self.strands)
+        starts, strands = self.best_arrangement.starts, self.best_arrangement.strands
+        expected = (
+            "translation" if self.strands == "forward" else "translation_and_reverse_complement"
+        )
+        if (
+            len({m.motif_id for m in self.motifs}) != len(widths)
+            or max(widths) > self.length
+            or count != self.arrangement_count
+            or operations != self.base_operation_upper_bound
+            or self.effective_information_bits > 2 * sum(widths)
+            or self.equivalence != expected
+            or len(starts) != len(widths)
+            or len(strands) != len(widths)
+            or min(starts) != 0
+            or strands[0] != "+"
+            or (self.strands == "forward" and any(s != "+" for s in strands))
+        ):
+            raise ValueError("joint assessment dimensions, scope or work bound disagree")
+        if any(start + width > self.length for start, width in zip(starts, widths, strict=True)):
+            raise ValueError("joint arrangement must contain complete motif windows")
+        return self

@@ -2,18 +2,16 @@
 doc_id: motif-balance-python-tutorial
 title: Design and inspect from Python
 intent: Complete a first design with inline synthetic inputs and no checkout-local files.
-audience:
-  - new users
-  - API consumers
+audience: [new users, API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-09
+last_verified: 2026-09-20
 doc_type: tutorial
 ---
 
 # Design and inspect from Python
 
-Use this example after [installing the package](quickstart.md#install).
+Use this example after [installing the package](installation.md).
 It works from an empty working directory; no motif database, repository examples,
 or study environment is needed. Save the code as `first_design.py` and run it
 with the Python interpreter in that environment.

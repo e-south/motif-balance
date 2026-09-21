@@ -1,11 +1,14 @@
+"""Propose fixed-length DNA edits and evaluate them through the shared scorer.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
-import math
 from typing import Literal
 
 import numpy as np
 
-from motif_balance.admissibility import preference_key
 from motif_balance.compile import CompiledMotif, CompiledProblem
 from motif_balance.constants import (
     DNA_ALPHABET,
@@ -26,25 +29,14 @@ def _worst_match(result: Evaluation) -> MotifMatch:
     return min(
         result.matches,
         key=lambda item: (
-            item.spec_satisfaction if item.spec_satisfaction is not None else item.normalized_score,
+            item.spec_satisfaction,
             item.motif_id,
         ),
     )
 
 
-def _target_bounds(result: Evaluation, problem: CompiledProblem, *, length: int) -> tuple[int, int]:
-    ceilings = {item.motif.model.motif_id: item.score_ceiling for item in problem.avoiders}
-    match = (
-        max(
-            result.avoidance_matches,
-            key=lambda item: (
-                item.normalized_score - ceilings[item.motif_id],
-                item.motif_id,
-            ),
-        )
-        if not result.constraint_feasible and result.avoidance_matches
-        else _worst_match(result)
-    )
+def _target_bounds(result: Evaluation, *, length: int) -> tuple[int, int]:
+    match = _worst_match(result)
     return max(0, match.start - 3), min(length, match.end + 3)
 
 
@@ -110,11 +102,7 @@ class SearchMoves:
         ledger: _SearchLedger,
         progress: float,
     ) -> tuple[np.ndarray, Evaluation, bool]:
-        bounds = (
-            _target_bounds(current, problem, length=problem.spec.length)
-            if rng.random() < 0.5
-            else None
-        )
+        bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
         position = (
             int(rng.integers(problem.spec.length))
             if bounds is None
@@ -128,18 +116,7 @@ class SearchMoves:
             ledger.record(result)
             candidates.append((proposal, result))
         soft_beta = 0.5 + 11.5 * progress
-        has_feasible = any(result.constraint_feasible for _, result in candidates)
-        if has_feasible:
-            scores = np.asarray(
-                [
-                    _soft_min(result, beta=soft_beta) if result.constraint_feasible else -math.inf
-                    for _, result in candidates
-                ]
-            )
-        else:
-            keys = tuple(preference_key(result) for _, result in candidates)
-            ranks = {key: rank for rank, key in enumerate(sorted(set(keys)))}
-            scores = np.asarray([float(ranks[key]) for key in keys])
+        scores = np.asarray([_soft_min(result, beta=soft_beta) for _, result in candidates])
         logits = _annealing_beta(progress) * scores
         logits -= logits.max()
         probabilities = np.exp(logits)
@@ -163,11 +140,7 @@ class SearchMoves:
         ledger: _SearchLedger,
     ) -> tuple[np.ndarray, Evaluation]:
         block_length = int(rng.integers(2, min(5, problem.spec.length) + 1))
-        bounds = (
-            _target_bounds(current, problem, length=problem.spec.length)
-            if rng.random() < 0.5
-            else None
-        )
+        bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
         start = _targeted_start(
             sequence_length=problem.spec.length,
             block_length=block_length,
@@ -192,11 +165,7 @@ class SearchMoves:
         ledger: _SearchLedger,
     ) -> tuple[np.ndarray, Evaluation]:
         count = int(rng.integers(1, min(2, problem.spec.length) + 1))
-        bounds = (
-            _target_bounds(current, problem, length=problem.spec.length)
-            if rng.random() < 0.5
-            else None
-        )
+        bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
         population = (
             np.arange(bounds[0], bounds[1])
             if bounds is not None and bounds[1] - bounds[0] >= count
@@ -222,16 +191,12 @@ class SearchMoves:
         motif = _motif_for_match(problem, worst.motif_id)
         inserted = _motif_insertion_word(
             motif,
-            direction=worst.spec_direction or "seek",
+            direction=worst.spec_direction,
             rng=rng,
         )
         if problem.spec.strands == "both" and rng.random() < 0.5:
             inserted = reverse_complement(inserted)
-        bounds = (
-            _target_bounds(current, problem, length=problem.spec.length)
-            if rng.random() < 0.5
-            else None
-        )
+        bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
         start = _targeted_start(
             sequence_length=problem.spec.length,
             block_length=len(inserted),

@@ -247,9 +247,11 @@ def test_resealed_scientific_scores_fail_authoritative_scoring_replay(
     forged_candidates = tuple(
         candidate.model_copy(
             update={
-                "balance_score": 9.0,
+                "balance_score": 0.9,
                 "matches": tuple(
-                    match.model_copy(update={"raw_score": 9.0, "normalized_score": 9.0})
+                    match.model_copy(
+                        update={"raw_score": 9.0, "normalized_score": 0.9, "spec_satisfaction": 0.9}
+                    )
                     for match in candidate.matches
                 ),
             }
@@ -298,7 +300,9 @@ def test_publication_rejects_caller_forged_scientific_state(
             update={
                 "balance_score": 9.0,
                 "matches": tuple(
-                    match.model_copy(update={"raw_score": 9.0, "normalized_score": 9.0})
+                    match.model_copy(
+                        update={"raw_score": 9.0, "normalized_score": 9.0, "spec_satisfaction": 9.0}
+                    )
                     for match in candidate.matches
                 ),
             }

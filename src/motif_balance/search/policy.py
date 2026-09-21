@@ -1,3 +1,8 @@
+"""Define smooth-minimum guidance, cooling, and edit probabilities for annealed search.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
+
 from __future__ import annotations
 
 import math
@@ -16,14 +21,10 @@ from motif_balance.model import (
 
 def _soft_min(result: Evaluation, *, beta: float) -> float:
     scores = np.asarray(
-        [
-            match.spec_satisfaction
-            if match.spec_satisfaction is not None
-            else match.normalized_score
-            for match in result.matches
-        ],
+        [match.spec_satisfaction for match in result.matches],
         dtype=float,
     )
+    # Subtract the smallest score before exponentiating to keep the weights finite.
     floor = float(np.min(scores))
     return floor - math.log(float(np.exp(-beta * (scores - floor)).sum())) / beta
 

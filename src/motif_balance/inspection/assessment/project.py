@@ -1,10 +1,14 @@
-"""Bind the existing assessment calculation to inspectable physical-coordinate terms."""
+"""Bind the existing assessment calculation to inspectable physical-coordinate terms.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
 from typing import Literal
 
-from motif_balance.assessment import _terms, assess_pair
+from motif_balance.assessment import assess_pair
+from motif_balance.assessment.terms import column_regret
 from motif_balance.model import MotifModel
 
 from .model import AssessmentColumn, PairAssessmentInspection
@@ -19,8 +23,8 @@ def inspect_pair_assessment(
 ) -> PairAssessmentInspection:
     """Recompute from explicit models; no saved scores, sequences or paths are trusted."""
     result = assess_pair(left, right, length=length, strands=strands)
-    a, _, _ = _terms(left)
-    b, _, _ = _terms(right)
+    a, _, _ = column_regret(left)
+    b, _, _ = column_regret(right)
     best = result.best_arrangement
     columns = []
     for coordinate in range(length):

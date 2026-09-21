@@ -1,9 +1,13 @@
-"""Selected-site equivalence and separate, label-invariant pair distances."""
+"""Selected-site equivalence and separate, label-invariant pair distances.
+
+Maintainer(s): Eric J. South, Dunlop Lab
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import combinations
+from typing import Literal
 
 from motif_balance.model import Evaluation
 from motif_balance.scoring import reverse_complement
@@ -81,3 +85,32 @@ def pair_distances(
     spacing = sum(abs(a - b) for a, b in zip(left.separations, right.separations, strict=True))
     orientation = (left.relative_strands ^ right.relative_strands).bit_count()
     return sequence_distance, footprint, spacing / (2 * count), orientation / count
+
+
+def pair_separation(
+    left: _PreparedDistances,
+    right: _PreparedDistances,
+    *,
+    both: bool,
+    kind: Literal["selected_footprint", "hamming"],
+) -> tuple[float, Literal["forward", "reverse_complement"]]:
+    """Minimum declared separation over permitted relative orientations.
+
+    Unlike diagnostic pair_distances, footprint selection does not first
+    minimize whole-sequence distance. Common-coordinate sites are transformed,
+    not rescanned. Forward wins exact ties. This is not asserted to be a metric.
+    """
+    if left.length != right.length or left.context != right.context:
+        raise ValueError("pair separation requires the same length and selected-match context")
+    options: list[tuple[int, int, Literal["forward", "reverse_complement"]]] = [
+        (right.sequence, right.footprint, "forward")
+    ]
+    if both:
+        options.append((right.reverse_sequence, right.reverse_footprint, "reverse_complement"))
+    distances = []
+    for sequence, footprint, orientation in options:
+        differences = left.sequence ^ sequence
+        mismatches = (differences | (differences >> 1)) & left.base_mask
+        mask = left.footprint | footprint if kind == "selected_footprint" else left.base_mask
+        distances.append(((mismatches & mask).bit_count() / mask.bit_count(), orientation))
+    return min(distances)

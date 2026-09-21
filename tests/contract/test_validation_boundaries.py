@@ -38,24 +38,21 @@ def test_motif_validation_boundaries(updates: dict[str, object], message: str) -
 
 def test_design_validation_boundaries() -> None:
     motif = MotifModel.model_validate(_motif())
-    base = {
-        "motifs": (motif,),
-        "length": 1,
-        "count": 1,
-        "evaluations": 1,
-        "seed": 0,
-    }
+    requirement = {"motif": motif, "direction": "seek"}
+    base = {"specifications": (requirement,), "length": 1, "count": 1, "evaluations": 1, "seed": 0}
 
     with pytest.raises(ValidationError):
         DesignSpec.model_validate("not-a-mapping")
-    with pytest.raises(ValidationError, match="keys must be strings"):
-        DesignSpec.model_validate({**base, "motifs": {1: motif}})
-    with pytest.raises(ValidationError, match="motif key"):
-        DesignSpec.model_validate({**base, "motifs": {"fixture": "not-a-model"}})
+    with pytest.raises(ValidationError, match="direction"):
+        DesignSpec.model_validate({**base, "specifications": ({"motif": motif},)})
+    with pytest.raises(ValidationError, match="motif"):
+        DesignSpec.model_validate(
+            {**base, "specifications": ({"motif": "not-a-model", "direction": "seek"},)}
+        )
     with pytest.raises(ValidationError, match="at least one"):
-        DesignSpec.model_validate({**base, "motifs": ()})
+        DesignSpec.model_validate({**base, "specifications": ()})
     with pytest.raises(ValidationError, match="unique"):
-        DesignSpec.model_validate({**base, "motifs": (motif, motif)})
+        DesignSpec.model_validate({**base, "specifications": (requirement, requirement)})
     with pytest.raises(ValidationError, match="at least count"):
         DesignSpec.model_validate({**base, "count": 2})
 
@@ -69,6 +66,8 @@ def test_match_and_evaluation_validation_boundaries() -> None:
         "matched_sequence": "A",
         "raw_score": 1.0,
         "normalized_score": 0.5,
+        "spec_direction": "seek",
+        "spec_satisfaction": 0.5,
     }
     with pytest.raises(ValidationError, match="greater than start"):
         MotifMatch.model_validate({**base_match, "start": 1, "end": 1})
@@ -143,6 +142,6 @@ def test_portfolio_validation_boundaries(pairwise_spec: DesignSpec) -> None:
     with pytest.raises(ValidationError, match="min_distance"):
         Portfolio.model_validate({**payload, "spec": strict_spec})
 
-    assert len(valid.matches) == len(valid.candidates) * len(pairwise_spec.motifs)
+    assert len(valid.matches) == len(valid.candidates) * len(pairwise_spec.scored_motifs)
     with pytest.raises(ValueError, match="equal, nonzero"):
         _normalized_hamming_distance("A", "AA")

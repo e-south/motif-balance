@@ -7,6 +7,7 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import date, timedelta
 from pathlib import Path
+from urllib.parse import unquote
 
 import yaml
 
@@ -50,6 +51,11 @@ REQUIRED_JOURNEY_DOCS = {
     "ARCHITECTURE.md": ("explanation", {"maintain"}),
 }
 BANNER_PATH = REPO_ROOT / "assets" / "motif-balance-banner.svg"
+REPOSITORY_FILE_URLS = (
+    "https://github.com/e-south/motif-balance/blob/main/",
+    "https://github.com/e-south/motif-balance/tree/main/",
+    "https://raw.githubusercontent.com/e-south/motif-balance/main/",
+)
 
 
 def frontmatter(path: Path) -> tuple[dict[str, object], str]:
@@ -82,14 +88,23 @@ def heading_anchors(text: str) -> set[str]:
 
 
 def link_errors(path: Path, text: str) -> list[str]:
-    """Return broken local Markdown links."""
+    """Check local and canonical repository-file links against this checkout."""
     errors: list[str] = []
     for raw_target in LINK_PATTERN.findall(text):
         target_with_fragment = raw_target.strip().strip("<>")
-        if "://" in target_with_fragment or target_with_fragment.startswith("mailto:"):
+        repository_prefix = next(
+            (prefix for prefix in REPOSITORY_FILE_URLS if target_with_fragment.startswith(prefix)),
+            None,
+        )
+        if repository_prefix is not None:
+            target_with_fragment = target_with_fragment.removeprefix(repository_prefix)
+            base = REPO_ROOT
+        elif "://" in target_with_fragment or target_with_fragment.startswith("mailto:"):
             continue
+        else:
+            base = path.parent
         target, _, fragment = target_with_fragment.partition("#")
-        resolved = path if not target else (path.parent / target).resolve()
+        resolved = path if not target else (base / unquote(target)).resolve()
         try:
             resolved.relative_to(REPO_ROOT)
         except ValueError:
@@ -99,8 +114,8 @@ def link_errors(path: Path, text: str) -> list[str]:
             errors.append(f"{path.relative_to(REPO_ROOT)}: broken link {raw_target!r}")
         elif (
             fragment
-            and resolved.is_file()
-            and fragment not in heading_anchors(resolved.read_text(encoding="utf-8"))
+            and resolved.suffix == ".md"
+            and unquote(fragment) not in heading_anchors(resolved.read_text(encoding="utf-8"))
         ):
             errors.append(f"{path.relative_to(REPO_ROOT)}: broken heading fragment {raw_target!r}")
     return errors
@@ -189,9 +204,15 @@ def main() -> int:
         if not isinstance(actual, list) or set(actual) != expected_journeys:
             errors.append(f"{path}: journey must be {', '.join(sorted(expected_journeys))}")
 
+    additional_docs = sorted(
+        (set(REPO_ROOT.glob("*.md")) | set((REPO_ROOT / "examples").rglob("*.md"))) - set(docs)
+    )
+    for path in additional_docs:
+        errors.extend(link_errors(path, path.read_text(encoding="utf-8")))
+
     try:
         banner = ET.parse(BANNER_PATH).getroot()
-        expected_attributes = {"width": "1280", "height": "260", "viewBox": "0 0 1280 260"}
+        expected_attributes = {"width": "1280", "height": "230", "viewBox": "0 0 1280 230"}
         for name, value in expected_attributes.items():
             if banner.get(name) != value:
                 errors.append(f"assets/motif-balance-banner.svg: invalid {name}")
@@ -210,7 +231,10 @@ def main() -> int:
         for error in errors:
             print(f"- {error}")
         return 1
-    print(f"Documentation integrity: ok ({len(docs)} documents)")
+    print(
+        f"Documentation integrity: ok ({len(docs)} metadata records; "
+        f"links in {len(docs) + len(additional_docs)} documents)"
+    )
     return 0
 
 

@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# motif-balance | scripts/verify
+# Run source, documentation, dependency, and distribution checks.
+# Author: Eric J. South, Dunlop Lab
+# -----------------------------------------------------------------------------
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-bash ./scripts/agent-preflight --strict
+bash ./scripts/preflight --strict
 uv run --locked ruff check .
 uv run --locked ruff format --check .
 uv run --locked mypy src
@@ -16,7 +21,7 @@ uv run --locked pytest \
   --cov-report=xml:.artifacts/coverage.xml \
   -q
 bash ./scripts/docs-smoke
-uv export --locked --no-dev --no-emit-project \
+uv export --locked --all-extras --no-dev --no-emit-project \
   --format requirements-txt \
   --output-file .artifacts/operational-requirements.txt >/dev/null
 uv run --locked pip-audit \
@@ -25,4 +30,4 @@ uv run --locked pip-audit \
   --disable-pip
 bash ./scripts/wheel-smoke
 
-echo "Agent verification: ok"
+echo "Verification: ok"

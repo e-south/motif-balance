@@ -2,15 +2,13 @@
 doc_id: motif-balance-choose-alternatives
 title: Choose alternative motif architectures
 intent: Rank supplied sequences by distinct selected-match architecture and inspect every supported collection size.
-audience:
-  - users
-  - API consumers
+audience: [users, API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-11
+last_verified: 2026-09-20
 doc_type: how-to
-journey:
-  - integrate
+journey: [integrate]
+
 ---
 
 # Choose alternative motif architectures
@@ -19,13 +17,42 @@ Finding one good sequence does not tell you whether other useful arrangements
 remain. `rank_architectures` scores a supplied sequence pool, keeps its best
 representative of each selected-match architecture, and ranks those
 representatives by quality. Choose the collection size you need and inspect
-the weakest score retained. There is no mandatory 32-design endpoint or quality
-cutoff, and this operation performs no search.
+the weakest score retained. The operation selects from the supplied sequences without running another search.
 
-This explicit Python API is unreleased. Use the current source installation
-from the [quickstart](quickstart.md#install), or a verified build containing
-the operation. It has no CLI command and does not change ordinary `design`
-portfolio selection.
+If you instead need a fixed-size set satisfying hard footprint-separation and
+architecture requirements, use [portfolio selection](reference/portfolio-selection.md).
+That operation uses the unpruned sequence pool; architecture-rank prefixes are
+diagnostics, not substitutes for a constrained portfolio.
+
+Use `grouping="interval_topology"` for collections distinguished by motif order,
+orientation and interval relationships. Exact gaps and overlap lengths remain
+in every candidate's matches. This deliberately groups spacing variation within
+one relationship; it does not assert that spacing is biologically unimportant.
+The original Python default, `grouping="exact_offsets"`, remains available for
+spacing-sensitive inspection. The grouping is recorded in the result.
+
+Use the current [source installation](installation.md) or a build containing
+these APIs.
+The `collect` command selects from a verified saved design's retained elites:
+
+```bash
+motif-balance collect architecture-result --expected-bundle-id "$BUNDLE_ID" --count 8 --format json
+```
+
+Use the bundle identity returned by `design`, or omit `--expected-bundle-id`
+when that identity is unavailable. The latter checks self-consistency only. The command defaults to interval
+topology, exposes the full size–quality profile, and reports requested, available,
+and delivered counts. It returns available members on shortfall. It does not
+change the exact-count contract of ordinary `design` or `select_portfolio`.
+A saved positive sequence-distance requirement is refused, not silently removed;
+use the constrained selector for that request, or explicitly define a new
+selection request through Python. `--out` only writes a new file.
+
+An arrangement class describes the relative order, strands and overlap of the
+selected strongest motif matches. [The grouping definition](reference/architecture-ranking.md#what-counts-as-an-architecture) explains which changes form a new class. Palindromic ties and equivalent reverse-complement inputs
+use the same canonical replay. A small model perturbation can break a tie,
+move a selected site and change class even when the balance stays unchanged;
+this operation does not promise class stability near such ties.
 
 ## Try a small supplied pool
 
@@ -60,7 +87,10 @@ spec = DesignSpec(
     evaluations=1,
 )
 sequences = ("AACC", "CCAA", "ACAC", "CACA", "AAAA", "CCCC")
-ranking = rank_architectures(sequences, spec)
+ranking = rank_architectures(sequences, spec, grouping="interval_topology")
+collection = ranking.select_up_to(8)
+assert collection.requested_count == 8 and collection.delivered_count == 3
+assert collection.status == "insufficient_retained_architectures"
 for point in ranking.prefixes:
     print(
         f"{point.architecture_count} architecture(s): minimum balance {point.minimum_balance:.3f}"
@@ -75,8 +105,10 @@ print(
 
 The three prefix scores are 1, 1, and 0.5. `select(2)` returns AACC and CCAA
 as immutable evaluations with their matches and directional scores. Requesting
-four architectures fails: these supplied sequences support only three under
-the declared selected-match policy. That does not prove a fourth is impossible.
+four architectures with `select(4)` fails: these supplied sequences support only
+three. `select_up_to(8)` instead returns those three with explicit shortfall and
+weakest quality 0.5. That does not prove a fourth is impossible. A partial
+collection's quality is the quality of its delivered members, not an absent Q8.
 
 ## Continue from a saved design
 
@@ -107,7 +139,7 @@ print(render_text(review))
 
 saved = read_verified_portfolio(destination, expected_bundle_id=expected_id)
 pool = tuple(item.sequence for item in saved.manifest.elites)
-recovered = rank_architectures(pool, saved.spec)
+recovered = rank_architectures(pool, saved.spec, grouping="interval_topology")
 print("Recovered alternatives:", ", ".join(item.sequence for item in recovered.select(2)))
 print(
     f"Search calls: {saved.manifest.evaluation_count}; "
@@ -170,127 +202,7 @@ source and selection receipts separately; see the
 [inspection contract](reference/result-inspection.md#inspect-a-supplied-candidate)
 for validation and rendering limits.
 
-## Reuse the scoring context explicitly
+## Calculation and reference
 
-Reuse the `DesignSpec` that defines your sequences' scoring context. The verified
-bundle above or a caller-owned sequence list can supply the pool; the operation
-does not discover files or merge runs.
-Only models, directions, length, and strands determine the scores. The
-request's seed, evaluator budget, and target count remain recorded context,
-not ranking limits or search activity. `select(count)` controls the returned
-count. Even an original count that exceeds the complete sequence space does not
-prevent ranking a valid supplied pool; trying to generate that impossible
-portfolio with `design` still fails. The specification must still satisfy its
-schema and resource limits, and every motif must fit the sequence length.
-A positive `min_distance` is refused rather than silently ignored;
-use ordinary [portfolio selection](../IA.md#selection) for that contract.
-In particular, the first-design Python tutorial requests positive sequence
-distance. Its saved request is therefore not an architecture-ranking request.
-Changing that selection requirement must be an explicit caller decision, not
-an automatic conversion or a claim that architecture selection enforces it.
-
-## What counts as an architecture?
-
-Each canonical sequence is authoritatively scored once. The strongest match
-of every specification has one deterministically selected position and strand.
-The relative positions, motif order, and same/opposite strand relationships
-form the architecture. Moving the entire arrangement together does not add a
-class. When both strands are allowed, a global reverse complement does not
-add a sequence or architecture class either.
-
-Reverse-complement canonicalization occurs **before scoring**. The returned
-sequence can therefore be the reverse complement of a supplied literal.
-No sequence changes after evaluation. Replaying the canonical literal also
-makes tied selected sites independent of which orientation was supplied.
-Other equally strong placements are not enumerated. For an avoid specification,
-the selected site is its strongest unwanted match, not a desired installed site.
-
-Each class contributes its highest-balance sequence, breaking score ties by
-canonical sequence. Equal-quality representatives still have a deterministic
-order. `quality_steps` includes every tied architecture at each distinct score
-boundary; `prefixes` instead includes every supported integer collection size.
-
-## Read quality and differences separately
-
-| Field on each prefix | Meaning |
-| --- | --- |
-| `architecture_count` | Number of distinct selected-match architectures included. |
-| `minimum_balance` | Weakest representative score in that collection. |
-| `mean_sequence_distance` | Mean fraction of differing bases across representative pairs. |
-| `mean_selected_footprint_distance` | Mean differing-base fraction within the union of each pair's selected motif footprints. |
-| `mean_spacing_distance_nt` | Mean absolute change in motif-pair center separations, in nucleotides. |
-| `mean_orientation_difference` | Fraction of motif-pair same/opposite strand relationships that differ, averaged across representatives. |
-
-Pairwise distances are undefined (`None`) for one representative. Sequence
-and footprint comparisons use one common orientation, chosen by least
-whole-sequence difference, then footprint difference on a tie. Geometry
-distances average over all labeled motif pairs, so renaming motifs does not
-change them. Two motif orders can be distinct architectures with identical
-spacing and relative orientation. Inspect the returned matches as well.
-
-Minimum quality cannot rise as you include more ranked architectures. At a
-fixed rank it cannot fall if the supplied pool genuinely expands under the
-same scoring and equivalence policy. The distance averages have neither
-guarantee. This is quality-first distinct-class selection, not maximum
-dispersion or a measurement of all sequence alternatives within each class.
-
-If a caller needs to preserve a different order of the same representatives,
-use `motif_balance.alternatives.measure_prefixes(ranking, order)`, where `order`
-is a tuple or list of their sequence strings. It requires a complete permutation;
-it cannot add, omit, edit or rescore a representative. Each returned prefix
-reports its weakest score and separate distances in that explicit order.
-This is measurement, not a new quality or diversity-ranking policy. An unchanged
-order reuses the existing prefixes; another order performs one additional
-distance pass under the same independent caps. Retain the supplied order beside
-the result when reproducing a caller-owned collection.
-
-## Contract and failure boundaries
-
-The API is `rank_architectures(sequences, spec, *, distance_base_budget=10_000_000)`.
-`sequences` must be a tuple
-or list of uppercase, fixed-length A/C/G/T strings; `spec` must be a current
-directional request with at least two specifications. Iterators, legacy
-requests, mixed lengths, and unsupported distance constraints are refused.
-The pool limit is 50,000 records and 10 million supplied bases. Scoring is
-admitted against 100 million base operations. All-prefix distance work defaults
-to ten million conservative base/pair terms. After profiling the intended pool,
-an explicit integer `distance_base_budget` may admit up to 500 million terms.
-That budget cannot override the independent caps of 500,000 representative
-pairs and 250,000 prepared motif-pair entries. Oversized requests raise
-`ValueError` before distance preparation; no pool is silently truncated.
-
-For `n` representatives, `m` specifications and length `L`, the term estimate is
-`n*(n-1)/2 * (L*s + m*(m-1))`, where `s` is 4 for both strands and 2 for forward
-only. Preparation needs `n*m*(m-1)/2` entries when `n >= 2`; a singleton prepares
-none. The independent caps bound quadratic pair work and temporary preparation
-separately. A larger requested budget changes admission, not the distance values.
-
-Distance work is exact, not sampled. After admission, the implementation prepares
-each representative's bases, selected footprints and motif-pair separations once,
-then reuses them across comparisons. This temporary, request-local representation
-avoids repeated per-base scans; it does not change scores, orientation choices,
-or the input pool. Work estimates are not counts of Python instructions or
-runtime promises. The limits apply even when this exact calculation is fast
-on a particular machine; there is no unlimited mode or automatic retry with
-a larger budget.
-
-The immutable `architecture-ranking/v2` record includes the full specification,
-a digest of the sorted supplied sequence multiset, input-record/literal/class
-counts, scoring calls, requested distance budget, computed distance-term count,
-representatives, and prefixes. Its validator checks that the recorded distance
-work agrees with the representatives and satisfies all three caps. Earlier
-unreleased v1 records are not relabeled or silently upgraded: preserve them with
-their original tool build, or rerun from trusted sequences and specification.
-Duplicate literals count
-as input records but are scored only once; allowed reverse complements share
-a scoring call. `search_evaluations` is always zero. Empty pools retain empty
-profiles and cannot satisfy a positive selection request.
-
-Coverage is always `supplied_pool`. A capped search archive can omit useful
-architectures, and adding a longer run does not guarantee a nested pool.
-Neither the digest nor JSON schema validation independently proves that a
-serialized profile represents the original complete pool. Re-run this API
-on the retained sequences and trusted specification to reproduce it; a ranking
-record is not a verified search bundle or a scientific acceptance receipt.
-See [pair assessment](pair-assessment.md) to inspect motif conflicts before
-search, and [interpretation limits](limitations.md) before making broader claims.
+See [architecture grouping and ranking](reference/architecture-ranking.md) for definitions, formulas, returned fields,
+resource limits and verification.
