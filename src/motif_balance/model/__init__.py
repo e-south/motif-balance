@@ -1,6 +1,13 @@
-"""Stable model imports; implementations are grouped by contract responsibility.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Stable model imports; implementations are grouped by contract responsibility.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from .base import FrozenModel

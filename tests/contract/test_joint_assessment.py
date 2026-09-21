@@ -1,4 +1,14 @@
-"""Exact small joint arrangements differ from constituent-pair agreement."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_joint_assessment.py
+
+Exact small joint arrangements differ from constituent-pair agreement.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from itertools import combinations, product
 from math import log2

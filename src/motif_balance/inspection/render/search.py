@@ -1,6 +1,13 @@
-"""Plot recorded search checkpoints and best observed balance without rescoring.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/render/search.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Plot recorded search checkpoints and best observed balance without rescoring.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

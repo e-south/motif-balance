@@ -1,6 +1,13 @@
-"""Score a supplied pool and select an explicitly constrained full portfolio.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/alternatives/portfolio.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Score a supplied pool and select an explicitly constrained full portfolio.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

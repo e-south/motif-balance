@@ -1,6 +1,13 @@
-"""Coordinate attested execution without weakening atomic publication checks.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/execution/workspace.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Coordinate attested execution without weakening atomic publication checks.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

@@ -1,4 +1,14 @@
-"""Native ranking exposes qualified grouping and explicit up-to delivery."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_architecture_collections.py
+
+Native ranking exposes qualified grouping and explicit up-to delivery.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 import pytest
 from pydantic import ValidationError

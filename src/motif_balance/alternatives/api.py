@@ -1,6 +1,13 @@
-"""Score a supplied pool once, then rank its selected-match architectures.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/alternatives/api.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Score a supplied pool once, then rank its selected-match architectures.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

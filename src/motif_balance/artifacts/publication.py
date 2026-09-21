@@ -1,6 +1,13 @@
-"""Atomic no-replace bundle publication with post-publication replay.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/artifacts/publication.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Atomic no-replace bundle publication with post-publication replay.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

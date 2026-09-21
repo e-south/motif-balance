@@ -1,6 +1,13 @@
-"""Collect ranked architectures from the retained pool of a verified bundle.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/cli/collection.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Collect ranked architectures from the retained pool of a verified bundle.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 import json

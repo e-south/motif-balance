@@ -1,6 +1,13 @@
-"""Source conversion receipts and positive motif probability contracts.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/motif.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Source conversion receipts and positive motif probability contracts.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Create and verify immutable Motif Balance prerelease attestations."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+scripts/release_attestation.py
+
+Create and verify immutable Motif Balance prerelease attestations.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 
@@ -383,7 +393,9 @@ def _verify_command(args: argparse.Namespace) -> int:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description="Create or verify a prerelease distribution attestation."
+    )
     commands = parser.add_subparsers(dest="command", required=True)
     create = commands.add_parser("create", help="create attestation and checksums")
     create.add_argument("--directory", type=Path, required=True)

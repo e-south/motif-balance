@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Enforce Motif Balance first-party dependency direction."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+scripts/check_architecture.py
+
+Enforce Motif Balance first-party dependency direction.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 

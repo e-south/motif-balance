@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# -----------------------------------------------------------------------------
-# motif-balance | scripts/prepare-prerelease
-# Build and attest release files from a verified source commit.
-# Author: Eric J. South, Dunlop Lab
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
+# motif-balance
+# scripts/prepare-prerelease
+#
+# Build and verify prerelease distributions with their attestations.
+#
+# Module Author(s): Eric J. South
+# Dunlop Lab
+# --------------------------------------------------------------------------------
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

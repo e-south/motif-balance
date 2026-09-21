@@ -1,4 +1,14 @@
-"""Score supplied DNA without portfolio admission or replacing caller output."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_cli_scoring.py
+
+Score supplied DNA without portfolio admission or replacing caller output.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 import json
 from pathlib import Path

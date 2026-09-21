@@ -1,4 +1,14 @@
-"""Interval relationships are distinct from exact spacing and literal identity."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_architecture_topology.py
+
+Interval relationships are distinct from exact spacing and literal identity.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 import pytest
 

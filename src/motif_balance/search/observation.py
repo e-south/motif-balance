@@ -1,6 +1,13 @@
-"""Passive, bounded recording; never draws randomness or makes search decisions.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/search/observation.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Passive, bounded recording; never draws randomness or makes search decisions.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

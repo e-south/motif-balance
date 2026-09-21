@@ -1,6 +1,13 @@
-"""Replay bounded search observations as compact molecular views and animation.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/playback/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Replay bounded search observations as compact molecular views and animation.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from .api import inspect_playback

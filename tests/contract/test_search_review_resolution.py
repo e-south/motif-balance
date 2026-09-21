@@ -1,4 +1,14 @@
-"""A result review cannot recover improvement times absent from its checkpoints."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_search_review_resolution.py
+
+A result review cannot recover improvement times absent from its checkpoints.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from xml.etree import ElementTree as ET
 

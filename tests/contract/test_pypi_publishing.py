@@ -1,12 +1,14 @@
-# -----------------------------------------------------------------------------
-# motif-balance
-# tests/contract/test_pypi_publishing.py
-#
-# Check that publishing requires reviewed release files and isolated credentials.
-#
-# Author: Eric J. South, Dunlop Lab
-# -----------------------------------------------------------------------------
-"""Contracts for the manual PyPI publishing boundary."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_pypi_publishing.py
+
+Contracts for the manual PyPI publishing boundary.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from pathlib import Path
 

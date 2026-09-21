@@ -1,6 +1,13 @@
-"""Expose motif models, design requests, sequence scoring, and DNA design.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Expose motif models, design requests, sequence scoring, and DNA design.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from motif_balance.api import Portfolio, design, score

@@ -1,6 +1,13 @@
-"""Provide escaped SVG text, stable identifiers, and shared visual primitives.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/render/svg_primitives.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Provide escaped SVG text, stable identifiers, and shared visual primitives.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

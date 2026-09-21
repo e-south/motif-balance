@@ -1,6 +1,13 @@
-"""Bounded wheel ingestion, RECORD validation, and runtime source attestation.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/execution/release.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Bounded wheel ingestion, RECORD validation, and runtime source attestation.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

@@ -1,6 +1,13 @@
-"""Define typed failures with context for invalid inputs and incomplete design requests.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/errors.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Define typed failures with context for invalid inputs and incomplete design requests.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

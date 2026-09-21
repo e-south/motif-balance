@@ -1,6 +1,13 @@
-"""Strict immutable base and deterministic scalar identities.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/base.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Strict immutable base and deterministic scalar identities.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

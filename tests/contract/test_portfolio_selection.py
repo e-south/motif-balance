@@ -1,4 +1,14 @@
-"""The public supplied-pool journey returns full, replayable constrained sets."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_portfolio_selection.py
+
+The public supplied-pool journey returns full, replayable constrained sets.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from itertools import combinations, product
 

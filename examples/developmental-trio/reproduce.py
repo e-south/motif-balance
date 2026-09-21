@@ -1,6 +1,13 @@
-"""Generate a recorded Dorsal/Twist/Zelda design and its reusable playback.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+examples/developmental-trio/reproduce.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Generate a recorded Dorsal/Twist/Zelda design and its reusable playback.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 import argparse
@@ -21,7 +28,9 @@ from motif_balance.playback import (
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description="Generate a recorded Dorsal/Twist/Zelda design and playback."
+    )
     parser.add_argument("--out", required=True, type=Path, help="A new output directory")
     parser.add_argument("--media", action="store_true", help="Also export PNG, GIF and MP4")
     args = parser.parse_args()

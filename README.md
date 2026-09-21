@@ -27,67 +27,62 @@ uv sync --locked --extra visualization
 uv run python
 ```
 
-**1. Define two motifs and design DNA.** These toy motifs prefer AA and CC.
-Each matrix row gives the probabilities of A, C, G and T at one position.
+The `visualization` extra adds **PNG images and GIF/MP4 search videos** showing
+DNA edits, motif logos and the best balance recovered. SVG images and HTML views
+work without it. See the [recorded example](https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md).
+
+**1. Load two TF motifs and design DNA.** ArgR and Cra are *E. coli* profiles
+from [Baumgart et al. (2021), Supplementary Data 2](https://doi.org/10.1038/s41592-021-01312-2).
+Their prepared `probabilities` give A, C, G and T probabilities at each motif
+position. `specifications` pairs each model with a goal: `seek` strengthens its
+best match; `avoid` reduces it. Both DNA strands are scanned.
 
 ```python
-# Import the input models and sequence-design function.
-from motif_balance import DesignSpec, MotifModel, MotifSpecification, design
+# Load the bundled profiles and define the design request.
+from motif_balance import DesignSpec, MotifSpecification, design
+from motif_balance.formats.motif import read_motif
 
-# Give A the strongest preference at both positions.
-left = MotifModel(
-    motif_id="AA",
-    probabilities=((0.7, 0.1, 0.1, 0.1),) * 2,
-    background=(0.25,) * 4,
-)
-# Give C the strongest preference at both positions.
-right = MotifModel(
-    motif_id="CC",
-    probabilities=((0.1, 0.7, 0.1, 0.1),) * 2,
-    background=(0.25,) * 4,
-)
-# Fit both motifs into four bases, scanning both strands by default.
+argr = read_motif("examples/argr-cra/motifs/argR.json")  # 25-position ArgR model
+cra = read_motif("examples/argr-cra/motifs/cra.json")    # 14-position Cra model
 spec = DesignSpec(
-    specifications=(
-        MotifSpecification(motif=left, direction="seek"),
-        MotifSpecification(motif=right, direction="seek"),
+    specifications=(                                     # Motif models and their goals
+        MotifSpecification(motif=argr, direction="seek"),
+        MotifSpecification(motif=cra, direction="seek"),
     ),
-    length=4,
-    count=4,
-    evaluations=256,
+    length=32,                                           # DNA length in base pairs
+    count=4,                                             # Number of sequences to return
+    evaluations=4096,                                    # Maximum candidate evaluations
     seed=7,
 )
-# Find four sequences, using the weakest motif match as their balance score.
-result = design(spec)
-# Print each returned sequence and its balance on the 0–1 model-score scale.
+result = design(spec)                                    # Search by editing and rescanning DNA
 for candidate in result.candidates:
     print(candidate.sequence, round(candidate.balance_score, 3))
 ```
 
-**2. Collect different arrangements.** Sequences can differ yet place their
-motif matches in the same way. Select two arrangements from the saved search pool:
+A candidate evaluation scans every motif across both strands and computes the
+balance: the lowest of their best-match scores, each rescaled to that model's
+possible score range from 0 to 1. This run returns four sequences; the best
+balance is about **0.880**.
+
+**2. Collect different arrangements.** Different sequences can place their
+motif matches in the same way. Group the saved candidates by order, strand and
+overlap, then select two arrangements:
 
 ```python
-# Import the selector that groups matches by order, strand and overlap.
+# Select arrangements from the sequences already evaluated.
 from motif_balance.alternatives import rank_architectures
 
-# Use the retained search pool, including sequences outside the four winners.
-pool = tuple(candidate.sequence for candidate in result.manifest.elites)
-# Keep the best sequence from each distinct arrangement.
+pool = tuple(c.sequence for c in result.manifest.elites)  # Retained search candidates
 ranking = rank_architectures(pool, spec, grouping="interval_topology")
-# Request exactly two distinct arrangements.
-collection = ranking.select(2)
-# Display the selected sequences and their weakest motif-match scores.
+collection = ranking.select(2)                            # Best two distinct arrangements
 for candidate in collection:
     print(candidate.sequence, round(candidate.balance_score, 3))
 ```
 
-The collection contains `AACC` and `AAGG`, both with balance 1.0. In `AAGG`,
-the CC motif matches the reverse strand.
-
-This small example evaluates all 256 four-base sequences. For longer DNA,
-`evaluations` limits the search effort. See [First design](https://github.com/e-south/motif-balance/blob/main/docs/quickstart.md)
-to save a result and view its motif matches.
+This collection has balances of about **0.880** and **0.823**. Selection rescans
+the saved sequences; it does not run another search. See [First design](https://github.com/e-south/motif-balance/blob/main/docs/quickstart.md)
+to save a result and view its motif matches, or the [input provenance](https://github.com/e-south/motif-balance/blob/main/examples/argr-cra/README.md)
+for these two profiles.
 
 The current prerelease supports Python 3.12–3.14 on Linux and macOS.
 See [Contributing](https://github.com/e-south/motif-balance/blob/main/CONTRIBUTING.md) for development and [LICENSE](https://github.com/e-south/motif-balance/blob/main/LICENSE) for

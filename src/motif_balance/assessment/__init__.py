@@ -1,6 +1,13 @@
-"""Assess shared-base preferences before sequence search.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/assessment/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Assess shared-base preferences before sequence search.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from motif_balance.model.assessment import JointAssessment, PairAssessment

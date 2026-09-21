@@ -1,4 +1,14 @@
-"""Contracts for immutable prerelease build attestations."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_release_attestation.py
+
+Contracts for immutable prerelease build attestations.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 

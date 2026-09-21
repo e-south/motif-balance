@@ -1,6 +1,13 @@
-"""Canonical artifact bytes and content identities.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/artifacts/encoding.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Canonical artifact bytes and content identities.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

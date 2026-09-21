@@ -1,7 +1,7 @@
 ---
 doc_id: motif-balance-quickstart
 title: Run a first design
-intent: Design and inspect a small request before using transcription-factor profiles.
+intent: Design and inspect DNA using the ArgR and Cra transcription-factor profiles.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
@@ -14,29 +14,30 @@ journey: [install, design, verify]
 
 Fit two motif preferences into one short sequence, save the result, then inspect
 where each motif matches. Start from the [installed source checkout](installation.md#install-from-source).
-For inline Python inputs, use the [README examples](../README.md#try-a-design).
+For Python inputs, use the [README examples](../README.md#try-a-design).
 
 ## 1. Check the inputs and run the search
 
-The bundled request supplies two toy motifs, a DNA length of two bases and a
-request for three sequences. Both motifs prefer different bases at each position,
-so neither can receive its ideal sequence without compromising the other.
+The bundled request fits the ArgR and Cra motifs into 32 base pairs and asks
+for four sequences. The motifs span 25 and 14 positions, so their best matches
+must share some positions. Their [source and preparation](../examples/argr-cra/README.md)
+are recorded with the inputs.
 
 ```bash
 # Check the motif files, DNA length and search settings without running a search.
-uv run motif-balance design examples/synthetic-pairwise/design.yaml --check
+uv run motif-balance design examples/argr-cra/design.yaml --check
 
-# Evaluate the 16 possible two-base sequences and save three candidates.
-uv run motif-balance design examples/synthetic-pairwise/design.yaml \
+# Evaluate up to 4,096 candidates and save four sequences.
+uv run motif-balance design examples/argr-cra/design.yaml \
   --out /tmp/motif-balance-result
 
 # Verify the saved scores and print the sequences and their motif matches.
 uv run motif-balance inspect /tmp/motif-balance-result
 ```
 
-The best balance is **0.5**: the weaker motif match reaches halfway across that
-model's possible score range. `AT` is one solution. Here, all 16 sequences are
-evaluated, so the result is exact. Larger problems use a limited search budget.
+The best balance is approximately **0.880**: the weaker of the two best motif
+matches, scored relative to its model's possible range. This is a bounded search
+through the 32-base sequence space.
 
 Use a new output directory when rerunning. The saved directory contains the
 request, input motifs, sequences, match tables and search record.
@@ -59,7 +60,7 @@ These exports leave the saved result unchanged.
 
 ## 3. Change the design question
 
-Edit a copy of the [request](../examples/synthetic-pairwise/design.yaml):
+Edit a copy of the [request](../examples/argr-cra/design.yaml):
 
 | Setting | What it changes |
 | --- | --- |

@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# -----------------------------------------------------------------------------
-# motif-balance | scripts/wheel-smoke
-# Check installed distributions against the source API and documented workflows.
-# Author: Eric J. South, Dunlop Lab
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
+# motif-balance
+# scripts/wheel-smoke
+#
+# Compare installed distributions with source APIs and documented workflows.
+#
+# Module Author(s): Eric J. South
+# Dunlop Lab
+# --------------------------------------------------------------------------------
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -200,6 +204,11 @@ PY
   guide_name="${guide##*/}"
   guide_name="${guide_name%.md}"
   mkdir "$smoke_root/source-$guide_name" "$smoke_root/wheel-$guide_name"
+  if [[ "$guide" == "README.md" || "$guide" == "docs/python-api.md" ]]; then
+    mkdir -p "$smoke_root/source-$guide_name/examples" "$smoke_root/wheel-$guide_name/examples"
+    cp -R examples/argr-cra "$smoke_root/source-$guide_name/examples/"
+    cp -R examples/argr-cra "$smoke_root/wheel-$guide_name/examples/"
+  fi
   source_guide="$(cd "$smoke_root/source-$guide_name" && "$source_python" -c "$guide_program")"
   wheel_guide="$(cd "$smoke_root/wheel-$guide_name" && "$smoke_root/venv/bin/python" -c "$guide_program")"
   if [[ "$source_guide" != "$wheel_guide" ]]; then
@@ -207,7 +216,7 @@ PY
     exit 1
   fi
   diff -qr "$smoke_root/source-$guide_name" "$smoke_root/wheel-$guide_name"
-  echo "Installed $guide from empty directory and source parity: ok"
+  echo "Installed $guide in an isolated directory and source parity: ok"
 done
 
 uv run --locked motif-balance design examples/synthetic-pairwise/design.yaml \

@@ -1,4 +1,14 @@
-"""Reject occupied destinations before search without weakening publication."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_design_destination.py
+
+Reject occupied destinations before search without weakening publication.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from pathlib import Path
 

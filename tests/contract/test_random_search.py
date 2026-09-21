@@ -1,4 +1,14 @@
-"""Uniform sampling is an explicit comparator with common scoring and retention."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_random_search.py
+
+Uniform sampling is an explicit comparator with common scoring and retention.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 

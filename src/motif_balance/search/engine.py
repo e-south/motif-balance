@@ -1,6 +1,13 @@
-"""Run exhaustive or annealed search under a shared candidate-evaluation budget.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/search/engine.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Run exhaustive or annealed search under a shared candidate-evaluation budget.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

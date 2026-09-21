@@ -1,6 +1,13 @@
-"""Define immutable records and work bounds for pair and joint motif assessments.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/assessment.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Define immutable records and work bounds for pair and joint motif assessments.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

@@ -1,6 +1,13 @@
-"""Immutable scanned matches, evaluations, and selected candidates.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/evaluation.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Immutable scanned matches, evaluations, and selected candidates.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

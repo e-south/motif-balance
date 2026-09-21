@@ -1,6 +1,13 @@
-"""Describe bounded, verified search frames for presentation.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/playback/model.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Describe bounded, verified search frames for presentation.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from typing import Annotated, Literal, Self

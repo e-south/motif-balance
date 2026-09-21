@@ -1,4 +1,14 @@
-"""Playback preserves verified recorded states and refuses misleading inputs."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_playback.py
+
+Playback preserves verified recorded states and refuses misleading inputs.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 import importlib
 import xml.etree.ElementTree as ET

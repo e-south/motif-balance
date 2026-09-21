@@ -1,6 +1,13 @@
-"""Path-free column evidence for one pre-search arrangement; never a candidate.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/assessment/model.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Path-free column evidence for one pre-search arrangement; never a candidate.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

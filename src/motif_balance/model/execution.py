@@ -1,6 +1,13 @@
-"""Release-bound execution receipts and workspace resources.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/execution.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Release-bound execution receipts and workspace resources.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

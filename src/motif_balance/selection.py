@@ -1,6 +1,13 @@
-"""Select unchanged evaluated sequences under explicit count and separation constraints.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/selection.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Select unchanged evaluated sequences under explicit count and separation constraints.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

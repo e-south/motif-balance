@@ -1,6 +1,13 @@
-"""Resolve design files and their motif references through bounded input reads.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/formats/design.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Resolve design files and their motif references through bounded input reads.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

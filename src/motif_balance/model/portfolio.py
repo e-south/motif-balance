@@ -1,6 +1,13 @@
-"""Cross-record portfolio invariants and unchanged selection boundaries.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/portfolio.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Cross-record portfolio invariants and unchanged selection boundaries.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

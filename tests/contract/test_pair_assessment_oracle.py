@@ -1,4 +1,14 @@
-"""Exhaustive literal-sequence oracle independent of the arrangement calculation."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_pair_assessment_oracle.py
+
+Exhaustive literal-sequence oracle independent of the arrangement calculation.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 

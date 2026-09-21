@@ -1,6 +1,13 @@
-"""Directional request semantics and pre-search resource admission.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/model/design.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Directional request semantics and pre-search resource admission.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

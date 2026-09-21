@@ -1,6 +1,13 @@
-"""Define shared schema identities, search versions, and bounded resource limits.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/constants.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Define shared schema identities, search versions, and bounded resource limits.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

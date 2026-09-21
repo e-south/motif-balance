@@ -1,6 +1,13 @@
-"""Resource reads detect path substitution and verify the recorded digest.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/execution/workspace_io.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Resource reads detect path substitution and verify the recorded digest.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

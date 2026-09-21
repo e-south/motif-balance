@@ -1,6 +1,13 @@
-"""Define smooth-minimum guidance, cooling, and edit probabilities for annealed search.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/search/policy.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Define smooth-minimum guidance, cooling, and edit probabilities for annealed search.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

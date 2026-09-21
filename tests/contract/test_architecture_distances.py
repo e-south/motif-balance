@@ -1,4 +1,14 @@
-"""Prepared distance arithmetic must agree with a literal, independent oracle."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_architecture_distances.py
+
+Prepared distance arithmetic must agree with a literal, independent oracle.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from itertools import combinations, product
 

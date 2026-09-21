@@ -1,4 +1,14 @@
-"""A pair can be assessed without a design request, search, or output directory."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_cli_assessment.py
+
+A pair can be assessed without a design request, search, or output directory.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 import json
 from pathlib import Path

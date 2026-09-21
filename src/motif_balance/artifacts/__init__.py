@@ -1,6 +1,13 @@
-"""Read, verify, and publish canonical design result bundles.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/artifacts/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Read, verify, and publish canonical design result bundles.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from .encoding import artifact_records as artifact_records

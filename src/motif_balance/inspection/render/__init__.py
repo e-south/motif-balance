@@ -1,6 +1,13 @@
-"""Expose text, JSON, HTML, and SVG renderers for validated inspection records.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/render/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Expose text, JSON, HTML, and SVG renderers for validated inspection records.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from .assessment import render_pair_assessment_svg

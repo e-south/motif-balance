@@ -1,0 +1,32 @@
+{
+  "publication": "Baumgart et al. (2021), Persistence and plasticity in bacterial gene regulation",
+  "doi": "https://doi.org/10.1038/s41592-021-01312-2",
+  "dataset": "Supplementary Data 2",
+  "url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41592-021-01312-2/MediaObjects/41592_2021_1312_MOESM5_ESM.zip",
+  "retrieved": "2026-09-21",
+  "archive_sha256": "ed353947e5422afcffab24dd22188d4cddc9e3c01313fa5484fcdf0e819c5cfb",
+  "taxon": "Escherichia coli",
+  "assay": "DAP-seq",
+  "preparation": "Normalize each source row to sum to one, then p = (p0 + 0.025) / 1.1; uniform scoring background",
+  "content": "Numerical probability data extracted from the named source records; no article text or published artwork is included.",
+  "profiles": [
+    {
+      "record": "argR",
+      "protein": "ArgR",
+      "width": 25,
+      "archive_member": "motifs/escherichia_coli_motifs/argR.txt",
+      "original_sha256": "3121f5ce1b359e4bc5edda75f677b3ee89d77ac9baeb1ad3ccfeae83db392be6",
+      "numeric_extract_sha256": "c7c3f1c702cb2438bf4d68cd55c4e331688fae8f6375d1e51bafc31d05b1792a",
+      "prepared_model_digest": "baeaa3e52a798d8937c0f3889b13e381d8bc139231808c9b74e32fb3b22d6947"
+    },
+    {
+      "record": "cra",
+      "protein": "Cra",
+      "width": 14,
+      "archive_member": "motifs/escherichia_coli_motifs/cra.txt",
+      "original_sha256": "3d6600144e0bc848b4a7f6559102fb1aa3b58ab41ff674eb0bdad62c45f76e70",
+      "numeric_extract_sha256": "255942369c22e5e4dee8f4c1671bc4860fe7732701764c7bef74b2d4100a34bc",
+      "prepared_model_digest": "751d4c9431ecf206e6543831d6799d06a4dd24b7bac3619939aa8dc6a158eaa4"
+    }
+  ]
+}

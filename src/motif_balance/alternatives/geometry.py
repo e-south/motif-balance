@@ -1,6 +1,13 @@
-"""Selected-site equivalence and separate, label-invariant pair distances.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/alternatives/geometry.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Selected-site equivalence and separate, label-invariant pair distances.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

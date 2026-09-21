@@ -1,6 +1,13 @@
-"""Select and validate the candidate and matches admitted to a molecular view.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/inspection/render/candidate_projection.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Select and validate the candidate and matches admitted to a molecular view.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

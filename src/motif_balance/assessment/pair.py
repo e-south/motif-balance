@@ -1,6 +1,13 @@
-"""Bounded pair profiles with deterministic placement equivalence.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/assessment/pair.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Bounded pair profiles with deterministic placement equivalence.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

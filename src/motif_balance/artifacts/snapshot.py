@@ -1,6 +1,13 @@
-"""Bounded descriptor-pinned bundle reads and inventory closure.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/artifacts/snapshot.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Bounded descriptor-pinned bundle reads and inventory closure.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

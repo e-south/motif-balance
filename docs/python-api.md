@@ -1,7 +1,7 @@
 ---
 doc_id: motif-balance-python-tutorial
 title: Design and inspect from Python
-intent: Complete a first design with inline synthetic inputs and no checkout-local files.
+intent: Design DNA with source-attributed ArgR and Cra motif profiles.
 audience: [new users, API consumers]
 owner: Motif Balance maintainers
 status: active
@@ -11,121 +11,69 @@ doc_type: tutorial
 
 # Design and inspect from Python
 
-Use this example after [installing the package](installation.md).
-It works from an empty working directory; no motif database, repository examples,
-or study environment is needed. Save the code as `first_design.py` and run it
-with the Python interpreter in that environment.
-
-The two synthetic motifs prefer AC and GT. In two DNA bases their preferences
-must compete: AT attains half of each model's available score range. Complete
-enumeration of all 16 sequences establishes that 0.5 is the best possible
-weakest-motif satisfaction for this forward-only request.
+Run this from the [source checkout](installation.md#install-from-source).
+The [ArgR and Cra inputs](../examples/argr-cra/README.md) contain nucleotide
+probabilities prepared from Baumgart et al. (2021), Supplementary Data 2.
+Each row lists the probabilities of A, C, G and T at one motif position.
 
 ```python
-# Import the models and operations used in this example.
+# Load the real motif models and request four 32-base sequences.
 from pathlib import Path
 
-from motif_balance import DesignSpec, MotifModel, MotifSpecification, design, score
+from motif_balance import DesignSpec, MotifSpecification, design, score
+from motif_balance.formats.motif import read_motif
 from motif_balance.inspection import inspect_result
 from motif_balance.inspection.render import render_candidate_svg, render_text
 
-# Define a two-position motif that prefers AC.
-motif_a = MotifModel(
-    schema_version="motif-model/v2",
-    motif_id="motif_a",
-    probabilities=((0.7, 0.1, 0.1, 0.1), (0.1, 0.7, 0.1, 0.1)),
-    background=(0.25, 0.25, 0.25, 0.25),
-)
-# Define a second motif that prefers GT.
-motif_b = MotifModel(
-    schema_version="motif-model/v2",
-    motif_id="motif_b",
-    probabilities=((0.1, 0.1, 0.7, 0.1), (0.1, 0.1, 0.1, 0.7)),
-    background=(0.25, 0.25, 0.25, 0.25),
-)
-# Fit both preferences into two bases and request three separated sequences.
+argr = read_motif("examples/argr-cra/motifs/argR.json")
+cra = read_motif("examples/argr-cra/motifs/cra.json")
 spec = DesignSpec(
-    schema_version="design-spec/v3",
     specifications=(
-        MotifSpecification(motif=motif_a, direction="seek"),
-        MotifSpecification(motif=motif_b, direction="seek"),
+        MotifSpecification(motif=argr, direction="seek"),  # Strengthen the ArgR match
+        MotifSpecification(motif=cra, direction="seek"),   # Strengthen the Cra match
     ),
-    length=2,
-    count=3,
-    evaluations=16,
+    length=32,                                             # DNA length in base pairs
+    count=4,                                               # Returned sequences
+    evaluations=4096,                                      # Candidate-evaluation budget
     seed=7,
-    strands="forward",
-    min_distance=0.25,
 )
-# Score AT directly before searching for alternatives.
-evaluation = score("AT", spec)
-# Show the weakest of the two best motif matches.
-print("AT balance:", evaluation.balance_score)
-# Show how each desired motif contributes to that balance.
+portfolio = design(spec)                                   # Edit DNA and rescan both strands
+candidate = portfolio.candidates[0]
+evaluation = score(candidate.sequence, spec)               # Recompute its motif matches
 for match in evaluation.matches:
-    print(match.motif_id, match.spec_direction, match.spec_satisfaction)
+    print(match.motif_id, match.spec_satisfaction)
 
-# Search for the requested three sequences.
-portfolio = design(spec)
-# Save the inputs, sequences and scores in a new result directory.
-portfolio.write(Path("result"))
-# Reload the result and verify its recorded scores.
-review = inspect_result(Path("result"), kind="bundle")
-# Print the verified sequence and match summary.
+# Save, verify and draw the result without repeating the search.
+portfolio.write(Path("result"))                            # Use a new directory
+review = inspect_result(Path("result"), kind="bundle")     # Check recorded sequences and scores
 print(render_text(review))
-# Write the best candidate as a duplex with aligned motif logos.
 with Path("candidate.svg").open("xb") as output:
     output.write(render_candidate_svg(review, candidate_rank=1))
 ```
 
-Expected: `AT balance: 0.5`, three returned sequences, an exhaustive search,
-and a verified `result/` bundle. `candidate.svg` shows the selected matches;
-the terminal output supplies the summary without needing a browser.
-The matrix rows are positions and the columns are A, C, G, T.
+The run returns four sequences, with a best balance of approximately **0.880**.
+`candidate.svg` aligns the selected matches and motif logos on double-stranded
+DNA. The score measures agreement with the supplied models.
 
-## Change one requirement
+## Compare search methods
 
-Set one specification's `direction` to `"avoid"` to make a weak strongest
-match desirable. Its satisfaction is `1 - attainment`; this is soft avoidance,
-not a hard exclusion threshold. Increasing `length` changes available space;
-increasing `evaluations` changes search effort. Neither guarantees biological
-function. See [concepts](concepts.md) before comparing their scores.
-
-## Compare search methods explicitly
-
-Append this to the example to try the same six-base problem with three methods:
+Use the same motifs, length and evaluation budget to compare the three policies:
 
 ```python
-# Allow six bases and 127 candidate evaluations for a bounded comparison.
-comparison_spec = DesignSpec.model_validate(
-    {
-        **spec.model_dump(mode="python"),
-        "length": 6,
-        "count": 1,
-        "min_distance": 0.0,
-        "evaluations": 127,
-    }
-)
-# Run each method on the same request and print its recovered balance.
+# Compare policies on the same request and print each best balance.
 for method in ("annealed", "greedy", "random"):
-    result = design(comparison_spec, method=method)
-    print(
-        result.manifest.search_engine,
-        result.manifest.evaluation_count,
-        result.manifest.best_observed.balance_score,
-    )
+    result = design(spec, method=method)
+    print(method, result.manifest.evaluation_count, result.manifest.best_observed.balance_score)
 ```
 
-Each uses 127 scoring calls and the same motif objective. Annealed search uses
-several edit types and can accept worse states; greedy search tries single-base
-changes and adopts only strict improvement; random sampling draws independent
-whole sequences. This one-seed example teaches the interface, not which method
-is generally better. [Methods](methods.md#explicit-comparison-methods) explains
-initialization, plateau behavior, and exact-versus-random semantics.
+Annealed search combines several edit types and can accept worse states during
+exploration. Greedy search accepts only improving single-base changes. Random
+search draws independent sequences. [Methods](methods.md#explicit-comparison-methods)
+defines their evaluation accounting and initialization.
 
 ## Reuse inputs and handle failures
 
-For a YAML request, replace the inline construction with
+For a YAML request, replace the request construction with
 `spec = load_design_spec(Path("design.yaml"))`, importing `load_design_spec`
 from `motif_balance.formats.design`. Relative model paths resolve against that
 file's directory. The [input reference](design-spec.md) owns its exact fields.

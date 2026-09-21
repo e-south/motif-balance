@@ -1,3 +1,15 @@
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_seeded_search.py
+
+Verify seeded search behavior.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
+
 from __future__ import annotations
 
 from motif_balance import DesignSpec, MotifModel, MotifSpecification, design

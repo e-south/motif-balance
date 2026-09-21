@@ -1,6 +1,13 @@
-"""Provide local, accessible controls for recorded SVG search frames.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/playback/player.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Provide local, accessible controls for recorded SVG search frames.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 import json

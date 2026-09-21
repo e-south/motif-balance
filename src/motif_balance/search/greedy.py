@@ -1,6 +1,13 @@
-"""Fixed-budget multi-start greedy coordinate search; never an optimum claim.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/search/greedy.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Fixed-budget multi-start greedy coordinate search; never an optimum claim.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

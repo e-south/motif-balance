@@ -1,6 +1,13 @@
-"""Scientific replay of an already parsed immutable portfolio.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/artifacts/verification.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Scientific replay of an already parsed immutable portfolio.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

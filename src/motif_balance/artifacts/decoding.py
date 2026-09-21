@@ -1,6 +1,13 @@
-"""Strict reconstruction of design and candidate records from bytes.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/artifacts/decoding.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Strict reconstruction of design and candidate records from bytes.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

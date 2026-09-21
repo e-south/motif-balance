@@ -1,6 +1,13 @@
-"""Write review outputs without overwriting existing files or result bundles.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/cli/output.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Write review outputs without overwriting existing files or result bundles.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

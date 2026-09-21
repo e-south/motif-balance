@@ -56,3 +56,6 @@ works without those files. Use `motif-balance` in place of `uv run motif-balance
 </details>
 
 Development and release checks are described in [Contributing](../CONTRIBUTING.md).
+
+The `visualization` extra enables PNG images and GIF/MP4 videos of recorded
+searches. SVG figures and HTML inspection views are available without it.

@@ -1,6 +1,13 @@
-"""Validate a design request or run a bounded DNA search from the command line.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/cli/design.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Validate a design request or run a bounded DNA search from the command line.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

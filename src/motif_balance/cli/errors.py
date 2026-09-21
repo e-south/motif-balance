@@ -1,6 +1,13 @@
-"""Translate validation and domain failures into concise command-line errors.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/cli/errors.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Translate validation and domain failures into concise command-line errors.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

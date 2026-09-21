@@ -1,6 +1,13 @@
-"""Design DNA and score supplied sequences through the public Python API.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/api.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Design DNA and score supplied sequences through the public Python API.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

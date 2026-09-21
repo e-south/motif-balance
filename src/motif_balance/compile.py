@@ -1,6 +1,13 @@
-"""Validate scoring requests and compile motif log odds and attainable score ranges.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/compile.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Validate scoring requests and compile motif log odds and attainable score ranges.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

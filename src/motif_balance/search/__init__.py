@@ -1,6 +1,13 @@
-"""Bounded search entry point; scoring, moves, and recording remain separate.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/search/__init__.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Bounded search entry point; scoring, moves, and recording remain separate.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from .engine import AnnealedSearchEngine, ExhaustiveSearchEngine, search

@@ -1,6 +1,13 @@
-"""Read bounded regular files and reject duplicate keys in JSON and YAML inputs.
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/formats/structured.py
 
-Maintainer(s): Eric J. South, Dunlop Lab
+Read bounded regular files and reject duplicate keys in JSON and YAML inputs.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
 """
 
 from __future__ import annotations

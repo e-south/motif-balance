@@ -1,4 +1,14 @@
-"""Finite-pool selection is checked against literal exhaustive subsets."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_bottleneck_selection.py
+
+Finite-pool selection is checked against literal exhaustive subsets.
+
+Module Author(s): Eric J. South
+Dunlop Lab
+--------------------------------------------------------------------------------
+"""
 
 from itertools import combinations
 from math import fsum
