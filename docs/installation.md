@@ -5,7 +5,7 @@ intent: Install the current prerelease without a research workspace.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-21
+last_verified: 2026-09-22
 doc_type: how-to
 ---
 
@@ -67,5 +67,7 @@ Then run the tutorial from that checkout. Use `motif-balance` in place of
 
 Development and release checks are described in [Contributing](../CONTRIBUTING.md).
 
-The `visualization` extra enables PNG images and GIF/MP4 videos of recorded
-searches. SVG figures and HTML inspection views are available without it.
+The `visualization` extra exports a recorded search state as a PNG image, or the
+saved states as an animated GIF or MP4 video. Each frame places the DNA and motif
+logos beside the best-balance curve. SVG figures, HTML inspection and browser
+playback work without the extra. See [playback exports](reference/playback.md#export-media).

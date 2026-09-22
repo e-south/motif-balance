@@ -29,14 +29,22 @@ uv run python examples/argr-cra/prepare_inputs.py
 uv run python
 ```
 
-The `visualization` extra adds **PNG images and GIF/MP4 search videos** showing
-DNA edits, motif logos and the best balance recovered. SVG images and HTML views
-work without it. See the [recorded example](https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md).
+The `visualization` extra adds:
+
+- **PNG images:** a saved search state, with motif logos on double-stranded DNA
+  beside the best-balance curve.
+- **Animated GIFs and MP4 videos:** playback of saved search states, showing how
+  the DNA and motif matches change. A point on the curve identifies the displayed state.
+
+SVG figures and HTML views, including browser playback, work without the extra.
+See the [recorded example](https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md)
+or [export your own recording](https://github.com/e-south/motif-balance/blob/main/docs/reference/playback.md).
 
 **1. Load two TF motifs and design DNA.** ArgR and Cra are *E. coli* profiles
 from [Baumgart et al. (2021), Supplementary Data 2](https://doi.org/10.1038/s41592-021-01312-2).
-Their prepared `probabilities` give A, C, G and T probabilities at each motif
-position. `specifications` pairs each model with a goal: `seek` strengthens its
+Each row of a model's `probabilities` gives the probabilities of A, C, G and T
+at one motif position; the four values sum to one.
+`specifications` pairs each model with a goal: `seek` strengthens its
 best match; `avoid` reduces it. Both DNA strands are scanned.
 
 ```python
@@ -47,9 +55,9 @@ from motif_balance.formats.motif import read_motif
 argr = read_motif("examples/argr-cra/inputs/motifs/argR.json")  # 25-position ArgR model
 cra = read_motif("examples/argr-cra/inputs/motifs/cra.json")    # 14-position Cra model
 spec = DesignSpec(
-    specifications=(                                            # Motif models and their goals
-        MotifSpecification(motif=argr, direction="seek"),
-        MotifSpecification(motif=cra, direction="seek"),
+    specifications=(                                            # Each motif and its seek/avoid goal
+        MotifSpecification(motif=argr, direction="seek"),       # Strengthen ArgR's best match
+        MotifSpecification(motif=cra, direction="seek"),        # Strengthen Cra's best match
     ),
     length=32,                                                  # DNA length in base pairs
     count=4,                                                    # Number of sequences to return
@@ -74,9 +82,9 @@ overlap, then select two arrangements:
 # Select arrangements from the sequences already evaluated.
 from motif_balance.alternatives import rank_architectures
 
-pool = tuple(c.sequence for c in result.manifest.elites)  # Retained search candidates
+pool = tuple(c.sequence for c in result.manifest.elites)        # Retained search candidates
 ranking = rank_architectures(pool, spec, grouping="interval_topology")
-collection = ranking.select(2)                            # Best two distinct arrangements
+collection = ranking.select(2)                                  # Best two distinct arrangements
 for candidate in collection:
     print(candidate.sequence, round(candidate.balance_score, 3))
 ```
