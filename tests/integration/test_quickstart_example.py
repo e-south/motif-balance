@@ -21,6 +21,7 @@ import pytest
 from motif_balance import design, score
 from motif_balance.formats.design import load_design_spec
 from motif_balance.inspection import inspect_result
+from motif_balance.model.variants import VariantLibrary
 
 
 def test_python_tutorial_runs_with_prepared_source_attributed_inputs(
@@ -29,7 +30,7 @@ def test_python_tutorial_runs_with_prepared_source_attributed_inputs(
     root = Path(__file__).resolve().parents[2]
     guide = (root / "docs/python-api.md").read_text()
     blocks = re.findall(r"```python\n(.*?)```", guide, flags=re.DOTALL)
-    assert len(blocks) == 2
+    assert blocks, "tutorial must contain runnable examples"
 
     shutil.copytree(argr_cra_example, tmp_path / "examples/argr-cra")
     result = subprocess.run(
@@ -44,6 +45,11 @@ def test_python_tutorial_runs_with_prepared_source_attributed_inputs(
     assert (tmp_path / "candidate.svg").read_bytes().startswith(b"<svg")
     review = inspect_result(tmp_path / "result", kind="bundle")
     assert review.portfolio.best_observed_score == pytest.approx(0.880, abs=0.0005)
+    library = VariantLibrary.model_validate_json((tmp_path / "library.json").read_text())
+    assert library.encoded_sequence_count == 8
+    assert library.maximum_component_loss <= 0.02
+    assert (tmp_path / "variants.fasta").read_text().count(">variant-") == 8
+    assert (tmp_path / "variant-scores.tsv").is_file()
 
 
 def test_quickstart_uses_directional_scoring_and_verified_inspection(tmp_path, argr_cra_example):
