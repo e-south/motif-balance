@@ -85,3 +85,29 @@ def test_single_output_admits_longer_scoring_work_but_multicandidate_limit_stays
         DesignSpec(**{**values, "count": 2})
     with pytest.raises(ValidationError, match="score-operation limit"):
         DesignSpec(**{**values, "length": 10000, "evaluations": 100000})
+
+
+def test_tenfold_single_output_budget_keeps_other_resource_limits():
+    prototype = _spec().scored_motifs[0]
+    models = tuple(
+        prototype.model_copy(
+            update={"motif_id": f"model-{i}", "probabilities": prototype.probabilities * 10}
+        )
+        for i in range(12)
+    )
+    values = {
+        "specifications": tuple(MotifSpecification(motif=m, direction="seek") for m in models),
+        "length": 60,
+        "count": 1,
+        "evaluations": 655360,
+        "seed": 839,
+    }
+    assert DesignSpec(**values).evaluations == 655360
+    with pytest.raises(ValidationError, match="evaluation limit"):
+        DesignSpec(**{**values, "count": 2})
+    with pytest.raises(ValidationError):
+        DesignSpec(**{**values, "evaluations": 1000001})
+    with pytest.raises(ValidationError, match="score-operation limit"):
+        DesignSpec(**{**values, "length": 100})
+    with pytest.raises(ValidationError, match="evaluated-base limit"):
+        _spec(evaluations=655360, length=80)
