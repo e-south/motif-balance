@@ -19,15 +19,15 @@ design; use the references when you need to change an input or interpret a resul
 
 | Task | Guide |
 | --- | --- |
-| Install a wheel or source checkout | [Installation](installation.md) |
+| Start a uv project | [Installation](installation.md) |
 | Run, inspect and export a first design | [Quickstart](quickstart.md) |
 | Work with transcription-factor profiles | [Twelve-model recorded search](biological-example.md) |
 | Prepare count or probability matrices | [Motif inputs](motif-models.md) |
 | Write a design request | [Design specification](design-spec.md) |
 | Design from Python | [Python tutorial](python-api.md) |
 | Evaluate DNA you already have | [Sequence scoring](score-sequences.md) |
-| Vary a sequence within its selected arrangement | [Diversify a sequence](diversify-sequences.md) |
 | Select different motif arrangements | [Choose alternatives](choose-alternatives.md) |
+| Vary a sequence within its selected arrangement | [Diversify a sequence](diversify-sequences.md) |
 | Understand scores and saved results | [Interpretation](interpreting-results.md) and [visual inspection](reference/result-inspection.md) |
 
 ## Understand and extend the method

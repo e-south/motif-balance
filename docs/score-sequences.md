@@ -13,14 +13,14 @@ journey: [score]
 
 # Score an existing sequence
 
-After [preparing the example inputs](installation.md#install-from-source),
+After [preparing the example request](quickstart.md),
 use the CLI when you already have a sequence and need the same best-match scoring used during design:
 
 ```bash
-# Score this 32-base sequence against the request without searching for another sequence.
-motif-balance score examples/argr-cra/design.yaml GTTGCTGAATCATTTCATAATTATGCACTATG
+# Score this 25-base sequence against the request without searching for another sequence.
+uv run motif-balance score design.yaml TGCATAATTATGCAGAAGCGATTCA
 # Save the same score and motif-match details as a new JSON file.
-motif-balance score examples/argr-cra/design.yaml GTTGCTGAATCATTTCATAATTATGCACTATG \
+uv run motif-balance score design.yaml TGCATAATTATGCAGAAGCGATTCA \
   --format json --out score.json
 ```
 
@@ -32,7 +32,7 @@ The Python verb accepts an already constructed `DesignSpec`. Start with the
 from motif_balance import score
 
 # Score a sequence recovered by the ArgR/Cra tutorial.
-evaluation = score("GTTGCTGAATCATTTCATAATTATGCACTATG", spec)
+evaluation = score("TGCATAATTATGCAGAAGCGATTCA", spec)
 
 # Print the weakest desired motif match.
 print(evaluation.balance_score)

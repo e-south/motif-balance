@@ -11,14 +11,14 @@ doc_type: tutorial
 
 # Design and inspect from Python
 
-Run this from the [source checkout](installation.md#install-from-source) after
-preparing the ArgR and Cra inputs during installation.
+Start with the [README installation and input preparation](../README.md#1-install-and-prepare-the-profiles).
+Run these examples in that same uv project.
 The prepared [ArgR and Cra inputs](../examples/argr-cra/README.md) contain nucleotide
 probabilities prepared from Baumgart et al. (2021), Supplementary Data 2.
 Each row lists the probabilities of A, C, G and T at one motif position.
 
 ```python
-# Load the real motif models and request four 32-base sequences.
+# Load the real motif models and request four 25-base sequences.
 from pathlib import Path
 
 from motif_balance import DesignSpec, MotifSpecification, design, score
@@ -26,14 +26,14 @@ from motif_balance.formats.motif import read_motif
 from motif_balance.inspection import inspect_result
 from motif_balance.inspection.render import render_candidate_svg, render_text
 
-argr = read_motif("examples/argr-cra/inputs/motifs/argR.json")
-cra = read_motif("examples/argr-cra/inputs/motifs/cra.json")
+argr = read_motif("inputs/motifs/argR.json")
+cra = read_motif("inputs/motifs/cra.json")
 spec = DesignSpec(
     specifications=(
         MotifSpecification(motif=argr, direction="seek"),  # Strengthen the ArgR match
         MotifSpecification(motif=cra, direction="seek"),   # Strengthen the Cra match
     ),
-    length=32,                                             # DNA length in base pairs
+    length=25,                                             # DNA length in base pairs
     count=4,                                               # Returned sequences
     evaluations=4096,                                      # Candidate-evaluation budget
     seed=7,
@@ -52,7 +52,7 @@ with Path("candidate.svg").open("xb") as output:
     output.write(render_candidate_svg(review, candidate_rank=1))
 ```
 
-The run returns four sequences, with a best balance of approximately **0.880**.
+The run returns four sequences, with a best balance of approximately **0.855**.
 `candidate.svg` aligns the selected matches and motif logos on double-stranded
 DNA. The score measures agreement with the supplied models.
 
@@ -72,7 +72,7 @@ for representative in selected:
     print(representative.sequence, round(representative.balance_score, 3))
 ```
 
-These two arrangements have balances of approximately 0.880 and 0.823.
+These two arrangements have balances of approximately 0.855 and 0.801.
 `select(2)` requires two available classes; use `select_up_to(2)` when a smaller
 collection is acceptable. See [collections](choose-alternatives.md) for the
 arrangement definition and reported shortfalls.
@@ -99,8 +99,8 @@ with Path("variant-scores.tsv").open("x") as output:
     output.write(variants_tsv(library))
 ```
 
-For this ArgR/Cra parent, the operation returns eight sequences, with a minimum
-balance of approximately 0.863 and a largest component loss below 0.02.
+For this ArgR/Cra parent, the operation returns sixteen sequences, with a minimum
+balance of approximately 0.838 and a largest component loss below 0.02.
 The ambiguity template describes exactly the concrete variants in the export.
 Every combination is checked, including combinations of substitutions that pass
 individually. A 0.02 tolerance permits two hundredths of loss on each model's

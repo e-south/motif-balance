@@ -1,0 +1,14 @@
+{
+  "video_url": "https://github.com/user-attachments/assets/bda79928-4b92-4f5d-899a-a2c6df3daf72",
+  "file": "playback.mp4",
+  "sha256": "44047b9fa88ecb3c32cc4f5327e279b41465edeb65c97bd3cd8760077d58a7a1",
+  "format": "H.264 MP4",
+  "width": 1400,
+  "height": 1964,
+  "fps": 20,
+  "frames": 166,
+  "duration_seconds": 8.3,
+  "recorded_states": 7,
+  "transition_frames": 16,
+  "meaning": "Tweening joins recorded states without generating intermediate scored sequences."
+}

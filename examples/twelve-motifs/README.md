@@ -4,9 +4,9 @@ The recorded search asks one 60-base sequence to agree with twelve supplied *E. 
 
 ![Recorded improvement of a twelve-model DNA candidate](playback.gif)
 
-[Inspect the final frame](final-frame.png) · [Step-by-step guide](../../docs/biological-example.md)
+[MP4](playback.mp4) · [GIF](playback.gif) · [Inspect the final frame](final-frame.png) · [Step-by-step guide](../../docs/biological-example.md)
 
-The declared seed-839 search uses 65,536 evaluations and produces the displayed candidate with balance **0.724**. This example demonstrates one achieved arrangement. The full selected search took 177.9 seconds elapsed on an Apple M2 Pro with 16 GiB memory while eight search workers ran concurrently. Animation frames are displayed at equal intervals, which do not represent elapsed search time.
+The declared seed-839 search uses 65,536 evaluations and produces the displayed candidate with balance **0.724**. This example demonstrates one achieved arrangement. The full selected search took 177.9 seconds elapsed on an Apple M2 Pro with 16 GiB memory while eight search workers ran concurrently. Playback pauses at recorded states and smoothly moves the motif drawings between them. Viewing time does not represent search time.
 
 ## Reproduce
 
@@ -18,7 +18,7 @@ uv run motif-balance design examples/twelve-motifs/design.yaml --check
 uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo --media
 ```
 
-Open the generated `playback.html` for play/pause and frame selection, or inspect the GIF directly. Outputs must use a new directory. `expected.json` records the selected sequence, score, seed and software version; the reproduction script checks the declared replay package before search and the resulting sequence and balance afterward. Replay uses Motif Balance 0.6.0. The original recorded search used Python 3.12.11, NumPy 2.4.6 and Motif Balance 0.6.0a2.
+Open the generated `playback.html` for play/pause and frame selection, or use the inline video above. Outputs must use a new directory. `expected.json` records the selected sequence, score, seed and software version; the reproduction script checks the declared replay package before search and the resulting sequence and balance afterward. Replay uses Motif Balance 0.6.0. The original recorded search used Python 3.12.11, NumPy 2.4.6 and Motif Balance 0.6.0a2.
 
 ## Inputs and interpretation
 

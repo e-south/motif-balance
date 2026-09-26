@@ -1,6 +1,6 @@
 # ArgR and Cra
 
-Design 32-base DNA with matches to the *Escherichia coli* transcription factors
+Design 25-base DNA with matches to the *Escherichia coli* transcription factors
 ArgR and Cra. Their profiles span 25 and 14 positions, so matches must overlap
 within this length. The [top-level example](../../README.md#try-a-design)
 loads the prepared models from Python; [First design](../../docs/quickstart.md) uses

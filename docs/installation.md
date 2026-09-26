@@ -54,8 +54,7 @@ The optional media package is `motif-balance[visualization]`.
 
 ## Install from source
 
-A source checkout is useful for contributing or running the biological examples'
-input-preparation scripts. Follow [development setup](../CONTRIBUTING.md#development),
+A source checkout is for contributing or changing the bundled recipes. Follow [development setup](../CONTRIBUTING.md#development),
 then prepare the attributed example inputs:
 
 ```bash

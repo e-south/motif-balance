@@ -13,8 +13,9 @@ models, not measured binding.
 
 ## Try a design
 
-Fit the *E. coli* ArgR and Cra preferences into 32 bases. Their motif models span
-25 and 14 positions, so their matches must share some DNA. The profiles come from
+Fit the *E. coli* ArgR and Cra preferences into 25 bases. Their motif models span
+25 and 14 positions. At the larger model’s width of 25 bases, the shorter
+match must fit entirely within the same DNA. The profiles come from
 [Baumgart et al. (2021), Supplementary Data 2](https://doi.org/10.1038/s41592-021-01312-2),
 which reports preferences inferred from DAP-seq.
 
@@ -54,13 +55,13 @@ from motif_balance.formats.motif import read_motif
 argr = read_motif("inputs/motifs/argR.json")
 cra = read_motif("inputs/motifs/cra.json")
 
-# Seek strong matches to both models within the same 32-base sequence.
+# Seek strong matches to both models within the same 25-base sequence.
 spec = DesignSpec(
     specifications=(
         MotifSpecification(motif=argr, direction="seek"),
         MotifSpecification(motif=cra, direction="seek"),
     ),
-    length=32,          # Available DNA in base pairs.
+    length=25,          # The wider motif spans all available DNA.
     count=4,            # Number of candidate sequences to return.
     evaluations=4096,  # Allowance for complete-sequence scores, shared by this run.
     seed=7,             # Repeat the same starting choices and search proposals.
@@ -83,7 +84,7 @@ uv run python design.py
 uv run motif-balance inspect result --format svg --view candidate --out candidate.svg
 ```
 
-Open `candidate.svg` in an image viewer. This run's best balance is about **0.880**.
+Open `candidate.svg` in an image viewer. This run's best balance is about **0.855**.
 Use new output names when repeating a run. SVG and HTML inspection need no extra
 packages; [Installation](https://github.com/e-south/motif-balance/blob/main/docs/installation.md)
 covers optional PNG, GIF, and MP4 support and ordinary pip installation.
@@ -106,7 +107,7 @@ for representative in selected:
     print(representative.sequence, round(representative.balance_score, 3))
 ```
 
-These representatives score about **0.880** and **0.823**. Selection rescans the
+These representatives score about **0.855** and **0.801**. Selection rescans the
 saved pool without running another search. `select(2)` requires two available
 arrangements; [collections](https://github.com/e-south/motif-balance/blob/main/docs/choose-alternatives.md)
 explains how to allow and report a shortfall.
@@ -137,8 +138,8 @@ with Path("library.json").open("x") as output:
     output.write(library.model_dump_json(indent=2))
 ```
 
-This parent yields **eight checked sequences**, with balance no lower than about
-**0.863**. The cap includes the parent; other designs may yield only that parent.
+This parent yields **sixteen checked sequences**, with balance no lower than about
+**0.838**. The cap includes the parent; other designs may yield only that parent.
 The tolerance concerns model scores, not binding affinity. See
 [diversification](https://github.com/e-south/motif-balance/blob/main/docs/diversify-sequences.md)
 for editable positions and the substitution map.
@@ -149,7 +150,9 @@ The [twelve-model example](https://github.com/e-south/motif-balance/blob/main/do
 shows a recorded search in 60-base DNA. Playback connects saved states with smooth
 motion; displayed scores remain those of recorded sequences.
 
-![Recorded twelve-model search with aligned motif matches](https://raw.githubusercontent.com/e-south/motif-balance/main/examples/twelve-motifs/playback.gif)
+https://github.com/user-attachments/assets/bda79928-4b92-4f5d-899a-a2c6df3daf72
+
+[Full-resolution MP4](https://github.com/e-south/motif-balance/raw/refs/heads/main/examples/twelve-motifs/playback.mp4) · [Inspect the final sequence](https://github.com/e-south/motif-balance/blob/main/examples/twelve-motifs/final-frame.png)
 
 Motif Balance supports Python 3.12–3.14 on Linux and macOS.
 See [Contributing](https://github.com/e-south/motif-balance/blob/main/CONTRIBUTING.md)
