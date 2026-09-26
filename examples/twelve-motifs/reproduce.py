@@ -37,9 +37,9 @@ def main() -> None:
         raise ValueError("Example models differ from the declared preparation")
     args.out.mkdir(parents=True, exist_ok=False)
     started = time.perf_counter()
-    # Record early improvement at doubling counts, plus one late-search checkpoint.
+    # Record early improvement at doubling counts and additional late-search observations.
     # Recording does not change the proposal sequence, acceptance, or search budget.
-    checkpoints = tuple(sorted({*(2**power for power in range(3, 17)), 49_152}))
+    checkpoints = tuple(sorted({*(2**power for power in range(3, 20)), 49_152, 196_608, 655_360}))
     portfolio, observation = design_observed(
         spec, ObservationSpec(max_snapshots=96, incumbent_evaluations=checkpoints)
     )

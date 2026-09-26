@@ -1,8 +1,8 @@
 {
-  "sequence": "ATAGCTCAGGCTAAATTTAGTGTAAAAAAAGTATAAAACCACAAACTGAAACGATTCAGC",
-  "balance": 0.7235860006528714,
+  "sequence": "GGAGAAGTTAACCATTTTTATATTTTTTTTATGAAACGATTCAGCTATAGGGTGGTTCCC",
+  "balance": 0.7333263307305261,
   "seed": 839,
-  "evaluations": 65536,
+  "evaluations": 655360,
   "model_ids": [
     "nagC",
     "kdpE",
@@ -17,6 +17,6 @@
     "csiR",
     "mntR"
   ],
-  "producer": "motif-balance 0.6.0a2",
+  "producer": "working source based on 9147a98f9ad1273461b705d991fb04e36d6be78d with expanded single-result budget limits",
   "replay_package_version": "0.7.0"
 }
