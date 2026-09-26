@@ -34,15 +34,15 @@ app.add_typer(orchestration_app, name="orchestration", hidden=True)
 
 @app.callback()
 def root() -> None:
-    """Design DNA from motif preferences, compare alternatives, and inspect search results."""
+    """Design DNA, inspect motif matches, collect arrangements, and diversify a sequence."""
 
 
-app.command("assess")(assess_command)
 app.command("design")(design_command)
+app.command("inspect")(inspect_command)
 app.command("collect")(collect_command)
 app.command("diversify")(diversify_command)
 app.command("score")(score_command)
-app.command("inspect")(inspect_command)
+app.command("assess")(assess_command)
 app.command("animate")(animate_command)
 motif_app.command("prepare")(prepare_motif_command)
 orchestration_app.command("execute")(execute_command)

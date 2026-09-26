@@ -46,7 +46,12 @@ chosen viewing rate.
 For up to eight models, the two views have equal square content areas, with the
 duplex scale and DNA baselines fixed across the recording. This layout exports at
 1,920 × 1,056 pixels. For nine to twelve models, a larger square recovery plot sits on the left of a
-continuous molecular view, with larger axis labels.
+continuous molecular view, with presentation-sized axis labels. The score above
+the orange point gives the displayed candidate's balance. For the best-sequence
+view it is labeled *B* with subscript “best” and evaluation count *e*. Balance
+*B(s)* is the minimum normalized motif score *qᵢ(s)* for DNA sequence *s*. The
+best-so-far value is the largest balance encountered through *e* evaluations.
+Scores stay at recorded values during a display transition.
 The larger canvas retains the same dimensions across frames; the duplex moves
 vertically as the number of forward- and reverse-strand matches changes.
 
@@ -78,6 +83,22 @@ should bound reads before loading bytes; the CLI does this automatically.
 combined frame records. Chain views use only snapshots that actually recorded
 that chain, rather than substituting incumbent-only checkpoints.
 Render functions consume that data without rerunning optimization themselves.
+
+To show ongoing exploration behind the best sequence, use `--search-chain 0`
+with `animate`, or pass `search_chain_id=0` to `inspect_playback` in Python. This adds the sampled current states of one fixed chain
+in gray, while the colored molecule and curve retain the best result. It cannot
+be combined with `chain_id`. The eight chains share one run's budget; they are
+not eight independent repeated searches. A checkpoint without a new chain state
+keeps the preceding recorded gray state at its original evaluation coordinate.
+No state is shown before it was recorded. The gray curve is not every evaluated
+proposal, and its hard-minimum balance differs from the smooth acceptance score.
+
+The twelve-model example records 96 periodic snapshots plus early incumbent
+checkpoints. Its movie uses all recorded states; its smaller HTML overview
+selects eight frames to stay within the player size limit. Gray placements can
+change while the best sequence remains fixed. Tweening provides display motion
+between those observations without creating additional scored DNA.
+
 
 ## Export media
 

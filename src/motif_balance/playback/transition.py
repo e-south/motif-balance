@@ -25,13 +25,30 @@ def blend_svgs(before: bytes, after: bytes, fraction: float) -> bytes:
     if fraction == 1:
         return after
     old, new = ET.fromstring(before), ET.fromstring(after)
-    old_duplex = next(n for n in old.iter() if n.get("data-duplex-layout"))
-    new_duplex = next(n for n in new.iter() if n.get("data-duplex-layout"))
+    new_layers = {n.get("data-duplex-layout"): n for n in new.iter() if n.get("data-duplex-layout")}
+    for old_duplex in [n for n in old.iter() if n.get("data-duplex-layout")]:
+        new_duplex = new_layers.get(old_duplex.get("data-duplex-layout"))
+        if new_duplex is None:
+            raise ArtifactError("transition cannot discard a recorded molecule layer")
+        if ET.tostring(old_duplex) == ET.tostring(new_duplex):
+            continue
+        canvas = _blend_duplex(old_duplex, new_duplex, fraction)
+        for parent in old.iter():
+            if old_duplex in list(parent):
+                index = list(parent).index(old_duplex)
+                parent.remove(old_duplex)
+                parent.insert(index, canvas)
+                break
+    old.set("data-visual-transition", "true")
+    old.set("data-transition-to-evaluations", new.get("data-evaluations", ""))
+    return bytes(ET.tostring(old, encoding="utf-8"))
+
+
+def _blend_duplex(old_duplex: ET.Element, new_duplex: ET.Element, t: float) -> ET.Element:
     old_groups = {n.get("data-motif-id"): n for n in old_duplex if n.get("data-motif-id")}
     new_groups = {n.get("data-motif-id"): n for n in new_duplex if n.get("data-motif-id")}
     if old_groups.keys() != new_groups.keys():
         raise ArtifactError("transition must retain the same motif models")
-    t = fraction
     canvas = ET.Element(Q + "g", old_duplex.attrib)
     # Keep the duplex moving continuously when the distribution of strands
     # changes the number of rows allocated above it.
@@ -75,12 +92,4 @@ def blend_svgs(before: bytes, after: bytes, fraction: float) -> bytes:
             for item in copied.iter():
                 item.attrib.pop("id", None)
             wrapper.append(copied)
-    for parent in old.iter():
-        if old_duplex in list(parent):
-            index = list(parent).index(old_duplex)
-            parent.remove(old_duplex)
-            parent.insert(index, canvas)
-            break
-    old.set("data-visual-transition", "true")
-    old.set("data-transition-to-evaluations", new.get("data-evaluations", ""))
-    return bytes(ET.tostring(old, encoding="utf-8"))
+    return canvas

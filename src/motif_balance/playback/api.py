@@ -24,7 +24,10 @@ from .model import PlaybackFrame, PlaybackInspection
 
 
 def inspect_playback(
-    observation: SearchObservation | bytes, *, chain_id: int | None = None
+    observation: SearchObservation | bytes,
+    *,
+    chain_id: int | None = None,
+    search_chain_id: int | None = None,
 ) -> PlaybackInspection:
     """Verify a search before presenting its sampled best states or one fixed chain.
 
@@ -33,6 +36,10 @@ def inspect_playback(
     """
     if chain_id is not None and (type(chain_id) is not int or not 0 <= chain_id < 8):
         raise ArtifactError("chain must be an integer from 0 through 7, or omitted")
+    if search_chain_id is not None and (
+        type(search_chain_id) is not int or not 0 <= search_chain_id < 8 or chain_id is not None
+    ):
+        raise ArtifactError("search chain must be 0 through 7 and cannot accompany chain_id")
     if isinstance(observation, bytes):
         # Parse and check presentation bounds before the potentially expensive replay.
         if len(observation) > 64 * 1024 * 1024:
@@ -50,7 +57,10 @@ def inspect_playback(
         for p in item.motif.background
     ):
         raise ArtifactError("information-logo playback requires a uniform scoring background")
-    if chain_id is not None and any(chain_id >= len(row.states) for row in checked.snapshots):
+    selected_chain = chain_id if chain_id is not None else search_chain_id
+    if selected_chain is not None and any(
+        selected_chain >= len(row.states) for row in checked.snapshots
+    ):
         raise ArtifactError("the recorded search does not contain that chain")
     counts = {row.evaluations for row in checked.snapshots}
     if chain_id is None:
@@ -78,6 +88,10 @@ def inspect_playback(
             }
         )
     frames = []
+    search_projection = None
+    search_count = None
+    snapshots = iter(checked.snapshots)
+    next_snapshot = next(snapshots, None)
     for count, (incumbent, evaluation) in sorted(records.items()):
         candidate = Candidate(
             **evaluation.model_dump(mode="python"),
@@ -85,11 +99,26 @@ def inspect_playback(
             rank=1,
         )
         projection = inspect_candidate(candidate, checked.spec)
+        if search_chain_id is not None:
+            while next_snapshot is not None and next_snapshot.evaluations <= count:
+                search_evaluation = next_snapshot.states[search_chain_id].evaluation
+                search_projection = inspect_candidate(
+                    Candidate(
+                        **search_evaluation.model_dump(mode="python"),
+                        candidate_id=candidate_id_for_sequence(search_evaluation.sequence),
+                        rank=1,
+                    ),
+                    checked.spec,
+                ).candidate
+                search_count = next_snapshot.evaluations
+                next_snapshot = next(snapshots, None)
         frames.append(
             PlaybackFrame(
                 evaluations=count,
                 best_balance=incumbent.balance_score,
                 candidate=projection.candidate,
+                search_candidate=search_projection,
+                search_evaluations=search_count,
             )
         )
     return PlaybackInspection(
@@ -97,5 +126,6 @@ def inspect_playback(
         problem=projection.problem,
         engine=checked.engine,
         chain_id=chain_id,
+        search_chain_id=search_chain_id,
         frames=tuple(frames),
     )

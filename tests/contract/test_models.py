@@ -24,8 +24,8 @@ from motif_balance import DesignSpec, MotifModel, MotifSpecification, design
 from motif_balance.compile import compile_design, sequence_space_at_most
 from motif_balance.constants import (
     MAX_CANDIDATE_COUNT,
-    MAX_EVALUATIONS,
     MAX_SEQUENCE_LENGTH,
+    MAX_SINGLE_OUTPUT_EVALUATIONS,
 )
 from motif_balance.errors import IncompatibleDesign
 from motif_balance.model import MotifConversion, PortfolioRecord, RunManifest
@@ -583,7 +583,7 @@ def test_compile_rejects_uninformative_motif() -> None:
     [
         ("length", MAX_SEQUENCE_LENGTH + 1),
         ("count", MAX_CANDIDATE_COUNT + 1),
-        ("evaluations", MAX_EVALUATIONS + 1),
+        ("evaluations", MAX_SINGLE_OUTPUT_EVALUATIONS + 1),
         ("length", 10**100),
     ],
 )
@@ -643,7 +643,7 @@ def test_design_rejects_pathological_scoring_work(motif_a: MotifModel) -> None:
             length=10_000,
             count=1,
             strands="both",
-            evaluations=100_000,
+            evaluations=1_000_000,
             seed=3,
         )
 
@@ -652,7 +652,7 @@ def test_design_rejects_pathological_evaluated_bases(motif_a: MotifModel) -> Non
     with pytest.raises(ValidationError, match="evaluated-base limit"):
         DesignSpec(
             specifications=(MotifSpecification(motif=motif_a, direction="seek"),),
-            length=300,
+            length=600,
             count=1,
             strands="forward",
             evaluations=100_000,
@@ -684,12 +684,12 @@ def test_public_contract_schema_fingerprints() -> None:
 
     expected = {
         "MotifModel": "676ec07431bcf7a32756c7980d6ca84009bd187c540cfeb67526aa3ecf62d1c8",
-        "DesignSpec": "039b99e38d96c245347de5ebda3f5a85e521e57973e0388c76225409eec08fb6",
+        "DesignSpec": "22823a8ecf7d7c99049701b97018e4b42ec0f5352a1d517d0bd680b4f7fca5cb",
         "Evaluation": "cf3aa1bb9c04b91b281f49ed99520c1b61000cf026a6e82215340cca0269cee2",
         "Candidate": "2c6d94476efc388ccf5870b2df2b51d917ee9872b1926a96a205d5bc8790af6b",
         "SearchDiagnostics": "d34dc3dc61c805a55ed8645619767eb4f46077aeed2063b0ebaea285bfc22b73",
         "RunManifest": "ba38d4be73752260ddbf73078840687b73174ef4e159e13fc6c61918a7f2fb55",
-        "PortfolioRecord": "d8c0e2bf3acd5cce4a007c2eb9541b4fb688b12f63260ceae635f42577eec926",
+        "PortfolioRecord": "a36da67c64e51ca6d970dd8eb22871cb4c3d25cf07d78fd07a23c2e8f2c76548",
         "ExecutionReceipt": "9637673465f1de551d006c9bd7e2c0ee1e4c865a9f1c239a6bc7cfcafee7198c",
         "ExecutionWorkspace": "ad1dcbb4f33d5ea548fe8ac10455b46ea90642c6a3d3caf17503b96572461ccc",
     }

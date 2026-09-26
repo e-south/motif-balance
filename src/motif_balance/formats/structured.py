@@ -171,16 +171,19 @@ def read_bounded_regular_file_at(directory_fd: int, relative_path: Path) -> byte
             os.close(current_fd)
 
 
-def read_bounded_regular_file(path: Path) -> bytes:
+def read_bounded_regular_file(path: Path, *, max_bytes: int | None = None) -> bytes:
     """Read one immutable regular-file snapshot without following links."""
-
+    if max_bytes is None:
+        max_bytes = MAX_INPUT_BYTES
+    if type(max_bytes) is not int or max_bytes < 1:
+        raise ValueError("file byte limit must be a positive integer")
     descriptor: int | None = None
     try:
         before = os.lstat(path)
         if not stat.S_ISREG(before.st_mode):
             reason = "symbolic-link input" if stat.S_ISLNK(before.st_mode) else "unsafe input"
             raise BoundedInputError(reason)
-        if before.st_size > MAX_INPUT_BYTES:
+        if before.st_size > max_bytes:
             raise BoundedInputError("byte limit")
         flags = (
             os.O_RDONLY
@@ -197,7 +200,7 @@ def read_bounded_regular_file(path: Path) -> bytes:
         ):
             raise BoundedInputError("input changed before it was opened")
         chunks: list[bytes] = []
-        remaining = MAX_INPUT_BYTES + 1
+        remaining = max_bytes + 1
         while remaining:
             chunk = os.read(descriptor, remaining)
             if not chunk:
@@ -228,7 +231,7 @@ def read_bounded_regular_file(path: Path) -> bytes:
             path_after.st_mtime_ns,
             path_after.st_ctime_ns,
         )
-        if len(raw) > MAX_INPUT_BYTES:
+        if len(raw) > max_bytes:
             raise BoundedInputError("byte limit")
         if (
             opened_identity != after_identity

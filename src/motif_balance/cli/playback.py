@@ -53,6 +53,15 @@ def animate_command(
             help="Optional zero-based chain identity; default shows the best sequence so far.",
         ),
     ] = None,
+    search_chain: Annotated[
+        int | None,
+        typer.Option(
+            "--search-chain",
+            min=0,
+            max=7,
+            help="Show one recorded current candidate in gray behind the best; excludes --chain.",
+        ),
+    ] = None,
     fps: Annotated[int, typer.Option("--fps", min=1, max=30)] = 4,
     frame: Annotated[
         int, typer.Option("--frame", help="Zero-based SVG/PNG frame; -1 is final.")
@@ -83,7 +92,9 @@ def animate_command(
             raise ArtifactError("--transition-frames requires GIF or MP4")
         if width is not None and format_name in ("html", "svg"):
             raise ArtifactError("--width requires PNG, GIF or MP4")
-        value = inspect_playback(_read_observation(observation), chain_id=chain)
+        value = inspect_playback(
+            _read_observation(observation), chain_id=chain, search_chain_id=search_chain
+        )
         if format_name == "html":
             payload = render_playback_html(value, fps=fps)
         elif format_name == "svg":

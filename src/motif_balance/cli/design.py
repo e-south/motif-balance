@@ -29,7 +29,9 @@ from .errors import _emit_error
 
 def design_command(
     specification: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)],
-    out: Annotated[Path | None, typer.Option("--out", help="Immutable output directory.")] = None,
+    out: Annotated[
+        Path | None, typer.Option("--out", help="New directory for sequences, scores, and inputs.")
+    ] = None,
     check: Annotated[
         bool, typer.Option("--check", help="Compile and validate without search.")
     ] = False,
@@ -42,7 +44,7 @@ def design_command(
     ] = "annealed",
     debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
 ) -> None:
-    """Validate or execute one immutable DesignSpec."""
+    """Search for DNA matching the requested motif preferences."""
 
     try:
         spec = load_design_spec(specification)

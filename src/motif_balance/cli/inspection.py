@@ -72,11 +72,11 @@ def inspect_command(
     subject: Annotated[Path, typer.Argument(exists=True, file_okay=False, readable=True)],
     source: Annotated[
         Literal["bundle", "execution"],
-        typer.Option("--source", help="Explicit result source contract."),
+        typer.Option("--source", help="Saved design or recorded execution."),
     ] = "bundle",
     format_name: Annotated[
         Literal["text", "json", "html", "svg"],
-        typer.Option("--format", help="Review projection format."),
+        typer.Option("--format", help="Text, structured data, or a visual review."),
     ] = "text",
     view: Annotated[
         Literal["candidate", "portfolio", "search"] | None,
@@ -104,7 +104,7 @@ def inspect_command(
     ] = None,
     debug: Annotated[bool, typer.Option("--debug")] = False,
 ) -> None:
-    """Verify and review one immutable result."""
+    """View sequences, motif matches, and scores from a saved design."""
 
     try:
         if receipt_out is not None and not (

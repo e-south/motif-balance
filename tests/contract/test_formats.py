@@ -273,3 +273,23 @@ def test_motif_readers_refuse_symbolic_links(tmp_path: Path) -> None:
             motif_id="canonical",
             background=(0.25, 0.25, 0.25, 0.25),
         )
+
+
+def test_explicit_file_limit_preserves_default_and_rejects_unsafe_inputs(tmp_path):
+    from motif_balance.constants import MAX_INPUT_BYTES
+    from motif_balance.formats.structured import BoundedInputError, read_bounded_regular_file
+
+    source = tmp_path / "report.json"
+    source.write_bytes(b"x" * (MAX_INPUT_BYTES + 1))
+    with pytest.raises(BoundedInputError, match="byte limit"):
+        read_bounded_regular_file(source)
+    assert (
+        len(read_bounded_regular_file(source, max_bytes=MAX_INPUT_BYTES + 1)) == MAX_INPUT_BYTES + 1
+    )
+    linked = tmp_path / "linked.json"
+    linked.symlink_to(source)
+    with pytest.raises(BoundedInputError, match="symbolic-link"):
+        read_bounded_regular_file(linked, max_bytes=MAX_INPUT_BYTES + 1)
+    for invalid in (0, -1, True, 1.5):
+        with pytest.raises(ValueError, match="positive integer"):
+            read_bounded_regular_file(source, max_bytes=invalid)

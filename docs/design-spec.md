@@ -22,7 +22,7 @@ a `DesignSpec` in Python. The current file schema is `design-spec/v3`.
 | `length` | integer, 1–10,000 | yes | Exact candidate length in bases. |
 | `count` | integer, 1–100,000 | yes | Exact number of distinct candidates to return. |
 | `strands` | `forward` or `both` | no | Defaults to `both`. |
-| `evaluations` | integer, 1–100,000 | yes | Number of complete candidate evaluations; must be at least `count`. |
+| `evaluations` | integer, 1–100,000; up to 1,000,000 for one result | yes | Number of complete candidate evaluations; must be at least `count`. |
 | `seed` | nonnegative integer | yes | Seed for deterministic search. |
 | `min_distance` | number, 0–1 or null | no | Minimum fraction of differing bases between selected sequences; null and zero are unconstrained. |
 | `scoring_semantics` | `relative_pwm_attainment_v2` | no | Version of the model-relative match calculation. |
@@ -71,14 +71,17 @@ Validation also caps the work implied by otherwise valid fields:
 
 - at most 1,000,000 candidate–motif rows across specifications;
 - at most 10,000,000 selected portfolio bases;
-- at most 25,000,000 evaluated bases;
+- at most 25,000,000 evaluated bases, or 50,000,000 for exactly one candidate;
 - at most 100,000,000 motif-window base-score operations across specifications,
-  or 2,000,000,000 when requesting exactly one candidate;
+  or 15,000,000,000 when requesting exactly one candidate;
 - at most 10,000,000 pairwise distance base comparisons when distance is positive.
 
 Single-output searches retain at most 256 full evaluation records, which suffices
 for exact winner and elite selection. They still retain exact sequence discovery
-identities, bounded by the unchanged evaluation and evaluated-base limits.
+identities, bounded by the single-output evaluation and evaluated-base limits.
+The larger allowance changes resource admission, not proposals or acceptance.
+Increasing the requested budget also stretches the existing annealing schedule,
+so a longer run starts afresh rather than continuing a shorter run.
 Multi-output searches retain their complete pool for exact constrained selection.
 
 These bounds prevent unexpectedly large allocations and calculations. Requests outside them

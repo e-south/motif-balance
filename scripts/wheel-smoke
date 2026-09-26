@@ -183,7 +183,51 @@ PY
 
 "$smoke_root/venv/bin/python" examples/argr-cra/prepare_inputs.py --out "$smoke_root/argr-cra-inputs"
 source_python="$(uv run --locked python -c 'import sys; print(sys.executable)')"
-for guide in README.md docs/python-api.md docs/pair-assessment.md docs/choose-alternatives.md docs/reference/portfolio-selection.md docs/reference/search-observations.md; do
+# Execute the README command blocks with both installations, outside the checkout.
+readme_program="$("$source_python" - "$repo_root/README.md" <<'PYDOC'
+import re
+import sys
+import tomllib
+from pathlib import Path
+readme = Path(sys.argv[1])
+version = tomllib.loads((readme.parent / "pyproject.toml").read_text())["project"]["version"]
+assert f"motif-balance/v{version}/examples/argr-cra" in readme.read_text(), "README example URL must match the release"
+assert f"uv add 'motif-balance=={version}'" in readme.read_text(), "README must pin the package to the example release"
+blocks = re.findall(r"```bash\n(.*?)```", Path(sys.argv[1]).read_text(), flags=re.DOTALL)
+commands = [block for block in blocks if "uv run motif-balance " in block]
+assert len(commands) == 3, "README must exercise design/inspect, collect, and diversify"
+print("\n".join(commands).replace("uv run motif-balance ", '\"$MB_DOCS_CLI\" '))
+PYDOC
+)"
+for install in source wheel; do
+  mkdir "$smoke_root/$install-README"
+  cp -R "$smoke_root/argr-cra-inputs" "$smoke_root/$install-README/inputs"
+  cp examples/argr-cra/design.yaml "$smoke_root/$install-README/design.yaml"
+  if [[ "$install" == source ]]; then
+    docs_cli="${source_python%/*}/motif-balance"
+  else
+    docs_cli="$smoke_root/venv/bin/motif-balance"
+  fi
+  (cd "$smoke_root/$install-README" && MB_DOCS_CLI="$docs_cli" bash -euc "$readme_program") \
+    >"$smoke_root/$install-README.stdout"
+done
+cmp "$smoke_root/source-README.stdout" "$smoke_root/wheel-README.stdout"
+diff -qr "$smoke_root/source-README" "$smoke_root/wheel-README"
+"$smoke_root/venv/bin/python" - "$smoke_root/wheel-README" <<'PYDOC'
+import json
+import sys
+from pathlib import Path
+root = Path(sys.argv[1])
+collection = json.loads((root / "collection.json").read_text())["collection"]
+assert [round(row["evaluation"]["balance_score"], 3) for row in collection["members"]] == [0.855, 0.801]
+from motif_balance.model.variants import VariantLibrary
+library = VariantLibrary.model_validate_json((root / "variants/library.json").read_text())
+assert library.encoded_sequence_count == 16
+assert round(library.minimum_balance, 3) == 0.838
+print("Installed README command workflow, stated biological results, and source parity: ok")
+PYDOC
+
+for guide in docs/python-api.md docs/pair-assessment.md docs/choose-alternatives.md docs/reference/portfolio-selection.md docs/reference/search-observations.md; do
   guide_program="$(python3 - "$repo_root/$guide" <<'PY'
 import re
 import sys

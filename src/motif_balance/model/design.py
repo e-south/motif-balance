@@ -27,6 +27,8 @@ from motif_balance.constants import (
     MAX_RUN_MANIFEST_BYTES,
     MAX_SCORE_BASE_OPERATIONS,
     MAX_SEQUENCE_LENGTH,
+    MAX_SINGLE_OUTPUT_EVALUATED_BASES,
+    MAX_SINGLE_OUTPUT_EVALUATIONS,
     MAX_SINGLE_OUTPUT_SCORE_BASE_OPERATIONS,
     OBJECTIVE_SEMANTICS,
     SCORING_SEMANTICS,
@@ -50,7 +52,7 @@ class DesignSpec(FrozenModel):
     length: Annotated[int, Field(strict=True, gt=0, le=MAX_SEQUENCE_LENGTH)]
     count: Annotated[int, Field(strict=True, gt=0, le=MAX_CANDIDATE_COUNT)]
     strands: Literal["forward", "both"] = "both"
-    evaluations: Annotated[int, Field(strict=True, gt=0, le=MAX_EVALUATIONS)]
+    evaluations: Annotated[int, Field(strict=True, gt=0, le=MAX_SINGLE_OUTPUT_EVALUATIONS)]
     seed: Annotated[int, Field(strict=True, ge=0)]
     min_distance: Annotated[float, Field(strict=True, ge=0.0, le=1.0)] | None = None
     scoring_semantics: Literal["relative_pwm_attainment_v2"] = SCORING_SEMANTICS
@@ -77,6 +79,8 @@ class DesignSpec(FrozenModel):
             raise ValueError(f"{self.schema_version} requires motifs using 'motif-model/v2'")
         if self.count > self.evaluations:
             raise ValueError("evaluations must be at least count")
+        if self.count != 1 and self.evaluations > MAX_EVALUATIONS:
+            raise ValueError("multiple-output design exceeds the evaluation limit")
         motif_count = len(self.scored_motifs)
         if self.count * motif_count > MAX_BUNDLE_ROWS:
             raise ValueError("count times motif count exceeds the canonical match-row limit")
@@ -96,7 +100,8 @@ class DesignSpec(FrozenModel):
         )
         if score_operations > score_limit:
             raise ValueError("design exceeds the score-operation limit")
-        if self.evaluations * self.length > MAX_EVALUATED_BASES:
+        base_limit = MAX_SINGLE_OUTPUT_EVALUATED_BASES if self.count == 1 else MAX_EVALUATED_BASES
+        if self.evaluations * self.length > base_limit:
             raise ValueError("evaluations times length exceeds the evaluated-base limit")
         elite_bound = min(DEFAULT_ELITE_CAPACITY, self.evaluations)
         space_bound = 1

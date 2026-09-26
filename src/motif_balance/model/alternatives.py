@@ -288,3 +288,20 @@ class ArchitectureCollection(FrozenModel):
         if len({member.architecture_class for member in self.members}) != self.delivered_count:
             raise ValueError("collection repeats an architecture class")
         return self
+
+
+class CollectionReport(FrozenModel):
+    """A saved selection with its scoring inputs and declared source identity."""
+
+    schema_version: Literal["collection-report/v1"] = "collection-report/v1"
+    source_bundle_id: str = Field(pattern=r"^bundle-[0-9a-f]{24}$")
+    source_verification: Literal["self_consistent", "external_bundle_id"]
+    pool: Literal["retained_elites"] = "retained_elites"
+    ranking: ArchitectureRanking
+    collection: ArchitectureCollection
+
+    @model_validator(mode="after")
+    def validate_selection(self) -> Self:
+        if self.collection != self.ranking.select_up_to(self.collection.requested_count):
+            raise ValueError("saved collection differs from its ranked selection")
+        return self

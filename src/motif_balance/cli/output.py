@@ -13,11 +13,13 @@ Dunlop Lab
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 from pathlib import Path
 
 import typer
 
+from motif_balance.artifacts.publication import _publish_directory_no_replace
 from motif_balance.errors import ArtifactError
 
 
@@ -87,6 +89,23 @@ def _write_new_file(path: Path, payload: bytes, *, label: str) -> None:
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
+
+
+def _write_new_directory(path: Path, files: dict[str, bytes]) -> None:
+    """Publish a complete derived handoff without replacing any existing entry."""
+    path = path.absolute()
+    if os.path.lexists(path):
+        raise ArtifactError("Refusing to replace existing output directory.", field="out")
+    if any(Path(name).name != name or name in ("", ".", "..") for name in files):
+        raise ArtifactError("output names must be plain filenames")
+    staged = Path(tempfile.mkdtemp(prefix=f".{path.name}.", dir=path.parent))
+    try:
+        for name, payload in files.items():
+            (staged / name).write_bytes(payload)
+        _publish_directory_no_replace(staged, path)
+    finally:
+        if staged.exists():
+            shutil.rmtree(staged)
 
 
 def _write_new_file_pair(
