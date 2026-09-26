@@ -33,18 +33,20 @@ choose another zero-based index with `--frame`. Output files must be new, and
 the suffix must match the selected format.
 
 By default the molecule is the best sequence evaluated so far at each recorded
-snapshot. `--chain 0` instead follows one fixed, zero-based search-chain identity;
+snapshot or exact incumbent checkpoint. The default view combines these records
+in evaluation order, counting a shared checkpoint once. `--chain 0` instead follows one fixed, zero-based search-chain identity;
 its current score can decrease. The best-so-far curve remains separate from that
 current state. Uniform random sampling and complete enumeration have no search
 chains. Missing chains or unsupported frames are rejected.
 
 The blue curve connects recorded snapshots. The orange point gives the score
 and evaluation count for the displayed DNA. Unequal spacing comes from the
-recorded counts on a logarithmic axis. Each snapshot receives equal viewing time.
+recorded counts on a logarithmic axis. HTML presents these observations at the
+chosen viewing rate.
 For up to eight models, the two views have equal square content areas, with the
 duplex scale and DNA baselines fixed across the recording. This layout exports at
-1,920 × 1,056 pixels. For nine to twelve models, the recovery plot sits above a
-full-width molecular view so that the duplex remains continuous and readable.
+1,920 × 1,056 pixels. For nine to twelve models, a larger square recovery plot sits on the left of a
+continuous molecular view, with larger axis labels.
 The larger canvas retains the same dimensions across frames; the duplex moves
 vertically as the number of forward- and reverse-strand matches changes.
 
@@ -72,7 +74,9 @@ with Path("playback.html").open("xb") as output:
 
 This example assumes a trusted local file. Integrations accepting external files
 should bound reads before loading bytes; the CLI does this automatically.
-`inspect_playback` verifies the supplied observation and constructs frame data.
+`inspect_playback` verifies the supplied observation and constructs at most 256
+combined frame records. Chain views use only snapshots that actually recorded
+that chain, rather than substituting incumbent-only checkpoints.
 Render functions consume that data without rerunning optimization themselves.
 
 ## Export media
@@ -100,8 +104,11 @@ motif-balance animate observation.json --format mp4 --out smooth.mp4 \
 `--transition-frames` adds 0–30 display frames between consecutive observations.
 Motif drawings move and crossfade, rotating when their selected strand changes.
 DNA letters and scores come from the two recorded endpoints. Transition frames
-are labeled and retain the earlier point on the recovery curve until the next
-observation is reached. They do not represent additional evaluated sequences.
+retain the earlier point on the recovery curve until the next observation is
+reached. Each saved state occupies one frame, without an added pause or
+slowdown at every checkpoint. Tweened movies skip unchanged intermediate drawings;
+the curve and HTML player retain every observation, and the final checkpoint is
+always shown. Display transitions do not represent additional evaluated sequences.
 `--width` reduces raster size while preserving the aspect ratio. MP4 streams
 frames to the encoder; GIF holds them in memory and enforces a pixel limit.
 

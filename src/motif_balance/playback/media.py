@@ -39,6 +39,23 @@ def _dependency(name: str) -> ModuleType:
         ) from exc
 
 
+def _movie_steps(view: PlaybackInspection, transition_frames: int) -> list[tuple[int, int]]:
+    """Pair saved-state indices with the number of display frames leading into them."""
+    steps = [(0, 0)]
+    for i in range(1, len(view.frames)):
+        old, new = view.frames[steps[-1][0]], view.frames[i]
+        changed = old.candidate != new.candidate
+        if (
+            transition_frames
+            and not changed
+            and old.best_balance == new.best_balance
+            and i < len(view.frames) - 1
+        ):
+            continue
+        steps.append((i, transition_frames if changed else 0))
+    return steps
+
+
 def render_playback_media(
     view: PlaybackInspection,
     *,
@@ -52,7 +69,10 @@ def render_playback_media(
 
     Movie timing expresses a viewing rate. It is not search elapsed time. The
     optional transitions move and crossfade the recorded drawings without
-    inventing intermediate scores or DNA sequences.
+    inventing intermediate scores or DNA sequences. Each saved state occupies one
+    frame; transitions do not insert pauses at the recorded states. Tweened movies
+    skip unchanged intermediate drawings but preserve their plotted observations
+    and always include the final checkpoint.
     """
     view = validate_view(view)
     if format_name not in ("png", "gif", "mp4"):
@@ -68,12 +88,8 @@ def render_playback_media(
         raise ArtifactError("width must be an integer from 320 through the native frame width")
     width = native_width if width is None else width
     height = math.ceil(native_height * width / native_width)
-    hold = max(1, fps // 2) if transition_frames else 1
-    count = (
-        1
-        if format_name == "png"
-        else len(view.frames) * hold + (len(view.frames) - 1) * transition_frames
-    )
+    steps = _movie_steps(view, transition_frames)
+    count = 1 if format_name == "png" else sum(1 + transitions for _, transitions in steps)
     # GIF retains its frames; MP4 streams one raster at a time to the encoder.
     if width * height * (count if format_name == "gif" else 1) > _MAX_PIXELS:
         raise ArtifactError("media exceeds the 128-million-pixel limit; reduce width or use MP4")
@@ -100,14 +116,12 @@ def render_playback_media(
 
     def frames() -> Iterator[Any]:
         previous = None
-        for index in range(len(view.frames)):
+        for index, transitions in steps:
             svg = render_playback_svg(view, frame=index)
             if previous is not None:
-                for step in range(1, transition_frames + 1):
-                    yield raster(blend_svgs(previous, svg, step / (transition_frames + 1)))
-            image = raster(svg)
-            for _ in range(hold):
-                yield image
+                for step in range(1, transitions + 1):
+                    yield raster(blend_svgs(previous, svg, step / (transitions + 1)))
+            yield raster(svg)
             previous = svg
 
     if format_name == "gif":

@@ -28,9 +28,17 @@ CELL = 20
 LANE = 98
 
 
-def label(x: float, y: float, value: str, *, anchor: str = "start", color: str = "#252525") -> str:
+def label(
+    x: float,
+    y: float,
+    value: str,
+    *,
+    anchor: str = "start",
+    color: str = "#252525",
+    size: int = FONT,
+) -> str:
     return (
-        f'<text x="{x:g}" y="{y:g}" font-family="Arial,sans-serif" font-size="{FONT}" '
+        f'<text x="{x:g}" y="{y:g}" font-family="Arial,sans-serif" font-size="{size}" '
         f'text-anchor="{anchor}" fill="{color}">{safe_text(value)}</text>'
     )
 

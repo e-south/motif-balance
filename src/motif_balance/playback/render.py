@@ -33,14 +33,18 @@ def _layout(view: PlaybackInspection) -> dict[str, float]:
     molecule_width = left_margin(view.problem) + view.problem.length * CELL + 100
     molecule_height = 110 + (forward + reverse) * LANE
     if len(view.problem.motifs) > 8:
-        width = RIGHT + molecule_width + 40
+        chart_size = 800
+        recovery_x = LEFT + 30
+        molecule_x = recovery_x + chart_size + 110
+        width = molecule_x + molecule_width + 40
         molecule_height = 110 + len(view.problem.motifs) * LANE
         return {
             "width": width,
             "height": TOP + molecule_height + 40,
-            "recovery_x": LEFT,
-            "recovery_y": TOP + (molecule_height - PANEL) / 2,
-            "molecule_x": RIGHT,
+            "recovery_x": recovery_x,
+            "recovery_y": TOP + (molecule_height - chart_size) / 2,
+            "chart_size": chart_size,
+            "molecule_x": molecule_x,
             "molecule_y": TOP,
             "molecule_width": molecule_width,
             "molecule_height": molecule_height,
@@ -53,6 +57,7 @@ def _layout(view: PlaybackInspection) -> dict[str, float]:
         "height": HEIGHT,
         "recovery_x": LEFT,
         "recovery_y": TOP,
+        "chart_size": PANEL,
         "molecule_x": RIGHT + (PANEL - molecule_width * zoom) / 2,
         "molecule_y": TOP + (PANEL - molecule_height * zoom) / 2,
         "molecule_width": PANEL,
@@ -90,6 +95,8 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
     width, height, top_lanes = frame_dimensions(view)
     geometry = _layout(view)
     expanded = len(view.problem.motifs) > 8
+    panel = geometry["chart_size"]
+    font = 26 if expanded else 18
     canvas_width, canvas_height = geometry["width"], geometry["height"]
     molecule_x, molecule_y, zoom = geometry["molecule_x"], geometry["molecule_y"], geometry["zoom"]
     recovery_x, recovery_y = geometry["recovery_x"], geometry["recovery_y"]
@@ -110,17 +117,22 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         "DNA gray saturation reports the largest relative matched-base probability. </desc>",
         f'<rect width="{canvas_width:g}" height="{canvas_height:g}" fill="white"/>',
         label(
-            recovery_x + PANEL / 2, recovery_y - 31, "Best balance during search", anchor="middle"
+            recovery_x + panel / 2,
+            recovery_y - 38,
+            "Best balance so far",
+            anchor="middle",
+            size=font + 2 if expanded else font,
         ),
         label(
             molecule_x + geometry["molecule_width"] / 2 if expanded else RIGHT + PANEL / 2,
             35,
             scope,
             anchor="middle",
+            size=font + 2 if expanded else font,
         ),
     ]
     panels: list[tuple[str, float, float, float, float]] = [
-        ("recovery", recovery_x, recovery_y, PANEL, PANEL)
+        ("recovery", recovery_x, recovery_y, panel, panel)
     ]
     panels.append(
         (
@@ -136,22 +148,22 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
             f'<rect data-panel="{name}" x="{panel_x:g}" y="{panel_y:g}" '
             f'width="{panel_width:g}" height="{panel_height:g}" fill="white"/>'
         )
-    x0, x1, y0, y1 = recovery_x, recovery_x + PANEL, recovery_y, recovery_y + PANEL
+    x0, x1, y0, y1 = recovery_x, recovery_x + panel, recovery_y, recovery_y + panel
     max_log = math.log10(max(2, view.frames[-1].evaluations))
 
     def x_position(evaluations: int) -> float:
-        return x0 + PANEL * math.log10(evaluations) / max_log
+        return x0 + panel * math.log10(evaluations) / max_log
 
     def y_position(score: float) -> float:
         # Small fixed headroom keeps endpoint markers clear of the spines.
-        return y1 - PANEL * (score + 0.025) / 1.05
+        return y1 - panel * (score + 0.025) / 1.05
 
     # Grid precedes every data mark. Only bottom and left spines are drawn.
     for value in (0.0, 0.25, 0.5, 0.75, 1.0):
         y = y_position(value)
         parts.append(f'<path d="M{x0} {y:g} H{x1}" stroke="#E3E5E8" stroke-width="1.2"/>')
         parts.append(f'<path d="M{x0 - 6} {y:g} H{x0}" stroke="#444" stroke-width="1.8"/>')
-        parts.append(label(x0 - 12, y + 6, f"{value:g}", anchor="end"))
+        parts.append(label(x0 - 12, y + 6, f"{value:g}", anchor="end", size=font))
     last_evaluation = view.frames[-1].evaluations
     ticks = [1]
     tick = 10
@@ -164,15 +176,27 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         x = x_position(tick)
         parts.append(f'<path d="M{x:g} {y0} V{y1}" stroke="#E3E5E8" stroke-width="1.2"/>')
         parts.append(f'<path d="M{x:g} {y1} v6" stroke="#444" stroke-width="1.8"/>')
-        parts.append(label(x, y1 + 28, f"{tick:,}", anchor="middle"))
+        parts.append(
+            label(x, y1 + (36 if expanded else 28), f"{tick:,}", anchor="middle", size=font)
+        )
     parts.append(f'<path d="M{x0} {y0} V{y1} H{x1}" stroke="#444" stroke-width="1.8" fill="none"/>')
     parts.append(
-        label((x0 + x1) / 2, y1 + 61, "Candidate evaluations (log scale)", anchor="middle")
+        label(
+            (x0 + x1) / 2,
+            y1 + (78 if expanded else 61),
+            "Candidate evaluations (log scale)",
+            anchor="middle",
+            size=font,
+        )
     )
     parts.append(
-        f'<g transform="translate({x0 - 50:g} {(y0 + y1) / 2}) rotate(-90)">'
+        f'<g transform="translate({x0 - (58 if expanded else 50):g} {(y0 + y1) / 2}) rotate(-90)">'
         + label(
-            0, 0, "Best balance recovered" if view.chain_id is None else "Balance", anchor="middle"
+            0,
+            0,
+            "Best balance recovered" if view.chain_id is None else "Balance",
+            anchor="middle",
+            size=font,
         )
         + "</g>"
     )
@@ -187,7 +211,7 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
     parts.append(
         f'<circle data-current-state="true" data-score="{current.candidate.balance_score}" '
         f'data-evaluations="{current.evaluations}" cx="{x:.3f}" cy="{y:.3f}" '
-        'r="6" fill="#D55E00" stroke="white" stroke-width="1.5"/>'
+        f'r="{8 if expanded else 6}" fill="#D55E00" stroke="white" stroke-width="1.5"/>'
     )
     parts.append(
         f'<g data-duplex-layout="fixed" transform="translate({molecule_x:g} '
