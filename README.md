@@ -26,7 +26,7 @@ With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed:
 # Create a project and install the package from PyPI.
 uv init --python 3.12 motif-example
 cd motif-example
-uv add 'motif-balance>=0.7.0'
+uv add 'motif-balance==0.7.0'
 
 # Fetch the attributed example, its source record, and its editable design request.
 MB_EXAMPLE_URL=https://raw.githubusercontent.com/e-south/motif-balance/v0.7.0/examples/argr-cra

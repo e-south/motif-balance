@@ -192,6 +192,7 @@ from pathlib import Path
 readme = Path(sys.argv[1])
 version = tomllib.loads((readme.parent / "pyproject.toml").read_text())["project"]["version"]
 assert f"motif-balance/v{version}/examples/argr-cra" in readme.read_text(), "README example URL must match the release"
+assert f"uv add 'motif-balance=={version}'" in readme.read_text(), "README must pin the package to the example release"
 blocks = re.findall(r"```bash\n(.*?)```", Path(sys.argv[1]).read_text(), flags=re.DOTALL)
 commands = [block for block in blocks if "uv run motif-balance " in block]
 assert len(commands) == 3, "README must exercise design/inspect, collect, and diversify"
