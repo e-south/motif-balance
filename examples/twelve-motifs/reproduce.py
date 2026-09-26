@@ -51,21 +51,49 @@ def main() -> None:
     ):
         raise ValueError("Recorded example differs; check the declared software and environment")
     (args.out / "observation.json").write_text(observation.model_dump_json())
-    # Keep one fixed search chain behind the best result, rather than splicing chains.
-    view = inspect_playback(observation, search_chain_id=0)
-    (args.out / "inspected.json").write_text(view.model_dump_json())
-    # The controllable HTML overview stays small; the movie uses every recorded state.
+    # Keep the full record; show all eight chains through the first recorded final best.
+    full_view = inspect_playback(observation, search_chain_id="all")
+    (args.out / "inspected.json").write_text(full_view.model_dump_json())
+    view = full_view.until_last_improvement()
+    # The HTML overview shows eight best states; the movie also shows all search chains.
     indices = sorted({round(i * (len(view.frames) - 1) / 7) for i in range(8)})
-    overview = view.model_copy(update={"frames": tuple(view.frames[i] for i in indices)})
+    overview = view.model_copy(
+        update={
+            "search_chain_id": None,
+            "frames": tuple(
+                view.frames[i].model_copy(
+                    update={
+                        "search_candidates": (),
+                        "search_evaluations": None,
+                    }
+                )
+                for i in indices
+            ),
+        }
+    )
     (args.out / "playback.html").write_bytes(render_playback_html(overview))
     (args.out / "final-frame.svg").write_bytes(render_playback_svg(view))
     if args.media:
         # The movie moves between saved placements; it does not invent search states.
         (args.out / "playback.mp4").write_bytes(
-            render_playback_media(view, format_name="mp4", fps=30, transition_frames=4, width=1800)
+            render_playback_media(
+                view,
+                format_name="mp4",
+                fps=30,
+                transition_frames=26,
+                pacing="accelerating",
+                width=1800,
+            )
         )
         (args.out / "playback.gif").write_bytes(
-            render_playback_media(view, format_name="gif", fps=30, transition_frames=4, width=480)
+            render_playback_media(
+                view,
+                format_name="gif",
+                fps=30,
+                transition_frames=26,
+                pacing="accelerating",
+                width=480,
+            )
         )
         (args.out / "final-frame.png").write_bytes(render_playback_media(view, format_name="png"))
     print(f"Best balance {winner.balance_score:.3f}; complete search {elapsed:.1f} seconds elapsed")

@@ -71,3 +71,44 @@ def test_playback_cli_can_overlay_one_recorded_search_chain(pairwise_spec, tmp_p
     invalid = tmp_path / "conflict.svg"
     result = CliRunner().invoke(app, [*args[:-1], str(invalid), "--chain", "1"])
     assert result.exit_code != 0 and not invalid.exists()
+
+
+def test_showcase_cli_shows_all_chains_and_stops_at_last_improvement(pairwise_spec, tmp_path):
+    import xml.etree.ElementTree as ET
+
+    app = typer.Typer()
+    app.command()(animate_command)
+    _, observation = design_observed(
+        pairwise_spec.model_copy(update={"count": 1, "evaluations": 128}),
+        ObservationSpec(max_snapshots=8),
+    )
+    source = tmp_path / "observation.json"
+    source.write_text(observation.model_dump_json())
+    out = tmp_path / "showcase.svg"
+    result = CliRunner().invoke(
+        app,
+        [
+            str(source),
+            "--search-chain",
+            "all",
+            "--until-last-improvement",
+            "--format",
+            "svg",
+            "--out",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    root = ET.fromstring(out.read_bytes())
+    final_score = observation.snapshots[-1].incumbent.balance_score
+    first_final = next(
+        s.evaluations for s in observation.snapshots if s.incumbent.balance_score == final_score
+    )
+    assert root.get("data-evaluations") == str(first_final)
+    assert len(root.findall(".//{http://www.w3.org/2000/svg}circle[@data-search-state]")) == 8
+    invalid = tmp_path / "wrong.svg"
+    result = CliRunner().invoke(
+        app,
+        [str(source), "--pacing", "accelerating", "--format", "svg", "--out", str(invalid)],
+    )
+    assert result.exit_code != 0 and not invalid.exists()

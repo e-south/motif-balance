@@ -2,7 +2,7 @@
 
 The recorded search asks one 60-base sequence to agree with twelve supplied *E. coli* motif models. Every candidate is scanned on both strands. Its balance is the weakest of the twelve normalized best matches.
 
-https://github.com/user-attachments/assets/a6408061-1620-473f-85c8-e29dabfe9d54
+https://github.com/user-attachments/assets/11f7d777-e4dd-43aa-854c-24d4552d198d
 
 [MP4](playback.mp4) · [GIF](playback.gif) · [Inspect the final frame](final-frame.png) · [Step-by-step guide](../../docs/biological-example.md)
 
@@ -10,7 +10,9 @@ The seed-839 search uses 655,360 evaluations and produces the displayed candidat
 
 This is a fresh search with ten times the earlier evaluation allowance. The same models and seed previously recovered balance 0.724 at 65,536 evaluations. The larger allowance stretches the proposal and acceptance schedules, so the new run is not a continuation of that trajectory. This one comparison illustrates an achieved improvement; it does not establish a general compute-response curve.
 
-The chart on the left separates the changing score of one current candidate (gray) from the best balance found (blue). On the right, faint gray placements show that same current candidate behind the colored best DNA. The recording contains 113 observations, 95 distinct current sequences, and 12 distinct best sequences. The selected chain is fixed before playback; it is one of eight candidate sequences sharing the run's budget. It does not represent every proposal. Motion connects recorded drawings, while scores update only at observations. The movie uses all recorded states; the HTML overview selects eight frames. Viewing time is not elapsed search time.
+The eight gray traces follow the candidate sequences maintained by the search; blue records the best balance encountered. Their faint placements move behind the colored best DNA. All eight share one evaluation budget. These snapshots omit intermediate proposals, so their current scores need not meet the best-so-far point.
+
+The movie ends at 125,497 evaluations, the first saved observation containing the final best score. Its 33 observations include twelve distinct best sequences. The axis ends there too; the complete run still used 655,360 evaluations. Motion starts slowly and accelerates, while scores update only at recorded observations. Viewing time is not elapsed search time. The small HTML overview shows eight best-sequence frames.
 
 ## Reproduce
 

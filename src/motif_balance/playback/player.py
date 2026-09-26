@@ -74,7 +74,8 @@ def render_playback_html(view: PlaybackInspection, *, fps: int = 4) -> bytes:
     if type(fps) is not int or not 1 <= fps <= 30:
         raise ArtifactError("fps must be an integer from 1 through 30")
     glyph_count = sum(motif.width for motif in view.problem.motifs) * 4 * len(view.frames)
-    if glyph_count * 1800 * (2 if view.search_chain_id is not None else 1) > 32 * 1024 * 1024:
+    layers = 1 + max(len(f.recorded_search_candidates) for f in view.frames)
+    if glyph_count * 1800 * layers > 32 * 1024 * 1024:
         raise ArtifactError("projected playback HTML exceeds 32 MiB; request fewer snapshots")
     frames = [render_playback_svg(view, frame=i).decode() for i in range(len(view.frames))]
     # Escape '<' so motif identifiers cannot terminate the JSON script element.
@@ -82,8 +83,12 @@ def render_playback_html(view: PlaybackInspection, *, fps: int = 4) -> bytes:
     result = _PAGE.substitute(
         first_frame=frames[0],
         search_description=(
-            "Gray shows sampled states of one fixed search chain behind the best DNA. "
-            "It is not every evaluated proposal."
+            (
+                "Gray shows the recorded search candidates behind the best DNA. "
+                if view.search_chain_id == "all"
+                else "Gray shows sampled states of one fixed search chain behind the best DNA. "
+            )
+            + "These snapshots do not include every evaluated proposal."
             if view.search_chain_id is not None
             else ""
         ),

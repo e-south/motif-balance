@@ -12,9 +12,11 @@ Dunlop Lab
 
 import hashlib
 import math
+from typing import Literal
 
 from motif_balance.api import read_search_observation, verify_search_observation
 from motif_balance.errors import ArtifactError
+from motif_balance.inspection.model import InspectionCandidate
 from motif_balance.inspection.supplied import inspect_candidate
 from motif_balance.model import Candidate
 from motif_balance.model.evaluation import candidate_id_for_sequence
@@ -27,7 +29,7 @@ def inspect_playback(
     observation: SearchObservation | bytes,
     *,
     chain_id: int | None = None,
-    search_chain_id: int | None = None,
+    search_chain_id: int | Literal["all"] | None = None,
 ) -> PlaybackInspection:
     """Verify a search before presenting its sampled best states or one fixed chain.
 
@@ -37,9 +39,13 @@ def inspect_playback(
     if chain_id is not None and (type(chain_id) is not int or not 0 <= chain_id < 8):
         raise ArtifactError("chain must be an integer from 0 through 7, or omitted")
     if search_chain_id is not None and (
-        type(search_chain_id) is not int or not 0 <= search_chain_id < 8 or chain_id is not None
+        (
+            search_chain_id != "all"
+            and (type(search_chain_id) is not int or not 0 <= search_chain_id < 8)
+        )
+        or chain_id is not None
     ):
-        raise ArtifactError("search chain must be 0 through 7 and cannot accompany chain_id")
+        raise ArtifactError("search chain must be 0 through 7 or all and cannot accompany chain_id")
     if isinstance(observation, bytes):
         # Parse and check presentation bounds before the potentially expensive replay.
         if len(observation) > 64 * 1024 * 1024:
@@ -59,7 +65,8 @@ def inspect_playback(
         raise ArtifactError("information-logo playback requires a uniform scoring background")
     selected_chain = chain_id if chain_id is not None else search_chain_id
     if selected_chain is not None and any(
-        selected_chain >= len(row.states) for row in checked.snapshots
+        (not row.states if selected_chain == "all" else selected_chain >= len(row.states))
+        for row in checked.snapshots
     ):
         raise ArtifactError("the recorded search does not contain that chain")
     counts = {row.evaluations for row in checked.snapshots}
@@ -89,6 +96,7 @@ def inspect_playback(
         )
     frames = []
     search_projection = None
+    search_projections: tuple[InspectionCandidate, ...] = ()
     search_count = None
     snapshots = iter(checked.snapshots)
     next_snapshot = next(snapshots, None)
@@ -101,15 +109,26 @@ def inspect_playback(
         projection = inspect_candidate(candidate, checked.spec)
         if search_chain_id is not None:
             while next_snapshot is not None and next_snapshot.evaluations <= count:
-                search_evaluation = next_snapshot.states[search_chain_id].evaluation
-                search_projection = inspect_candidate(
-                    Candidate(
-                        **search_evaluation.model_dump(mode="python"),
-                        candidate_id=candidate_id_for_sequence(search_evaluation.sequence),
-                        rank=1,
-                    ),
-                    checked.spec,
-                ).candidate
+                states = (
+                    next_snapshot.states
+                    if search_chain_id == "all"
+                    else (next_snapshot.states[search_chain_id],)
+                )
+                projected = tuple(
+                    inspect_candidate(
+                        Candidate(
+                            **state.evaluation.model_dump(mode="python"),
+                            candidate_id=candidate_id_for_sequence(state.evaluation.sequence),
+                            rank=1,
+                        ),
+                        checked.spec,
+                    ).candidate
+                    for state in states
+                )
+                if search_chain_id == "all":
+                    search_projections = projected
+                else:
+                    search_projection = projected[0]
                 search_count = next_snapshot.evaluations
                 next_snapshot = next(snapshots, None)
         frames.append(
@@ -118,6 +137,7 @@ def inspect_playback(
                 best_balance=incumbent.balance_score,
                 candidate=projection.candidate,
                 search_candidate=search_projection,
+                search_candidates=search_projections,
                 search_evaluations=search_count,
             )
         )

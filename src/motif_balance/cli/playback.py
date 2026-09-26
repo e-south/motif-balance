@@ -54,12 +54,10 @@ def animate_command(
         ),
     ] = None,
     search_chain: Annotated[
-        int | None,
+        str | None,
         typer.Option(
             "--search-chain",
-            min=0,
-            max=7,
-            help="Show one recorded current candidate in gray behind the best; excludes --chain.",
+            help="Show gray candidates: all, or one chain from 0 to 7; excludes --chain.",
         ),
     ] = None,
     fps: Annotated[int, typer.Option("--fps", min=1, max=30)] = 4,
@@ -75,6 +73,18 @@ def animate_command(
             help="Display-only motion between recorded GIF/MP4 states.",
         ),
     ] = 0,
+    pacing: Annotated[
+        Literal["uniform", "accelerating"],
+        typer.Option(
+            "--pacing", help="Movie transitions at a constant or increasing viewing rate."
+        ),
+    ] = "uniform",
+    until_last_improvement: Annotated[
+        bool,
+        typer.Option(
+            "--until-last-improvement", help="End at the first recorded final-best score."
+        ),
+    ] = False,
     width: Annotated[
         int | None,
         typer.Option("--width", min=320, help="Raster output width; default is native size."),
@@ -90,11 +100,22 @@ def animate_command(
             raise ArtifactError("--frame is supported only for SVG or PNG")
         if transition_frames and format_name not in ("gif", "mp4"):
             raise ArtifactError("--transition-frames requires GIF or MP4")
+        if pacing != "uniform" and (format_name not in ("gif", "mp4") or not transition_frames):
+            raise ArtifactError("--pacing accelerating requires a tweened GIF or MP4")
         if width is not None and format_name in ("html", "svg"):
             raise ArtifactError("--width requires PNG, GIF or MP4")
+        if search_chain not in (None, "all", *(str(i) for i in range(8))):
+            raise ArtifactError("--search-chain must be all or an integer from 0 through 7")
+        selected_chain: int | Literal["all"] | None = None
+        if search_chain == "all":
+            selected_chain = "all"
+        elif search_chain is not None:
+            selected_chain = int(search_chain)
         value = inspect_playback(
-            _read_observation(observation), chain_id=chain, search_chain_id=search_chain
+            _read_observation(observation), chain_id=chain, search_chain_id=selected_chain
         )
+        if until_last_improvement:
+            value = value.until_last_improvement()
         if format_name == "html":
             payload = render_playback_html(value, fps=fps)
         elif format_name == "svg":
@@ -106,6 +127,7 @@ def animate_command(
                 fps=fps,
                 frame=frame,
                 transition_frames=transition_frames,
+                pacing=pacing,
                 width=width,
             )
         _write_new_file(out, payload, label="playback output")
