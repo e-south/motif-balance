@@ -44,11 +44,16 @@ their trial outcome separately. The requested output count and diversity
 constraints are hard postconditions.
 
 An explicit random method samples with replacement and reports bounded
-completion even if its budget could cover the entire space. Its shared ledger
-counts every draw and retains exact unique evaluations internally. The
-256-elite export cap therefore does not bound working memory; profile memory
-before raising an experiment's budget. Observation/replay is separate work,
-not part of the reported search-call budget.
+completion even if its budget could cover the entire space. All methods count
+every evaluator call and track exact sequence discovery identities. For a
+single requested output, full evaluation retention is bounded to the exact top
+256 unique candidates; search states, the selected winner, exported elites and
+passive observations are unchanged. Multi-output requests retain their complete
+evaluated pool for constrained selection. The discovery index still grows with
+unique sequences within the evaluation/base limits, so profile process peak
+memory when raising an experiment's budget. Single-output requests admit up to
+two billion score operations; multi-output requests retain the 100-million
+limit. Observation/replay is separate work, not part of the search-call budget.
 
 Avoidance contributes a directional satisfaction to the objective; it is not
 a hard exclusion guarantee. Portfolio infeasibility and the distance-selection

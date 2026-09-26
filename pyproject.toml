@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "motif-balance"
-version = "0.6.0a1"
+version = "0.6.0"
 description = "Design compact DNA that balances supplied motif sequence preferences"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
@@ -14,7 +14,7 @@ authors = [{ name = "Eric J. South" }]
 maintainers = [{ name = "Eric J. South, Dunlop Lab" }]
 keywords = ["DNA design", "sequence motifs", "synthetic biology", "bioinformatics"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Operating System :: MacOS",
   "Operating System :: POSIX :: Linux",

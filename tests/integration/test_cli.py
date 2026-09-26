@@ -24,9 +24,11 @@ import pytest
 from typer.testing import CliRunner
 
 import motif_balance
+from motif_balance.api import design
 from motif_balance.cli import app
 from motif_balance.constants import PACKAGE_VERSION
 from motif_balance.errors import ArtifactError
+from motif_balance.formats.design import load_design_spec
 from motif_balance.inspection import inspect_result
 from motif_balance.inspection.candidate_svg_receipt import render_candidate_svg_receipt
 from motif_balance.inspection.model import InspectionMatch
@@ -395,6 +397,73 @@ def test_cli_design_writes_verified_bundle(tmp_path: Path) -> None:
     assert result.stdout.startswith("Returned 2 of 2 candidates")
     assert "Bundle: bundle-" in result.stdout
     assert (output / "manifest.json").is_file()
+
+
+@pytest.mark.parametrize("method", ["annealed", "greedy", "random"])
+@pytest.mark.parametrize("length", [2, 8])
+def test_cli_method_matches_public_api_and_replays(
+    tmp_path: Path, method: str, length: int
+) -> None:
+    spec = tmp_path / "design.yaml"
+    spec.write_text(
+        _DESIGN.replace("length: 2", f"length: {length}").replace(
+            "min_distance: 0.5", "min_distance: 0"
+        )
+    )
+    expected = design(load_design_spec(spec), method=method)
+    bundle = tmp_path / "result"
+    result = runner.invoke(app, ["design", str(spec), "--method", method, "--out", str(bundle)])
+
+    assert result.exit_code == 0, result.output
+    manifest = json.loads((bundle / "manifest.json").read_bytes())
+    assert manifest["evaluation_count"] == 16
+    assert manifest["search_engine"] == expected.manifest.search_engine
+    assert manifest["best_observed"] == expected.manifest.best_observed.model_dump(mode="json")
+    assert manifest["bundle_id"] == expected.manifest.bundle_id
+    assert f"Requested method: {method}; engine: {manifest['search_engine']}" in result.stdout
+    assert runner.invoke(app, ["inspect", str(bundle)]).exit_code == 0
+    assert manifest["completion_status"] == (
+        "exhaustive" if length == 2 and method != "random" else "budget_exhausted"
+    )
+
+
+def test_cli_omitted_method_preserves_default_bundle(tmp_path: Path) -> None:
+    spec = tmp_path / "design.yaml"
+    spec.write_text(_DESIGN.replace("length: 2", "length: 8"))
+    for name, arguments in [("default", []), ("explicit", ["--method", "annealed"])]:
+        result = runner.invoke(
+            app, ["design", str(spec), "--out", str(tmp_path / name), *arguments]
+        )
+        assert result.exit_code == 0, result.output
+    assert (tmp_path / "default/manifest.json").read_bytes() == (
+        tmp_path / "explicit/manifest.json"
+    ).read_bytes()
+
+
+@pytest.mark.parametrize("method", ["annealed", "greedy", "random"])
+@pytest.mark.parametrize("length", [2, 8])
+def test_cli_method_check_reports_executed_policy_without_search(
+    tmp_path: Path, method: str, length: int
+) -> None:
+    spec = tmp_path / "design.yaml"
+    spec.write_text(_DESIGN.replace("length: 2", f"length: {length}"))
+    result = runner.invoke(app, ["design", str(spec), "--method", method, "--check"])
+    assert result.exit_code == 0, result.output
+    actual = "exhaustive" if length == 2 and method != "random" else method
+    assert f"method={method}" in result.stdout
+    assert f"search={actual}" in result.stdout
+    assert {p.name for p in tmp_path.iterdir()} == {"design.yaml"}
+
+
+def test_cli_method_rejects_unknown_choice_before_writing(tmp_path: Path) -> None:
+    spec = tmp_path / "design.yaml"
+    spec.write_text(_DESIGN)
+    result = runner.invoke(
+        app, ["design", str(spec), "--method", "bogus", "--out", str(tmp_path / "result")]
+    )
+    assert result.exit_code == 2
+    assert "Invalid value" in result.output
+    assert not (tmp_path / "result").exists()
 
 
 def test_cli_design_rejects_a_dangling_output_symlink_without_a_traceback(

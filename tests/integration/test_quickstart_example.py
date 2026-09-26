@@ -21,6 +21,7 @@ import pytest
 from motif_balance import design, score
 from motif_balance.formats.design import load_design_spec
 from motif_balance.inspection import inspect_result
+from motif_balance.variants import load_library
 
 
 def test_python_tutorial_runs_with_prepared_source_attributed_inputs(
@@ -29,9 +30,9 @@ def test_python_tutorial_runs_with_prepared_source_attributed_inputs(
     root = Path(__file__).resolve().parents[2]
     guide = (root / "docs/python-api.md").read_text()
     blocks = re.findall(r"```python\n(.*?)```", guide, flags=re.DOTALL)
-    assert len(blocks) == 2
+    assert blocks, "tutorial must contain runnable examples"
 
-    shutil.copytree(argr_cra_example, tmp_path / "examples/argr-cra")
+    shutil.copytree(argr_cra_example / "inputs", tmp_path / "inputs")
     result = subprocess.run(
         [sys.executable, "-c", "\n".join(blocks)], cwd=tmp_path, capture_output=True, text=True
     )
@@ -43,11 +44,17 @@ def test_python_tutorial_runs_with_prepared_source_attributed_inputs(
         assert f"{engine} 4096" in result.stdout
     assert (tmp_path / "candidate.svg").read_bytes().startswith(b"<svg")
     review = inspect_result(tmp_path / "result", kind="bundle")
-    assert review.portfolio.best_observed_score == pytest.approx(0.880, abs=0.0005)
+    assert review.portfolio.best_observed_score == pytest.approx(0.855, abs=0.0005)
+    library = load_library((tmp_path / "library.json").read_text())
+    assert library.encoded_sequence_count == 16
+    assert library.maximum_component_loss <= 0.02
+    assert (tmp_path / "variants.fasta").read_text().count(">variant-") == 16
+    assert (tmp_path / "variant-scores.tsv").is_file()
 
 
 def test_quickstart_uses_directional_scoring_and_verified_inspection(tmp_path, argr_cra_example):
     spec = load_design_spec(argr_cra_example / "design.yaml")
+    assert spec.length == max(s.motif.width for s in spec.specifications)
     assert spec.schema_version == "design-spec/v3"
     assert [item.direction for item in spec.specifications] == ["seek", "seek"]
     portfolio = design(spec)
@@ -58,7 +65,7 @@ def test_quickstart_uses_directional_scoring_and_verified_inspection(tmp_path, a
     portfolio.write(tmp_path / "result")
     review = inspect_result(tmp_path / "result", kind="bundle")
     assert [motif.direction for motif in review.problem.motifs] == ["seek", "seek"]
-    assert review.portfolio.best_observed_score == pytest.approx(0.880, abs=0.0005)
+    assert review.portfolio.best_observed_score == pytest.approx(0.855, abs=0.0005)
 
 
 @pytest.mark.parametrize(

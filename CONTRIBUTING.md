@@ -4,7 +4,11 @@ Start with the [task documentation](docs/README.md) and [module overview](ARCHIT
 
 ## Development
 
+With Git and [uv](https://docs.astral.sh/uv/) installed:
+
 ```bash
+git clone https://github.com/e-south/motif-balance.git
+cd motif-balance
 # Install the locked development tools and library dependencies.
 uv sync --locked --group dev
 # Prepare the environment and check the repository contracts.

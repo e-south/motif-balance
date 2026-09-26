@@ -3,7 +3,7 @@
 motif-balance
 src/motif_balance/playback/render.py
 
-Compose equal square panels for recorded recovery and its verified DNA state.
+Compose recorded recovery and its verified, strand-aligned DNA state.
 
 Module Author(s): Eric J. South
 Dunlop Lab
@@ -27,17 +27,54 @@ WIDTH = 1200
 HEIGHT = 660
 
 
-def frame_dimensions(view: PlaybackInspection) -> tuple[int, int, int]:
+def _layout(view: PlaybackInspection) -> dict[str, float]:
     forward = max(sum(m.strand == "+" for m in f.candidate.matches) for f in view.frames)
-    return round(WIDTH * SCALE), round(HEIGHT * SCALE), forward
+    reverse = max(sum(m.strand == "-" for m in f.candidate.matches) for f in view.frames)
+    molecule_width = left_margin(view.problem) + view.problem.length * CELL + 100
+    molecule_height = 110 + (forward + reverse) * LANE
+    if len(view.problem.motifs) > 8:
+        width = max(WIDTH, molecule_width + 40)
+        molecule_height = 110 + len(view.problem.motifs) * LANE
+        return {
+            "width": width,
+            "height": HEIGHT + 80 + molecule_height,
+            "recovery_x": (width - PANEL) / 2,
+            "molecule_x": (width - molecule_width) / 2,
+            "molecule_y": HEIGHT + 40,
+            "molecule_width": molecule_width,
+            "molecule_height": molecule_height,
+            "zoom": 1,
+            "forward": forward,
+        }
+    zoom = min((PANEL - 20) / molecule_width, (PANEL - 20) / molecule_height)
+    return {
+        "width": WIDTH,
+        "height": HEIGHT,
+        "recovery_x": LEFT,
+        "molecule_x": RIGHT + (PANEL - molecule_width * zoom) / 2,
+        "molecule_y": TOP + (PANEL - molecule_height * zoom) / 2,
+        "molecule_width": PANEL,
+        "molecule_height": PANEL,
+        "zoom": zoom,
+        "forward": forward,
+    }
+
+
+def frame_dimensions(view: PlaybackInspection) -> tuple[int, int, int]:
+    geometry = _layout(view)
+    return (
+        round(geometry["width"] * SCALE),
+        round(geometry["height"] * SCALE),
+        int(geometry["forward"]),
+    )
 
 
 def validate_view(view: PlaybackInspection) -> PlaybackInspection:
     if not isinstance(view, PlaybackInspection):
         raise ArtifactError("rendering requires an inspected playback")
     checked = PlaybackInspection.model_validate(view.model_dump(mode="python"))
-    if checked.problem.length > 128 or len(checked.problem.motifs) > 8:
-        raise ArtifactError("compact playback supports at most 128 bases and eight motifs")
+    if checked.problem.length > 128 or len(checked.problem.motifs) > 12:
+        raise ArtifactError("playback supports at most 128 bases and twelve motifs")
     return checked
 
 
@@ -49,37 +86,53 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
     index = frame % len(view.frames)
     current = view.frames[index]
     width, height, top_lanes = frame_dimensions(view)
-    reverse = max(sum(m.strand == "-" for m in f.candidate.matches) for f in view.frames)
-    molecule_width = left_margin(view.problem) + view.problem.length * CELL + 100
-    molecule_height = 110 + (top_lanes + reverse) * LANE
-    zoom = min((PANEL - 20) / molecule_width, (PANEL - 20) / molecule_height)
-    molecule_x = RIGHT + (PANEL - molecule_width * zoom) / 2
-    molecule_y = TOP + (PANEL - molecule_height * zoom) / 2
+    geometry = _layout(view)
+    stacked = len(view.problem.motifs) > 8
+    canvas_width, canvas_height = geometry["width"], geometry["height"]
+    molecule_x, molecule_y, zoom = geometry["molecule_x"], geometry["molecule_y"], geometry["zoom"]
+    recovery_x = geometry["recovery_x"]
     scope = "Motif preferences share one sequence"
     if view.chain_id is not None:
         scope = "Search explores alternative sequences"
     parts = [
         '<svg xmlns="http://www.w3.org/2000/svg" '
-        f'width="{width}" height="{height}" viewBox="0 0 {WIDTH} {HEIGHT}" '
+        f'width="{width}" height="{height}" viewBox="0 0 {canvas_width:g} {canvas_height:g}" '
         f'data-evaluations="{current.evaluations}" '
         f'data-observation-sha256="{view.observation_sha256}" '
         'role="img" aria-labelledby="title desc">',
         '<title id="title">Recorded search and motif matches</title>',
         f'<desc id="desc">Saved observation at {current.evaluations} candidate evaluations. '
-        "The orange point identifies the DNA shown at right. The blue curve connects "
+        "The orange point identifies the displayed DNA. The blue curve connects "
         "sampled best scores; intermediate improvements are not recorded here. "
         "Logos show 0 to 2 bits, with the matched nucleotide colored. "
         "DNA gray saturation reports the largest relative matched-base probability. </desc>",
-        f'<rect width="{WIDTH}" height="{HEIGHT}" fill="white"/>',
-        label(LEFT + PANEL / 2, 35, "Search improves the weakest match", anchor="middle"),
-        label(RIGHT + PANEL / 2, 35, scope, anchor="middle"),
+        f'<rect width="{canvas_width:g}" height="{canvas_height:g}" fill="white"/>',
+        label(recovery_x + PANEL / 2, 35, "Best balance during search", anchor="middle"),
+        label(
+            canvas_width / 2 if stacked else RIGHT + PANEL / 2,
+            HEIGHT + 16 if stacked else 35,
+            scope,
+            anchor="middle",
+        ),
     ]
-    for name, panel_x in (("recovery", LEFT), ("molecule", RIGHT)):
-        parts.append(
-            f'<rect data-panel="{name}" x="{panel_x}" y="{TOP}" '
-            f'width="{PANEL}" height="{PANEL}" fill="white"/>'
+    panels: list[tuple[str, float, float, float, float]] = [
+        ("recovery", recovery_x, TOP, PANEL, PANEL)
+    ]
+    panels.append(
+        (
+            "molecule",
+            molecule_x if stacked else RIGHT,
+            molecule_y if stacked else TOP,
+            geometry["molecule_width"],
+            geometry["molecule_height"],
         )
-    x0, x1, y0, y1 = LEFT, LEFT + PANEL, TOP, TOP + PANEL
+    )
+    for name, panel_x, panel_y, panel_width, panel_height in panels:
+        parts.append(
+            f'<rect data-panel="{name}" x="{panel_x:g}" y="{panel_y:g}" '
+            f'width="{panel_width:g}" height="{panel_height:g}" fill="white"/>'
+        )
+    x0, x1, y0, y1 = recovery_x, recovery_x + PANEL, TOP, TOP + PANEL
     max_log = math.log10(max(2, view.frames[-1].evaluations))
 
     def x_position(evaluations: int) -> float:
@@ -107,7 +160,7 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         label((x0 + x1) / 2, y1 + 61, "Candidate evaluations (log scale)", anchor="middle")
     )
     parts.append(
-        f'<g transform="translate(30 {(y0 + y1) / 2}) rotate(-90)">'
+        f'<g transform="translate({x0 - 50:g} {(y0 + y1) / 2}) rotate(-90)">'
         + label(
             0, 0, "Best balance recovered" if view.chain_id is None else "Balance", anchor="middle"
         )
@@ -134,7 +187,9 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         render_duplex(
             view.problem,
             current.candidate,
-            top_lanes=top_lanes,
+            top_lanes=(
+                sum(m.strand == "+" for m in current.candidate.matches) if stacked else top_lanes
+            ),
         )
     )
     return "".join([*parts, "</g></svg>\n"]).encode()

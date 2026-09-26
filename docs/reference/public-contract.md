@@ -13,6 +13,11 @@ journey: [integrate]
 
 # Motif Balance public contract
 
+The explicit `motif_balance.variants.diversify` operation and ordinary `diversify`
+command produce checked nucleotide libraries after selecting a sequence. See
+[diversification](../diversify-sequences.md) for controls, guarantees, and exports.
+The immutable result uses `variant-library/v1` and is separate from a run bundle.
+
 ## Python
 
 For a runnable first task, start with the [Python tutorial](../python-api.md).

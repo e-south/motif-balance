@@ -1,83 +1,41 @@
 ---
 doc_id: motif-balance-biological-example
-title: Fit three motifs into 20 DNA bases
-intent: Follow a compact three-profile design and inspect recorded search progress.
+title: Follow twelve motif preferences in one DNA search
+intent: Prepare biological profiles, search at fixed length, and inspect recorded improvement.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-21
+last_verified: 2026-09-24
 doc_type: tutorial
 ---
 
-# Fit three motifs into 20 DNA bases
+# Follow twelve motif preferences in one DNA search
 
-Dorsal, Twist and Zelda regulate transcription in the early fly embryo. Their
-binding sites have been studied together in the *snail* distal enhancer
-([Syed et al., 2023](https://elifesciences.org/articles/85997)). Here, we ask how
-these three motif preferences can share a short DNA sequence.
+A motif describes alternative bases at each position. When twelve models share a 60-base sequence, their preferred windows may overlap and compete for the same bases. This example searches for DNA whose weakest relative match is strong.
 
-<a href="../examples/developmental-trio/playback.mp4"><img src="../examples/developmental-trio/final-frame.png" width="640" alt="Three motif matches beside the recorded search curve; click to open the video"></a>
+https://github.com/user-attachments/assets/bda79928-4b92-4f5d-899a-a2c6df3daf72
 
-[Watch the video](../examples/developmental-trio/playback.mp4) ·
-[Open the vector figure](../examples/developmental-trio/final-frame.svg)
+The animation shows saved improvements and the corresponding DNA. The final candidate has balance **0.724**. The declared seed-839 run provides one achieved arrangement to inspect. [Inspect the final sequence](../examples/twelve-motifs/final-frame.png) for the nucleotide sequence and individual match windows.
 
-## 1. Supply the motifs and available DNA
+## Prepare the models
 
-The bundled [request](../examples/developmental-trio/design.yaml) uses these
-JASPAR profiles:
-
-| Motif | Profile | Width |
-| --- | --- | --- |
-| Dorsal | [MA0022.1](https://jaspar.elixir.no/matrix/MA0022.1/) | 12 bases |
-| Twist | [MA0249.3](https://jaspar.elixir.no/matrix/MA0249.3/) | 7 bases |
-| Zelda (source name `vfl`) | [MA1462.2](https://jaspar.elixir.no/matrix/MA1462.2/) | 7 bases |
-
-Their widths total 26 bases. A 20-base design therefore requires some matches
-to share positions. The search chooses the DNA; scanning both strands determines
-each motif's strongest match. The [example sources](../examples/developmental-trio/README.md#input-provenance-and-interpretation)
-include the count matrices, probability conversion and attribution.
-
-## 2. Design and view one candidate
-
-From the [installed source checkout](installation.md#install-from-source):
+The twelve *E. coli* probability profiles come from Baumgart et al. (2021), Supplementary Data 2. The [input record](../examples/twelve-motifs/README.md#inputs-and-interpretation) lists model widths, source attribution and the exact preparation. From the [installed source checkout](installation.md#install-from-source), run:
 
 ```bash
-# Check that all three profiles fit the requested DNA length and search budget.
-uv run motif-balance design examples/developmental-trio/design.yaml --check
-
-# Search with seed 7 and a budget of 4,096 candidate evaluations.
-uv run motif-balance design examples/developmental-trio/design.yaml \
-  --out /tmp/developmental-trio-result
-
-# Draw the selected motif matches, both DNA strands and aligned logos.
-uv run motif-balance inspect /tmp/developmental-trio-result \
-  --format svg --view candidate --out /tmp/developmental-trio-candidate.svg
+uv run python examples/twelve-motifs/prepare_inputs.py
+uv run motif-balance design examples/twelve-motifs/design.yaml --check
 ```
 
-Open the SVG to inspect the matches. The budget samples only a small part of the
-20-base sequence space, so this is a recovered candidate, not a proven optimum.
-Use new output paths when repeating the commands.
+The preparation script downloads a checksum-verified archive and generates the local models. A request fixes the models, desired roles, DNA length, seed and evaluation allowance. Best-match positions and strands are determined by scanning each proposed sequence.
 
-## 3. Watch how the recovered sequence changes
+## Run and inspect the search
 
 ```bash
-# Repeat the example while saving the observed states, player and video.
-uv run python examples/developmental-trio/reproduce.py \
-  --out /tmp/developmental-trio-demo --media
+uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo --media
 ```
 
-Open the generated HTML player or MP4. The orange point marks the score and
-evaluation count of the displayed DNA. Each recorded state receives equal viewing
-time; horizontal spacing reflects evaluation counts on the logarithmic axis.
-See [playback](reference/playback.md) to render your own search.
+The request uses 65,536 complete candidate evaluations. Its recorded run took about 178 seconds elapsed on an Apple M2 Pro with 16 GiB memory while eight workers ran concurrently. Runtime on another machine will differ.
 
-## Try a different constraint
+Open `playback.html` in the output directory to pause, scrub and inspect individual states. The video plays directly in this GitHub page. A [GIF preview](../examples/twelve-motifs/playback.gif) and the [MP4 file](../examples/twelve-motifs/playback.mp4) are also available. Pauses show the seven recorded states. Between them, motif drawings move and crossfade; these labeled transitions do not supply intermediate DNA sequences or scores. Viewing intervals are not elapsed search time. The blue curve records the best balance so far, and the moving marker identifies the displayed state.
 
-| Change in a copied request | Design question |
-| --- | --- |
-| `length: 26` | Can the motifs occupy separate windows? |
-| `length: 12` | Can all three fit within the longest motif span? |
-| A different `seed` | Does another search recover a different solution? |
-
-Search each request independently. To retain different motif arrangements from
-a search, use [collections](choose-alternatives.md).
+The final sequence establishes that these model scores were attained. It does not establish a best possible sequence or biological activity. To ask a different question, copy the request and change its DNA length, supplied models or evaluation allowance. To request distinct arrangements, use [collections](choose-alternatives.md).

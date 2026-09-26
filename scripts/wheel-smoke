@@ -206,13 +206,8 @@ PY
   guide_name="${guide_name%.md}"
   mkdir "$smoke_root/source-$guide_name" "$smoke_root/wheel-$guide_name"
   if [[ "$guide" == "README.md" || "$guide" == "docs/python-api.md" ]]; then
-    mkdir -p "$smoke_root/source-$guide_name/examples" "$smoke_root/wheel-$guide_name/examples"
-    for environment in source wheel; do
-      example_destination="$smoke_root/$environment-$guide_name/examples/argr-cra"
-      mkdir "$example_destination"
-      cp examples/argr-cra/design.yaml examples/argr-cra/SOURCE.json "$example_destination/"
-      cp -R "$smoke_root/argr-cra-inputs" "$example_destination/inputs"
-    done
+    cp -R "$smoke_root/argr-cra-inputs" "$smoke_root/source-$guide_name/inputs"
+    cp -R "$smoke_root/argr-cra-inputs" "$smoke_root/wheel-$guide_name/inputs"
   fi
   source_guide="$(cd "$smoke_root/source-$guide_name" && "$source_python" -c "$guide_program")"
   wheel_guide="$(cd "$smoke_root/wheel-$guide_name" && "$smoke_root/venv/bin/python" -c "$guide_program")"

@@ -73,6 +73,14 @@ errors, constants, claim-language advisory, and model
   policy and result. Neither a class-pruned pool nor caller-supplied scores are
   accepted as substitutes for the literal input pool. Selection never imports
   the higher-level alternatives orchestration.
+- `variants/` owns deterministic post-design diversification. It reuses compilation
+  and complete-sequence scoring, and never calls search or arrangement selection.
+  `model/variants.py` owns immutable product-library and substitution records;
+  `formats/variants.py` supplies FASTA and score tables. `variants.load_library` uses
+  the bounded JSON parser and replays the complete construction before accepting
+  saved scores and effort counts. The data-only variant
+  renderer consumes these records directly. It cannot import the diversification
+  API or scoring. The CLI is a thin adapter to these owners.
 - `artifacts/` serializes canonical bundles and replays their identities and
   scientific records. `encoding` owns canonical bytes and identities; `decoding`
   reconstructs strict records; `snapshot` pins bounded reads to file descriptors;

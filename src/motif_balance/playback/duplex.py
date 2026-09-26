@@ -131,7 +131,7 @@ def render_duplex(
     for match in sorted(candidate.matches, key=lambda m: m.motif_id):
         lane = lanes[match.strand]
         lanes[match.strand] += 1
-        color = COLORS[motif_order[match.motif_id]]
+        color = "#74B5A5" if len(problem.motifs) > 8 else COLORS[motif_order[match.motif_id]]
         x = left + match.start * CELL
         width = (match.end - match.start) * CELL
         y = primary - 32 - lane * LANE if match.strand == "+" else complement + 14 + lane * LANE

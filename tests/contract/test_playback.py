@@ -153,3 +153,109 @@ def test_chain_cursor_shows_chain_score_instead_of_running_best(observation):
         root = ET.fromstring(render_playback_svg(view, frame=i))
         cursor = root.find(".//{http://www.w3.org/2000/svg}circle[@data-current-state]")
         assert float(cursor.attrib["data-score"]) == frame.candidate.balance_score
+
+
+def test_twelve_model_playback_keeps_one_duplex_below_a_fixed_recovery_panel(pairwise_spec):
+    from motif_balance.model import MotifSpecification
+
+    motif = pairwise_spec.specifications[0].motif
+    items = tuple(
+        MotifSpecification(
+            motif=motif.model_copy(update={"motif_id": f"model-{i}"}), direction="seek"
+        )
+        for i in range(12)
+    )
+    spec = pairwise_spec.model_copy(
+        update={"specifications": items, "length": 60, "count": 1, "evaluations": 91}
+    )
+    observation = design_observed(spec, ObservationSpec(max_snapshots=8))[1]
+    view = inspect_playback(observation)
+    ns = {"s": "http://www.w3.org/2000/svg"}
+    dimensions = set()
+    for i, frame in enumerate(view.frames):
+        root = ET.fromstring(render_playback_svg(view, frame=i))
+        dimensions.add(root.attrib["viewBox"])
+        panels = {p.attrib["data-panel"]: p for p in root.findall(".//s:rect[@data-panel]", ns)}
+        assert panels["recovery"].attrib["width"] == panels["recovery"].attrib["height"]
+        assert float(panels["molecule"].attrib["y"]) > float(
+            panels["recovery"].attrib["y"]
+        ) + float(panels["recovery"].attrib["height"])
+        cursor = root.find(".//s:circle[@data-current-state]", ns)
+        assert float(cursor.attrib["data-score"]) == frame.candidate.balance_score
+        assert len(root.findall(".//s:g[@data-motif-id]", ns)) == 12
+    assert len(dimensions) == 1
+
+
+def test_playback_rejects_thirteen_models_before_replay(pairwise_spec, monkeypatch):
+    from motif_balance.model import MotifSpecification
+    from motif_balance.playback import api
+
+    motif = pairwise_spec.specifications[0].motif
+    items = tuple(
+        MotifSpecification(
+            motif=motif.model_copy(update={"motif_id": f"model-{i}"}), direction="seek"
+        )
+        for i in range(13)
+    )
+    spec = pairwise_spec.model_copy(
+        update={"specifications": items, "length": 60, "count": 1, "evaluations": 16}
+    )
+    observation = design_observed(spec, ObservationSpec(max_snapshots=8))[1]
+    monkeypatch.setattr(
+        api, "verify_search_observation", lambda _: pytest.fail("oversized view reached replay")
+    )
+    with pytest.raises(ArtifactError, match="twelve"):
+        inspect_playback(observation)
+
+
+def test_resized_movie_supplies_complete_raster_frames(observation, monkeypatch):
+    pytest.importorskip("resvg_py")
+    pytest.importorskip("PIL.Image")
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    from motif_balance.playback import media, render_playback_media
+
+    view = inspect_playback(observation)
+    actual_dependency = media._dependency
+    seen = []
+
+    def write_frames(path, size, **kwargs):
+        payload = yield
+        try:
+            while True:
+                assert len(payload) == size[0] * size[1] * 3
+                seen.append(size)
+                payload = yield
+        finally:
+            Path(path).write_bytes(b"verified-frames")
+
+    monkeypatch.setattr(
+        media,
+        "_dependency",
+        lambda name: (
+            SimpleNamespace(write_frames=write_frames)
+            if name == "imageio_ffmpeg"
+            else actual_dependency(name)
+        ),
+    )
+    assert (
+        render_playback_media(view, format_name="mp4", width=321, transition_frames=1)
+        == b"verified-frames"
+    )
+    assert len(seen) > len(view.frames)
+    assert len(set(seen)) == 1
+
+
+def test_mp4_total_work_is_bounded_before_loading_encoder(observation, monkeypatch):
+    from motif_balance.playback import media, render_playback_media
+
+    view = inspect_playback(observation)
+    monkeypatch.setattr(media, "_MAX_TOTAL_PIXELS", 1, raising=False)
+
+    def no_dependency(name):
+        raise AssertionError("work must be admitted before media dependencies load")
+
+    monkeypatch.setattr(media, "_dependency", no_dependency)
+    with pytest.raises(ArtifactError, match="total"):
+        render_playback_media(view, format_name="mp4", fps=30, transition_frames=30)

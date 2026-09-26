@@ -61,6 +61,14 @@ the full supplied pool and applies an explicit count, separation and architectur
 policy. It distinguishes a feasible set, an optimal set within that pool,
 insufficient search of the pool and demonstrated pool infeasibility.
 
+## Sequence variants within a selected arrangement
+
+A [variant library](docs/diversify-sequences.md) starts from one rescored parent.
+It contains allowed bases, an exact IUPAC product, every concrete evaluation,
+single-substitution diagnostics, and a verification summary. It is separate from
+search portfolios and arrangement rankings. Its evaluation count describes only
+post-design diversification, without changing the original search budget.
+
 ## Saved results and inspection
 
 The result bundle contains `design.json`, `motifs.json`, `candidates.tsv`,

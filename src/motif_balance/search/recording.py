@@ -71,21 +71,53 @@ class SearchEngine(Protocol):
 class _SearchLedger:
     budget: int
     observer: SearchRecorder | None = None
+    retention_capacity: int | None = None
     evaluations: dict[str, Evaluation] = field(default_factory=dict)
     first_evaluation_indices: dict[str, int] = field(default_factory=dict)
     checkpoints: list[SearchCheckpoint] = field(default_factory=list)
     evaluations_used: int = 0
     best_evaluation: Evaluation | None = None
     best_score: float = 0.0
+    _worst_retained: tuple[float, str] | None = None
+
+    def __post_init__(self) -> None:
+        if self.retention_capacity is not None and self.retention_capacity < 1:
+            raise ValueError("retention capacity must be positive")
+
+    @property
+    def unique_evaluations(self) -> int:
+        return len(self.first_evaluation_indices)
+
+    @property
+    def retained_first_indices(self) -> tuple[int, ...]:
+        return tuple(self.first_evaluation_indices[sequence] for sequence in self.evaluations)
+
+    def _retain(self, result: Evaluation) -> None:
+        """For one output, exact top elites suffice; discovery identities stay complete."""
+        capacity = self.retention_capacity
+        if capacity is None or len(self.evaluations) < capacity:
+            self.evaluations[result.sequence] = result
+        else:
+            key = (-result.balance_score, result.sequence)
+            if self._worst_retained is None:
+                raise RuntimeError("bounded retention lacks its worst candidate")
+            if key >= self._worst_retained:
+                return
+            del self.evaluations[self._worst_retained[1]]
+            self.evaluations[result.sequence] = result
+        if capacity is not None and len(self.evaluations) == capacity:
+            self._worst_retained = max(
+                (-item.balance_score, item.sequence) for item in self.evaluations.values()
+            )
 
     def record(self, result: Evaluation) -> None:
         if self.evaluations_used >= self.budget:
             raise RuntimeError("search engine exceeded the public evaluation budget")
         self.evaluations_used += 1
-        is_new = result.sequence not in self.evaluations
+        is_new = result.sequence not in self.first_evaluation_indices
         if is_new:
-            self.evaluations[result.sequence] = result
             self.first_evaluation_indices[result.sequence] = self.evaluations_used
+            self._retain(result)
         if self.best_evaluation is None or (-result.balance_score, result.sequence) < (
             -self.best_evaluation.balance_score,
             self.best_evaluation.sequence,

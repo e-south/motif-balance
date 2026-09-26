@@ -4,7 +4,7 @@ specifications:
     direction: seek
   - motif: inputs/motifs/cra.json
     direction: seek
-length: 32
+length: 25
 count: 4
 strands: both
 evaluations: 4096

@@ -5,20 +5,20 @@ intent: Design DNA with source-attributed ArgR and Cra motif profiles.
 audience: [new users, API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-21
+last_verified: 2026-09-26
 doc_type: tutorial
 ---
 
 # Design and inspect from Python
 
-Run this from the [source checkout](installation.md#install-from-source) after
-preparing the ArgR and Cra inputs during installation.
+Start with the [README installation and input preparation](../README.md#1-install-and-prepare-the-profiles).
+Run these examples in that same uv project.
 The prepared [ArgR and Cra inputs](../examples/argr-cra/README.md) contain nucleotide
 probabilities prepared from Baumgart et al. (2021), Supplementary Data 2.
 Each row lists the probabilities of A, C, G and T at one motif position.
 
 ```python
-# Load the real motif models and request four 32-base sequences.
+# Load the real motif models and request four 25-base sequences.
 from pathlib import Path
 
 from motif_balance import DesignSpec, MotifSpecification, design, score
@@ -26,14 +26,14 @@ from motif_balance.formats.motif import read_motif
 from motif_balance.inspection import inspect_result
 from motif_balance.inspection.render import render_candidate_svg, render_text
 
-argr = read_motif("examples/argr-cra/inputs/motifs/argR.json")
-cra = read_motif("examples/argr-cra/inputs/motifs/cra.json")
+argr = read_motif("inputs/motifs/argR.json")
+cra = read_motif("inputs/motifs/cra.json")
 spec = DesignSpec(
     specifications=(
         MotifSpecification(motif=argr, direction="seek"),  # Strengthen the ArgR match
         MotifSpecification(motif=cra, direction="seek"),   # Strengthen the Cra match
     ),
-    length=32,                                             # DNA length in base pairs
+    length=25,                                             # DNA length in base pairs
     count=4,                                               # Returned sequences
     evaluations=4096,                                      # Candidate-evaluation budget
     seed=7,
@@ -52,9 +52,61 @@ with Path("candidate.svg").open("xb") as output:
     output.write(render_candidate_svg(review, candidate_rank=1))
 ```
 
-The run returns four sequences, with a best balance of approximately **0.880**.
+The run returns four sequences, with a best balance of approximately **0.855**.
 `candidate.svg` aligns the selected matches and motif logos on double-stranded
 DNA. The score measures agreement with the supplied models.
+
+## Select different arrangements
+
+Use the retained search pool to select two representatives with different site
+orders, strand relationships, or overlaps. This rescoring step does not repeat
+the search.
+
+```python
+from motif_balance.alternatives import rank_architectures
+
+pool = tuple(item.sequence for item in portfolio.manifest.elites)
+ranking = rank_architectures(pool, spec, grouping="interval_topology")
+selected = ranking.select(2)
+for representative in selected:
+    print(representative.sequence, round(representative.balance_score, 3))
+```
+
+These two arrangements have balances of approximately 0.855 and 0.801.
+`select(2)` requires two available classes; use `select_up_to(2)` when a smaller
+collection is acceptable. See [collections](choose-alternatives.md) for the
+arrangement definition and reported shortfalls.
+
+## Vary a sequence within one selected arrangement
+
+Now use the first representative as the parent. Diversification varies bases
+within its desired sites while retaining each selected site's coordinates and
+strand. Every motif's score is protected separately.
+
+```python
+from motif_balance.variants import diversify
+from motif_balance.formats.variants import variants_fasta, variants_tsv
+
+parent = selected[0]
+library = diversify(parent.sequence, spec, max_score_loss=0.02, max_variants=256)
+print(library.template, library.encoded_sequence_count)
+print(library.minimum_balance, library.maximum_component_loss)
+with Path("library.json").open("x") as output:
+    output.write(library.model_dump_json(indent=2))
+with Path("variants.fasta").open("x") as output:
+    output.write(variants_fasta(library))
+with Path("variant-scores.tsv").open("x") as output:
+    output.write(variants_tsv(library))
+```
+
+For this ArgR/Cra parent, the operation returns sixteen sequences, with a minimum
+balance of approximately 0.838 and a largest component loss below 0.02.
+The ambiguity template describes exactly the concrete variants in the export.
+Every combination is checked, including combinations of substitutions that pass
+individually. A 0.02 tolerance permits two hundredths of loss on each model's
+score scale. The cap includes the parent, and a parent-only result is possible.
+See [diversification](diversify-sequences.md) for editable positions, unwanted
+motifs, and the substitution map.
 
 ## Compare search methods
 

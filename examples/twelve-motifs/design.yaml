@@ -1,0 +1,31 @@
+schema_version: design-spec/v3
+specifications:
+  - motif: inputs/motifs/nagC.json
+    direction: seek
+  - motif: inputs/motifs/kdpE.json
+    direction: seek
+  - motif: inputs/motifs/sgrR.json
+    direction: seek
+  - motif: inputs/motifs/nadR.json
+    direction: seek
+  - motif: inputs/motifs/dpiA.json
+    direction: seek
+  - motif: inputs/motifs/iscR.json
+    direction: seek
+  - motif: inputs/motifs/cra.json
+    direction: seek
+  - motif: inputs/motifs/alsR.json
+    direction: seek
+  - motif: inputs/motifs/modE.json
+    direction: seek
+  - motif: inputs/motifs/nsrR.json
+    direction: seek
+  - motif: inputs/motifs/csiR.json
+    direction: seek
+  - motif: inputs/motifs/mntR.json
+    direction: seek
+length: 60
+count: 1
+strands: both
+evaluations: 65536
+seed: 839

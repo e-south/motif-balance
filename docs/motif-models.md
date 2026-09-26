@@ -42,9 +42,6 @@ all base probabilities positive and avoids undefined log odds for zero counts.
 The output records the source and conversion parameters. The precise formula
 and metadata are in [conversion records](reference/motif-conversion.md).
 
-Use the [Dorsal, Twist and Zelda example](biological-example.md) to follow this process
-with attributed biological profiles.
-
 ## Read a MEME probability profile
 
 Use the MEME record identifier explicitly when reading a file that contains
