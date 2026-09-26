@@ -142,5 +142,5 @@ motif-balance --help
 ```
 
 An exact version allows an alpha release to be installed deliberately. Ordinary
-unversioned installs generally skip releases. Publishing and account setup
+unversioned installs generally skip prereleases. Publishing and account setup
 are maintainer actions, separate from building and reviewing the package.
