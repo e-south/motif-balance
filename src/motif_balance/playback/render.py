@@ -29,9 +29,7 @@ HEIGHT = 660
 
 
 def _layout(view: PlaybackInspection) -> dict[str, float]:
-    candidates = [
-        c for f in view.frames for c in (f.candidate, f.search_candidate) if c is not None
-    ]
+    candidates = [c for f in view.frames for c in (f.candidate, *f.recorded_search_candidates)]
     forward = max(sum(m.strand == "+" for m in c.matches) for c in candidates)
     reverse = max(sum(m.strand == "-" for m in c.matches) for c in candidates)
     molecule_width = left_margin(view.problem) + view.problem.length * CELL + 100
@@ -121,7 +119,7 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         "sampled best scores; intermediate improvements are not recorded here. "
         "Logos show 0 to 2 bits, with the matched nucleotide colored. "
         "DNA gray saturation reports the largest relative matched-base probability. "
-        "When present, the faint gray layer shows recorded states of one fixed search chain, "
+        "When present, faint gray layers show the recorded search chains, "
         "not all proposals or an interpolated sequence. </desc>",
         f'<rect width="{canvas_width:g}" height="{canvas_height:g}" fill="white"/>',
         label(
@@ -242,31 +240,43 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         + "</g>"
     )
     if view.search_chain_id is not None:
-        seen = {}
-        for f in view.frames[: index + 1]:
-            if f.search_candidate is not None:
-                assert f.search_evaluations is not None
-                seen[f.search_evaluations] = f.search_candidate.balance_score
-        if seen:
-            points = " ".join(f"{x_position(e):.3f},{y_position(b):.3f}" for e, b in seen.items())
-            parts.append(
-                f'<polyline data-search-trace="true" points="{points}" fill="none" '
-                'stroke="#A4ADAA" stroke-width="2.5"/>'
-            )
-        if current.search_candidate is not None:
+        for chain, candidate in enumerate(current.recorded_search_candidates):
+            chain_id = chain if view.search_chain_id == "all" else view.search_chain_id
+            seen = {}
+            for f in view.frames[: index + 1]:
+                if f.recorded_search_candidates:
+                    assert f.search_evaluations is not None
+                    seen[f.search_evaluations] = f.recorded_search_candidates[chain].balance_score
+            if seen:
+                points = " ".join(
+                    f"{x_position(e):.3f},{y_position(b):.3f}" for e, b in seen.items()
+                )
+                parts.append(
+                    f'<polyline data-search-trace="true" data-chain="{chain_id}" '
+                    f'points="{points}" fill="none" '
+                    'stroke="#A4ADAA" stroke-opacity="0.65" stroke-width="2.5"/>'
+                )
             assert current.search_evaluations is not None
             sx, sy = (
                 x_position(current.search_evaluations),
-                y_position(current.search_candidate.balance_score),
+                y_position(candidate.balance_score),
             )
             parts.append(
-                '<circle data-search-state="true" '
-                f'data-score="{current.search_candidate.balance_score}" '
+                f'<circle data-search-state="true" data-chain="{chain_id}" '
+                f'data-score="{candidate.balance_score}" '
                 f'data-evaluations="{current.search_evaluations}" '
                 f'cx="{sx:.3f}" cy="{sy:.3f}" r="9" fill="#929B98"/>'
             )
         for j, (color, text) in enumerate(
-            (("#0072B2", "Best so far"), ("#929B98", "Current sequence B(s)"))
+            (
+                ("#0072B2", "Best so far"),
+                (
+                    "#929B98",
+                    "Search candidates"
+                    if view.search_chain_id == "all"
+                    else "Current sequence B(s)",
+                ),
+            )
         ):
             ly = y1 - (130 if expanded else 70) + j * (62 if expanded else 30)
             parts.append(f'<path d="M{x0 + 32:g} {ly:g} h42" stroke="{color}" stroke-width="5"/>')
@@ -301,16 +311,15 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         )
         + f" = {current.candidate.balance_score:.3f}</text>"
     )
-    if current.search_candidate is not None:
+    for chain, candidate in enumerate(current.recorded_search_candidates):
+        layer = f"search-{chain}" if view.search_chain_id == "all" else "search"
         ghost = ET.fromstring(
             "<g>"
             + render_duplex(
                 view.problem,
-                current.search_candidate,
+                candidate,
                 top_lanes=(
-                    sum(m.strand == "+" for m in current.search_candidate.matches)
-                    if expanded
-                    else top_lanes
+                    sum(m.strand == "+" for m in candidate.matches) if expanded else top_lanes
                 ),
             )
             + "</g>"
@@ -325,11 +334,12 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
                     parent.remove(child)
             identifier = parent.get("id")
             if identifier:
-                parent.set("id", "search-" + identifier)
+                parent.set("id", layer + "-" + identifier)
             if parent.get("fill") and parent.get("fill") not in ("none", "#FFFFFF"):
                 parent.set("fill", "#76847F")
+        opacity = 0.035 if view.search_chain_id == "all" else 0.16
         parts.append(
-            f'<g data-duplex-layout="search" opacity="0.16" '
+            f'<g data-duplex-layout="{layer}" opacity="{opacity}" '
             f'transform="translate({molecule_x:g} {molecule_y:g}) scale({zoom:g})">'
         )
         parts.extend(ET.tostring(n, encoding="unicode") for n in ghost)

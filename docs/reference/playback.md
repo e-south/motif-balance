@@ -84,20 +84,27 @@ combined frame records. Chain views use only snapshots that actually recorded
 that chain, rather than substituting incumbent-only checkpoints.
 Render functions consume that data without rerunning optimization themselves.
 
-To show ongoing exploration behind the best sequence, use `--search-chain 0`
-with `animate`, or pass `search_chain_id=0` to `inspect_playback` in Python. This adds the sampled current states of one fixed chain
-in gray, while the colored molecule and curve retain the best result. It cannot
+To show ongoing exploration behind the best sequence, use `--search-chain all`
+with `animate`, or pass `search_chain_id="all"` to `inspect_playback` in Python.
+This displays each recorded chain separately in faint gray. Use `0` through `7`
+to select one fixed chain instead. The colored molecule and curve retain the best result. It cannot
 be combined with `chain_id`. The eight chains share one run's budget; they are
 not eight independent repeated searches. A checkpoint without a new chain state
 keeps the preceding recorded gray state at its original evaluation coordinate.
 No state is shown before it was recorded. The gray curve is not every evaluated
 proposal, and its hard-minimum balance differs from the smooth acceptance score.
 
-The twelve-model example records 96 periodic snapshots plus early incumbent
-checkpoints. Its movie uses all recorded states; its smaller HTML overview
-selects eight frames to stay within the player size limit. Gray placements can
-change while the best sequence remains fixed. Tweening provides display motion
-between those observations without creating additional scored DNA.
+The twelve-model example ends its movie at the first recorded final-best score,
+using `view.until_last_improvement()` or `--until-last-improvement`. This selects
+an unchanged prefix and rescales the evaluation axis to its endpoint. It does not
+identify the exact discovery time between observations or change the full run's
+budget. The HTML overview selects eight best-sequence frames. Gray placements can
+change while the best sequence remains fixed. A best-scoring proposal need not
+be adopted by a chain, and snapshots do not include every evaluated proposal.
+
+The current projection is `playback-inspection/v2`. Earlier saved projections
+remain bound to their producing version. Recreate them from the unchanged search
+observation with `inspect_playback`; there is no automatic projection conversion.
 
 
 ## Export media
@@ -119,10 +126,13 @@ For smooth movement between saved states:
 
 ```bash
 motif-balance animate observation.json --format mp4 --out smooth.mp4 \
-  --fps 20 --transition-frames 16 --width 1400
+  --search-chain all --until-last-improvement \
+  --fps 30 --transition-frames 26 --pacing accelerating --width 1400
 ```
 
 `--transition-frames` adds 0–30 display frames between consecutive observations.
+With `--pacing accelerating`, this is the opening transition length; subsequent
+transitions decrease gradually to one fifth of it. The default pacing is uniform.
 Motif drawings move and crossfade, rotating when their selected strand changes.
 DNA letters and scores come from the two recorded endpoints. Transition frames
 retain the earlier point on the recovery curve until the next observation is

@@ -1,21 +1,35 @@
 {
-  "states": 113,
-  "distinct_best": 12,
-  "distinct_search": 95,
-  "frames": 516,
-  "fps": 30,
-  "transition_frames": 4,
   "observation_sha256": "b2cd49249768f8cc12f4e2b552b230f74adf05d13625082c5731d29d20e40bf8",
+  "source_evaluations": 655360,
+  "first_recorded_final_best_evaluations": 125497,
+  "displayed_states": 33,
+  "distinct_best": 12,
+  "displayed_chains": 8,
+  "rescored_distinct_sequences": 163,
   "balance": 0.7333263307305261,
-  "sequence": "GGAGAAGTTAACCATTTTTATATTTTTTTTATGAAACGATTCAGCTATAGGGTGGTTCCC",
-  "video_url": "https://github.com/user-attachments/assets/a6408061-1620-473f-85c8-e29dabfe9d54",
+  "frames": 449,
+  "duration_seconds": 14.966666666666667,
+  "fps": 30,
+  "transition_frames": 26,
+  "pacing": "accelerating",
   "file": "playback.mp4",
-  "sha256": "c29fcbd286d267cdc4f2946bdedeea2bf8e16bd0f7ba98206db7e3162b5c70bf",
+  "sha256": "f38d6cf6e14ab8ac7b2d3b455a990698ac2213574a17f25f2b8a9a03888654a2",
   "format": "H.264 MP4",
   "width": 1800,
   "height": 968,
-  "duration_seconds": 17.2,
-  "search_chain_id": 0,
-  "meaning": "Colored DNA is best so far across the run. Gray DNA is the most recently recorded current candidate from chain zero, one of eight candidates sharing the run budget. Tweening connects recorded placements; scores are never interpolated.",
-  "layout": "Square best-so-far chart left; continuous duplex with two moving layers right."
+  "search_chain_id": "all",
+  "video_url": "https://github.com/user-attachments/assets/11f7d777-e4dd-43aa-854c-24d4552d198d",
+  "meaning": "Eight faint gray traces and DNA layers follow recorded search chains. Colored DNA and blue trace show the best encountered balance. Motion connects recorded placements; scores are not interpolated.",
+  "layout": "Square best-so-far chart left; continuous duplex and strand-aligned motif windows right.",
+  "selection": "Prefix through the first recorded occurrence of the final best; complete run still used 655360 evaluations.",
+  "gif": {
+    "decoded_frames": 449,
+    "size": [
+      480,
+      258
+    ],
+    "duration_seconds": 13.47,
+    "bytes": 15503196,
+    "sha256": "28be955ab3f3bc0c720991b9bf29bf5c5776156f8777fc6ff217746c0e9f73ba"
+  }
 }

@@ -413,3 +413,118 @@ def test_search_overlay_rejects_missing_future_and_reordered_records(observation
         )
         with pytest.raises(ValueError, match=message):
             PlaybackInspection.model_validate(bad.model_dump(mode="python"))
+
+
+def test_all_search_chains_keep_their_recorded_identity(observation):
+    from motif_balance.playback.transition import blend_svgs
+
+    view = inspect_playback(observation, search_chain_id="all")
+    for frame, recorded in zip(view.frames, observation.snapshots, strict=True):
+        assert frame.search_candidate is None
+        assert frame.search_evaluations == recorded.evaluations
+        assert [c.sequence for c in frame.search_candidates] == [
+            state.evaluation.sequence for state in recorded.states
+        ]
+    ns = {"s": "http://www.w3.org/2000/svg"}
+    root = ET.fromstring(render_playback_svg(view))
+    points = root.findall(".//s:circle[@data-search-state]", ns)
+    assert len(points) == 8
+    for chain, point in enumerate(points):
+        assert point.get("data-chain") == str(chain)
+        assert (
+            float(point.get("data-score"))
+            == observation.snapshots[-1].states[chain].evaluation.balance_score
+        )
+    assert len(root.findall(".//s:polyline[@data-search-trace]", ns)) == 8
+    layers = root.findall(".//s:g[@data-duplex-layout]", ns)
+    assert len(layers) == 9
+    assert len({layer.get("data-duplex-layout") for layer in layers}) == 9
+    tween = ET.fromstring(
+        blend_svgs(render_playback_svg(view, frame=0), render_playback_svg(view, frame=1), 0.5)
+    )
+    assert len(tween.findall(".//s:g[@data-duplex-layout]", ns)) == 9
+
+
+def test_showcase_stops_at_first_record_of_final_best_and_rescales_axis(observation):
+    from motif_balance.playback import PlaybackInspection
+
+    view = inspect_playback(observation, search_chain_id="all")
+    # A known plateau after a best candidate must not add a closing search scene.
+    end = view.frames[-1]
+    plateau = end.model_copy(update={"evaluations": end.evaluations + 1000})
+    extended = PlaybackInspection.model_validate(
+        view.model_copy(update={"frames": (*view.frames, plateau)}).model_dump(mode="python")
+    )
+    short = extended.until_last_improvement()
+    assert short.frames[-1].best_balance == end.best_balance
+    assert short.frames[-1].evaluations <= end.evaluations
+    assert all(f.best_balance < end.best_balance for f in short.frames[:-1])
+    assert extended.frames[-1] == plateau
+    root = ET.fromstring(render_playback_svg(short))
+    ns = {"s": "http://www.w3.org/2000/svg"}
+    panel = root.find(".//s:rect[@data-panel='recovery']", ns)
+    point = root.find(".//s:circle[@data-current-state]", ns)
+    assert float(point.get("cx")) == pytest.approx(
+        float(panel.get("x")) + float(panel.get("width")), abs=0.001
+    )
+    assert str(plateau.evaluations) not in root.get("data-evaluations")
+    single = short.model_copy(update={"frames": (short.frames[0],)})
+    assert single.until_last_improvement().frames == single.frames
+
+
+def test_accelerating_pacing_slows_opening_without_reordering_records(observation):
+    from motif_balance.playback.media import _movie_steps
+
+    view = inspect_playback(observation, search_chain_id="all")
+    uniform = _movie_steps(view, 26)
+    accelerating = _movie_steps(view, 26, pacing="accelerating")
+    assert [i for i, _ in accelerating] == [i for i, _ in uniform]
+    durations = [n for _, n in accelerating if n]
+    assert durations[0] == 26
+    assert durations[-1] <= 6
+    assert durations == sorted(durations, reverse=True)
+
+
+def test_accelerating_pacing_requires_a_tweened_movie(observation, monkeypatch):
+    from motif_balance.playback import media, render_playback_media
+
+    view = inspect_playback(observation)
+    monkeypatch.setattr(
+        media, "_dependency", lambda _: pytest.fail("invalid pacing reached encoder")
+    )
+    for settings in (
+        {"format_name": "png", "transition_frames": 4, "pacing": "accelerating"},
+        {"format_name": "mp4", "pacing": "accelerating"},
+        {"format_name": "mp4", "transition_frames": 4, "pacing": "invented"},
+    ):
+        with pytest.raises(ArtifactError):
+            render_playback_media(view, **settings)
+
+
+def test_all_chain_projection_refuses_ambiguous_or_changing_membership(observation):
+    from motif_balance.playback import PlaybackInspection
+
+    view = inspect_playback(observation, search_chain_id="all")
+    for change, message in (
+        ({"search_chain_id": 0}, "all-chain"),
+        ({"schema_version": "playback-inspection/v1"}, "playback-inspection/v2"),
+        (
+            {
+                "frames": (
+                    *view.frames[:-1],
+                    view.frames[-1].model_copy(
+                        update={
+                            "search_candidates": view.frames[-1].search_candidates[:-1],
+                        }
+                    ),
+                )
+            },
+            "appear or disappear",
+        ),
+    ):
+        with pytest.raises(ValueError, match=message):
+            PlaybackInspection.model_validate(
+                view.model_copy(update=change).model_dump(mode="python")
+            )
+    with pytest.raises(ValueError, match="best-sequence"):
+        inspect_playback(observation, chain_id=0).until_last_improvement()

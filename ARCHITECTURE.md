@@ -40,6 +40,14 @@ Renderers consume validated projections. They do not search, rescore, fetch
 models or read result directories. This lets a new output format reuse the same
 scoring and verification behavior.
 
+Playback uses `playback-inspection/v2` to retain either one identified search
+chain or an ordered collection of all recorded chains. Each chain keeps its own
+history; no composite chain is constructed. This presentation-only schema
+replaces v1. Historical projections stay with their producing version and can
+be regenerated from unchanged search observations. There is no schema adapter.
+Selecting a prefix through the first recorded final-best score and changing
+movie pacing operate on that projection; they cannot alter search records.
+
 The architecture check in `scripts/check_architecture.py` checks imports,
 including relative imports, and rejects unknown modules. New responsibilities
 need an explicit place in the [module map](docs/reference/module-map.md) and

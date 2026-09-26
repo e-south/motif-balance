@@ -39,12 +39,17 @@ def _dependency(name: str) -> ModuleType:
         ) from exc
 
 
-def _movie_steps(view: PlaybackInspection, transition_frames: int) -> list[tuple[int, int]]:
+def _movie_steps(
+    view: PlaybackInspection, transition_frames: int, *, pacing: str = "uniform"
+) -> list[tuple[int, int]]:
     """Pair saved-state indices with the number of display frames leading into them."""
     steps = [(0, 0)]
     for i in range(1, len(view.frames)):
         old, new = view.frames[steps[-1][0]], view.frames[i]
-        changed = old.candidate != new.candidate or old.search_candidate != new.search_candidate
+        changed = (
+            old.candidate != new.candidate
+            or old.recorded_search_candidates != new.recorded_search_candidates
+        )
         if (
             transition_frames
             and not changed
@@ -53,6 +58,14 @@ def _movie_steps(view: PlaybackInspection, transition_frames: int) -> list[tuple
         ):
             continue
         steps.append((i, transition_frames if changed else 0))
+    if pacing == "accelerating":
+        moving = sum(n > 0 for _, n in steps)
+        rank = 0
+        for k, (index, transitions) in enumerate(steps):
+            if transitions:
+                fraction = rank / max(1, moving - 1)
+                steps[k] = (index, max(1, round(transitions * (1 - 0.8 * fraction))))
+                rank += 1
     return steps
 
 
@@ -63,6 +76,7 @@ def render_playback_media(
     fps: int = 4,
     frame: int = -1,
     transition_frames: int = 0,
+    pacing: Literal["uniform", "accelerating"] = "uniform",
     width: int | None = None,
 ) -> bytes:
     """Return PNG for one frame, or GIF/MP4 for all recorded frames in order.
@@ -83,12 +97,16 @@ def render_playback_media(
         raise ArtifactError("transition_frames must be an integer from zero through thirty")
     if transition_frames and format_name == "png":
         raise ArtifactError("transitions apply only to GIF or MP4")
+    if pacing not in ("uniform", "accelerating"):
+        raise ArtifactError("pacing must be uniform or accelerating")
+    if pacing != "uniform" and (format_name == "png" or not transition_frames):
+        raise ArtifactError("accelerating pacing requires a tweened GIF or MP4")
     native_width, native_height, _ = frame_dimensions(view)
     if width is not None and (type(width) is not int or not 320 <= width <= native_width):
         raise ArtifactError("width must be an integer from 320 through the native frame width")
     width = native_width if width is None else width
     height = math.ceil(native_height * width / native_width)
-    steps = _movie_steps(view, transition_frames)
+    steps = _movie_steps(view, transition_frames, pacing=pacing)
     count = 1 if format_name == "png" else sum(1 + transitions for _, transitions in steps)
     # GIF retains its frames; MP4 streams one raster at a time to the encoder.
     if width * height * (count if format_name == "gif" else 1) > _MAX_PIXELS:

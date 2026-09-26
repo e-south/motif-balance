@@ -189,7 +189,9 @@ wheel and producer revision. Both operate on explicitly supplied files.
 
 [Playback](playback.md) replays an explicit search observation and exports HTML,
 SVG or optional media. It reports recorded states without interpolating missing
-search events.
+search events. The `playback-inspection/v2` projection supports separate histories
+for all recorded chains. Last-improvement excerpts and accelerating movie pacing
+change presentation only; search observations and full-run budgets stay intact.
 
 ## Artifacts
 
