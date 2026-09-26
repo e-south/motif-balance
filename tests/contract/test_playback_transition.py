@@ -35,3 +35,10 @@ def test_transition_endpoints_and_unscored_midpoint():
 def test_invalid_transition_fraction(p):
     with pytest.raises(ArtifactError):
         blend_svgs(A, B, p)
+
+
+def test_transition_keeps_moving_without_braking_at_every_saved_state():
+    root = ET.fromstring(blend_svgs(A, B, 0.25))
+    transforms = [n.get("transform", "") for n in root.iter()]
+    assert any("translate(50 55)" in s and "rotate(45)" in s for s in transforms)
+    assert "Transition between recorded states" not in "".join(root.itertext())

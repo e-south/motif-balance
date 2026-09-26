@@ -12,6 +12,7 @@ Dunlop Lab
 
 import importlib
 import xml.etree.ElementTree as ET
+from itertools import pairwise
 
 import pytest
 
@@ -177,6 +178,15 @@ def test_twelve_model_playback_keeps_one_duplex_right_of_a_fixed_recovery_panel(
         dimensions.add(root.attrib["viewBox"])
         panels = {p.attrib["data-panel"]: p for p in root.findall(".//s:rect[@data-panel]", ns)}
         assert panels["recovery"].attrib["width"] == panels["recovery"].attrib["height"]
+        assert float(panels["recovery"].attrib["width"]) >= 0.6 * float(
+            panels["molecule"].attrib["height"]
+        )
+        axis = next(
+            t
+            for t in root.findall(".//s:text", ns)
+            if t.text == "Candidate evaluations (log scale)"
+        )
+        assert float(axis.attrib["font-size"]) >= 26
         assert float(panels["molecule"].attrib["x"]) > float(
             panels["recovery"].attrib["x"]
         ) + float(panels["recovery"].attrib["width"])
@@ -243,7 +253,19 @@ def test_resized_movie_supplies_complete_raster_frames(observation, monkeypatch)
         render_playback_media(view, format_name="mp4", width=321, transition_frames=1)
         == b"verified-frames"
     )
-    assert len(seen) > len(view.frames)
+    selected = [0]
+    for i in range(1, len(view.frames)):
+        old, new = view.frames[selected[-1]], view.frames[i]
+        if (
+            old.candidate != new.candidate
+            or old.best_balance != new.best_balance
+            or i == len(view.frames) - 1
+        ):
+            selected.append(i)
+    transitions = sum(
+        view.frames[a].candidate != view.frames[b].candidate for a, b in pairwise(selected)
+    )
+    assert len(seen) == len(selected) + transitions
     assert len(set(seen)) == 1
 
 
@@ -259,3 +281,36 @@ def test_mp4_total_work_is_bounded_before_loading_encoder(observation, monkeypat
     monkeypatch.setattr(media, "_dependency", no_dependency)
     with pytest.raises(ArtifactError, match="total"):
         render_playback_media(view, format_name="mp4", fps=30, transition_frames=30)
+
+
+def test_incumbent_playback_includes_exact_early_checkpoints(pairwise_spec):
+    spec = pairwise_spec.model_copy(update={"length": 7, "evaluations": 91, "count": 1})
+    _, observation = design_observed(
+        spec, ObservationSpec(max_snapshots=2, incumbent_evaluations=(8, 16, 32, 64, 91))
+    )
+    view = inspect_playback(observation)
+    expected = {row.evaluations: row.incumbent for row in observation.snapshots}
+    expected.update({row.evaluations: row.incumbent for row in observation.incumbents})
+    assert [frame.evaluations for frame in view.frames] == sorted(expected)
+    for frame in view.frames:
+        assert frame.candidate.sequence == expected[frame.evaluations].sequence
+        assert frame.best_balance == expected[frame.evaluations].balance_score
+    chain = inspect_playback(observation, chain_id=0)
+    assert [frame.evaluations for frame in chain.frames] == [
+        r.evaluations for r in observation.snapshots
+    ]
+
+
+def test_combined_checkpoint_limit_precedes_expensive_replay(pairwise_spec, monkeypatch):
+    from motif_balance.playback import api
+
+    spec = pairwise_spec.model_copy(update={"length": 7, "evaluations": 1500, "count": 1})
+    observation = design_observed(
+        spec, ObservationSpec(max_snapshots=256, incumbent_evaluations=tuple(range(2, 34)))
+    )[1]
+    assert len({r.evaluations for r in observation.snapshots} | set(range(2, 34))) > 256
+    monkeypatch.setattr(
+        api, "verify_search_observation", lambda _: pytest.fail("oversized view reached replay")
+    )
+    with pytest.raises(ArtifactError, match="256 combined"):
+        inspect_playback(observation)

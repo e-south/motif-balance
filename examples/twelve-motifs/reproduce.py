@@ -37,7 +37,12 @@ def main() -> None:
         raise ValueError("Example models differ from the declared preparation")
     args.out.mkdir(parents=True, exist_ok=False)
     started = time.perf_counter()
-    portfolio, observation = design_observed(spec, ObservationSpec(max_snapshots=8))
+    # Record early improvement at doubling counts, plus one late-search checkpoint.
+    # Recording does not change the proposal sequence, acceptance, or search budget.
+    checkpoints = tuple(sorted({*(2**power for power in range(3, 17)), 49_152}))
+    portfolio, observation = design_observed(
+        spec, ObservationSpec(max_snapshots=2, incumbent_evaluations=checkpoints)
+    )
     elapsed = time.perf_counter() - started
     winner = portfolio.candidates[0]
     if (
@@ -47,15 +52,16 @@ def main() -> None:
         raise ValueError("Recorded example differs; check the declared software and environment")
     (args.out / "observation.json").write_text(observation.model_dump_json())
     view = inspect_playback(observation)
+    (args.out / "inspected.json").write_text(view.model_dump_json())
     (args.out / "playback.html").write_bytes(render_playback_html(view))
     (args.out / "final-frame.svg").write_bytes(render_playback_svg(view))
     if args.media:
         # The movie moves between saved placements; it does not invent search states.
         (args.out / "playback.mp4").write_bytes(
-            render_playback_media(view, format_name="mp4", fps=20, transition_frames=16, width=1920)
+            render_playback_media(view, format_name="mp4", fps=20, transition_frames=24, width=1920)
         )
         (args.out / "playback.gif").write_bytes(
-            render_playback_media(view, format_name="gif", fps=20, transition_frames=16, width=700)
+            render_playback_media(view, format_name="gif", fps=20, transition_frames=24, width=700)
         )
         (args.out / "final-frame.png").write_bytes(render_playback_media(view, format_name="png"))
     print(f"Best balance {winner.balance_score:.3f}; complete search {elapsed:.1f} seconds elapsed")

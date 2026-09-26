@@ -13,7 +13,7 @@ doc_type: tutorial
 
 A motif describes alternative bases at each position. When twelve models share a 60-base sequence, their preferred windows may overlap and compete for the same bases. This example searches for DNA whose weakest relative match is strong.
 
-https://github.com/user-attachments/assets/dfbfdb47-a784-42db-b53e-81a32f640d08
+https://github.com/user-attachments/assets/40a21023-d083-4495-a289-4931ee3d161b
 
 The left plot follows the best balance found. On the right, the same twelve motif models change their best-match positions and strands along one continuous duplex. The final candidate has balance **0.724**. The declared seed-839 run provides one achieved arrangement to inspect. [Inspect the final sequence](../examples/twelve-motifs/final-frame.png) for the nucleotide sequence and individual match windows.
 
@@ -39,6 +39,6 @@ uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo 
 
 The request uses 65,536 complete candidate evaluations. Its recorded run took about 178 seconds elapsed on an Apple M2 Pro with 16 GiB memory while eight workers ran concurrently. Runtime on another machine will differ.
 
-Open `playback.html` in the output directory to pause, scrub and inspect individual states. The video plays directly in this GitHub page. A [GIF preview](../examples/twelve-motifs/playback.gif) and the [MP4 file](../examples/twelve-motifs/playback.mp4) are also available. The horizontal axis counts candidate evaluations on a logarithmic scale, not elapsed time. Pauses show the seven recorded states. Between them, motif drawings move and crossfade; these labeled transitions do not supply intermediate DNA sequences or scores. Viewing intervals are not elapsed search time. The blue curve records the best balance so far, and the moving marker identifies the displayed state.
+Open `playback.html` in the output directory to pause, scrub and inspect individual states. The video plays directly in this GitHub page. A [GIF preview](../examples/twelve-motifs/playback.gif) and the [MP4 file](../examples/twelve-motifs/playback.mp4) are also available. The horizontal axis counts candidate evaluations on a logarithmic scale, not elapsed time. The movie now uses fifteen recorded best-so-far states, sampled at doubling evaluation counts and one late-search checkpoint, resolving early improvement as well as later progress. Motif drawings move continuously between these states without checkpoint pauses. Repeated unchanged drawings are skipped, while their observations remain in the curve and player. The movement does not supply intermediate DNA sequences or scores. Viewing intervals are not elapsed search time. The blue curve records the best balance so far, and the moving marker identifies the displayed state.
 
 The final sequence establishes that these model scores were attained. It does not establish a best possible sequence or biological activity. To ask a different question, copy the request and change its DNA length, supplied models or evaluation allowance. To request distinct arrangements, use [collections](choose-alternatives.md).

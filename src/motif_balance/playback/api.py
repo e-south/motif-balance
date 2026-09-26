@@ -52,13 +52,33 @@ def inspect_playback(
         raise ArtifactError("information-logo playback requires a uniform scoring background")
     if chain_id is not None and any(chain_id >= len(row.states) for row in checked.snapshots):
         raise ArtifactError("the recorded search does not contain that chain")
+    counts = {row.evaluations for row in checked.snapshots}
+    if chain_id is None:
+        counts.update(row.evaluations for row in checked.incumbents if row.incumbent is not None)
+    if len(counts) > 256:
+        raise ArtifactError("playback supports at most 256 combined recorded states")
     if isinstance(observation, bytes):
         checked = read_search_observation(observation)
     else:
         verify_search_observation(checked)
+    # Exact incumbent checkpoints can resolve early progress between periodic snapshots.
+    records = {
+        row.evaluations: (
+            row.incumbent,
+            row.incumbent if chain_id is None else row.states[chain_id].evaluation,
+        )
+        for row in checked.snapshots
+    }
+    if chain_id is None:
+        records.update(
+            {
+                row.evaluations: (row.incumbent, row.incumbent)
+                for row in checked.incumbents
+                if row.incumbent is not None
+            }
+        )
     frames = []
-    for row in checked.snapshots:
-        evaluation = row.incumbent if chain_id is None else row.states[chain_id].evaluation
+    for count, (incumbent, evaluation) in sorted(records.items()):
         candidate = Candidate(
             **evaluation.model_dump(mode="python"),
             candidate_id=candidate_id_for_sequence(evaluation.sequence),
@@ -67,8 +87,8 @@ def inspect_playback(
         projection = inspect_candidate(candidate, checked.spec)
         frames.append(
             PlaybackFrame(
-                evaluations=row.evaluations,
-                best_balance=row.incumbent.balance_score,
+                evaluations=count,
+                best_balance=incumbent.balance_score,
                 candidate=projection.candidate,
             )
         )

@@ -1,15 +1,17 @@
 {
-  "video_url": "https://github.com/user-attachments/assets/dfbfdb47-a784-42db-b53e-81a32f640d08",
+  "video_url": "https://github.com/user-attachments/assets/40a21023-d083-4495-a289-4931ee3d161b",
   "file": "playback.mp4",
-  "sha256": "b4f4c66adce75e785160f5f9c8022bd3d33360f3312723513da8f46ff6997e64",
+  "sha256": "52699ae37f5de0e9538963da106c8a1f98559a40ec375f185951959c8f3e7b97",
   "format": "H.264 MP4",
   "width": 1920,
-  "height": 1282,
+  "height": 1086,
   "fps": 20,
-  "frames": 166,
-  "duration_seconds": 8.3,
-  "recorded_states": 7,
-  "transition_frames": 16,
-  "meaning": "Tweening joins recorded states without generating intermediate scored sequences.",
-  "layout": "Best-so-far chart on the left; one continuous duplex and tweened motif placements on the right."
+  "frames": 226,
+  "duration_seconds": 11.3,
+  "recorded_states": 15,
+  "distinct_drawings": 10,
+  "transition_frames": 24,
+  "meaning": "The movie skips unchanged drawings but retains their observations in the curve and player. Motion connects recorded best candidates without generating intermediate scored sequences.",
+  "layout": "Larger square best-so-far chart on the left; one continuous duplex with moving motif placements on the right.",
+  "observation_sha256": "00c7c6d91e8b848b1a7d9c4c7bda78442ed80dfd89c05f62ff60355aabc8e72a"
 }

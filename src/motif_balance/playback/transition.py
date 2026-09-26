@@ -31,7 +31,7 @@ def blend_svgs(before: bytes, after: bytes, fraction: float) -> bytes:
     new_groups = {n.get("data-motif-id"): n for n in new_duplex if n.get("data-motif-id")}
     if old_groups.keys() != new_groups.keys():
         raise ArtifactError("transition must retain the same motif models")
-    t = fraction * fraction * (3 - 2 * fraction)
+    t = fraction
     canvas = ET.Element(Q + "g", old_duplex.attrib)
     # Keep the duplex moving continuously when the distribution of strands
     # changes the number of rows allocated above it.
@@ -83,18 +83,4 @@ def blend_svgs(before: bytes, after: bytes, fraction: float) -> bytes:
             break
     old.set("data-visual-transition", "true")
     old.set("data-transition-to-evaluations", new.get("data-evaluations", ""))
-    width = float(old.attrib["viewBox"].split()[2])
-    label = ET.SubElement(
-        old,
-        Q + "text",
-        {
-            "x": f"{width - 20:g}",
-            "y": "58",
-            "text-anchor": "end",
-            "font-family": "Arial,sans-serif",
-            "font-size": "16",
-            "fill": "#666666",
-        },
-    )
-    label.text = "Transition between recorded states"
     return bytes(ET.tostring(old, encoding="utf-8"))
