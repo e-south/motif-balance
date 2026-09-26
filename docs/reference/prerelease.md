@@ -1,5 +1,5 @@
 ---
-doc_id: motif-balance-prerelease
+doc_id: motif-balance-release
 title: Prepare and publish a release
 intent: Verify installable distributions and publish the reviewed files.
 audience:
@@ -73,7 +73,7 @@ apply to this build; the example states that a second independent build has not
 been compared. The current attestation format requires at least one declared
 limitation.
 
-Create an annotated `v<version>` tag at that commit and a draft GitHub prerelease.
+Create an annotated `v<version>` tag at that commit and a draft GitHub release.
 Upload these four unchanged files, download them into a fresh directory, and
 verify the download from the tagged checkout:
 
@@ -88,7 +88,7 @@ MOTIF_BALANCE_PRODUCER_REVISION="$(git rev-parse HEAD)" \
   bash ./scripts/wheel-smoke /path/to/fresh-download
 ```
 
-Publish the GitHub prerelease after these checks pass. The tag-triggered
+Publish the GitHub release after these checks pass. The tag-triggered
 `release.yaml` workflow can stage the same four verified files for download; it
 does not publish them. Versioned release files are immutable. Correct a defect
 with a new version rather than replacing published bytes.
@@ -124,7 +124,7 @@ public project page does not prove that a name can be registered.
 ## Publish the verified GitHub release to PyPI
 
 After account and environment setup, manually run **Publish verified
-distributions** in GitHub Actions and supply the published prerelease tag.
+distributions** in GitHub Actions and supply the published release tag.
 `publish.yaml` checks the annotated tag and main-branch ancestry, downloads the
 four release assets, verifies the attestation, and reruns distribution tests.
 Only the wheel and source distribution proceed to the protected publishing job.
@@ -142,5 +142,5 @@ motif-balance --help
 ```
 
 An exact version allows an alpha release to be installed deliberately. Ordinary
-unversioned installs generally skip prereleases. Publishing and account setup
+unversioned installs generally skip releases. Publishing and account setup
 are maintainer actions, separate from building and reviewing the package.

@@ -5,7 +5,7 @@ intent: Render recorded sequence states alongside best observed scores.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-21
+last_verified: 2026-09-26
 doc_type: how-to
 ---
 
@@ -41,8 +41,12 @@ chains. Missing chains or unsupported frames are rejected.
 The blue curve connects recorded snapshots. The orange point gives the score
 and evaluation count for the displayed DNA. Unequal spacing comes from the
 recorded counts on a logarithmic axis. Each snapshot receives equal viewing time.
-Both subpanels have the same square content area, with a duplex scale and motif
-DNA baselines fixed across the recording. The export is 1,920 × 1,056 pixels.
+For up to eight models, the two views have equal square content areas, with the
+duplex scale and DNA baselines fixed across the recording. This layout exports at
+1,920 × 1,056 pixels. For nine to twelve models, the recovery plot sits above a
+full-width molecular view so that the duplex remains continuous and readable.
+The larger canvas retains the same dimensions across frames; the duplex moves
+vertically as the number of forward- and reverse-strand matches changes.
 
 The sampled curve cannot recover the time or sequence
 of every intermediate improvement, and playback speed is a presentation choice,
@@ -78,14 +82,28 @@ the `visualization` extra:
 
 ```bash
 # Install the optional image and video export dependencies.
-uv sync --locked --extra visualization
+python -m pip install 'motif-balance[visualization]'
 # Encode the recorded states as an MP4 video.
-uv run motif-balance animate observation.json --format mp4 --out playback.mp4
+motif-balance animate observation.json --format mp4 --out playback.mp4
 ```
 
 Use `--fps` to set 1–30 frames per second. PNG accepts `--frame`; GIF and MP4
-show the recorded frame sequence. Source-checkout installation is shown here;
-when installing a wheel, request its `[visualization]` extra instead.
+show the recorded frame sequence.
+
+For smooth movement between saved states:
+
+```bash
+motif-balance animate observation.json --format mp4 --out smooth.mp4 \
+  --fps 20 --transition-frames 16 --width 1400
+```
+
+`--transition-frames` adds 0–30 display frames between consecutive observations.
+Motif drawings move and crossfade, rotating when their selected strand changes.
+DNA letters and scores come from the two recorded endpoints. Transition frames
+are labeled and retain the earlier point on the recovery curve until the next
+observation is reached. They do not represent additional evaluated sequences.
+`--width` reduces raster size while preserving the aspect ratio. MP4 streams
+frames to the encoder; GIF holds them in memory and enforces a pixel limit.
 
 Keep the observation record and source-model attribution with shared media.
 The export is an explanation of that run, not a replacement for its sequence

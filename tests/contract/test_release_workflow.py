@@ -25,11 +25,11 @@ def test_release_ancestry_check_uses_prefetched_main() -> None:
     assert 'git merge-base --is-ancestor "${GITHUB_SHA}" origin/main' in workflow
 
 
-def test_release_version_check_accepts_only_numbered_prereleases() -> None:
+def test_release_version_check_accepts_stable_or_numbered_prereleases() -> None:
     """An incidental a, b, or rc substring must not satisfy the release gate."""
     workflow = (REPO_ROOT / ".github/workflows/release.yaml").read_text(encoding="utf-8")
 
-    assert 're.fullmatch(r"[0-9]+(?:\\.[0-9]+){2}(?:a|b|rc)[0-9]+", version)' in workflow
+    assert 're.fullmatch(r"[0-9]+(?:\\.[0-9]+){2}(?:(?:a|b|rc)[0-9]+)?", version)' in workflow
     assert 'case "$project_version" in' not in workflow
 
 

@@ -72,4 +72,22 @@ Edit a copy of the [request](../examples/argr-cra/design.yaml):
 
 Run `--check` before searching the edited request. To select different motif
 arrangements, continue with [collections](choose-alternatives.md). For a
-three-motif application and recorded search, follow the [example](biological-example.md).
+twelve-model application and recorded search, follow the [example](biological-example.md).
+
+## Compare search methods
+
+Keep the same request, seed and evaluation allowance while changing the method:
+
+```bash
+for method in annealed greedy random; do
+  uv run motif-balance design examples/argr-cra/design.yaml \
+    --method "$method" --out "/tmp/motif-balance-$method"
+done
+```
+
+Use new output directories. Annealed is the default; greedy and annealed
+enumerate when the complete sequence space fits the allowance, while random
+always samples with replacement. The output reports the actual engine.
+Equal evaluation allowances do not imply equal elapsed time. See the
+[Python comparison](python-api.md#compare-search-methods) and
+[method definitions](methods.md#explicit-comparison-methods).

@@ -14,10 +14,9 @@ This example asks for a 20-base sequence matching all three supplied motif
 models. Their widths are 12, 7 and 7 bases, so some matches must share positions.
 The search chooses the DNA; best-match positions and strands emerge from rescanning.
 
-<a href="playback.mp4"><img src="final-frame.png" width="640" alt="Three motif matches beside the recorded search curve; click to open the video"></a>
+![Final state of the three-model tutorial](final-frame.png)
 
-Read the [example guide](../../docs/biological-example.md) for the
-installation and design steps. To reproduce the illustration from an installed
+See [installation](../../docs/installation.md) and [the first design](../../docs/quickstart.md) for setup. The [main recorded example](../../docs/biological-example.md) now follows twelve models. To reproduce the illustration from an installed
 package, run this example directory's script from any working directory:
 
 ```bash

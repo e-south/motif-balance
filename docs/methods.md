@@ -86,7 +86,9 @@ recovery, not the complete history of accepted moves.
 
 Python `design(spec, method=...)` and `design_observed` accept `"annealed"`,
 `"greedy"` or `"random"`. They share scoring, evaluation accounting, retention
-and selection. The CLI uses the default method.
+and selection. The CLI exposes the same choices through `design --method`,
+with `annealed` as the unchanged default. `--check` reports both the requested
+method and planned search kind; completed output names the actual recorded engine.
 
 Greedy search uses the same related or independent starts as annealed search.
 It visits states in turn, chooses a random coordinate, and scores A, C, G and T
@@ -109,10 +111,16 @@ widths, motif count and strand policy.
 
 ## Budget, retention, and interpretation
 
-Search retains all unique evaluations in memory for exact discovery accounting
-and selection. The manifest exports at most 256 distinct high-scoring sequences,
-plus logarithmic score checkpoints, final state scores and proposal counts.
-The export cap is not a working-memory bound. Optional
+Single-output searches retain at most 256 full unique evaluations: the exact
+highest-scoring candidates under the existing score and lexical ordering.
+Complete sequence identities and first-discovery indices remain in memory for
+exact uniqueness accounting and passive observations. Discarded match records
+do not affect search decisions, its RNG stream, selected winner or elite set.
+Multi-output requests retain every unique evaluation for exact selection,
+including distance constraints. The discovery index still grows with unique
+sequences up to the public evaluation and evaluated-base limits; the 256-record
+cap is not a promise of constant total process memory. The manifest exports at
+most 256 distinct elites and logarithmic checkpoints. Optional
 [observations](reference/search-observations.md) retain explicit snapshots,
 evaluated winners and bounded samples above chosen quality thresholds.
 

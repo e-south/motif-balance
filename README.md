@@ -12,6 +12,17 @@ alternative arrangements.
 [Python](https://github.com/e-south/motif-balance/blob/main/docs/python-api.md) ·
 [Documentation](https://github.com/e-south/motif-balance/blob/main/docs/README.md)
 
+## Install
+
+With Python 3.12–3.14:
+
+```bash
+python -m pip install motif-balance
+motif-balance --help
+```
+
+For PNG, animated GIF, and MP4 exports, install `motif-balance[visualization]`.
+
 ## Try a design
 
 With Git and [uv](https://docs.astral.sh/uv/) installed:
@@ -94,7 +105,7 @@ the saved sequences; it does not run another search. See [First design](https://
 to save a result and view its motif matches, or the [input provenance](https://github.com/e-south/motif-balance/blob/main/examples/argr-cra/README.md)
 for these two profiles.
 
-The current prerelease supports Python 3.12–3.14 on Linux and macOS.
+Motif Balance supports Python 3.12–3.14 on Linux and macOS.
 See [Contributing](https://github.com/e-south/motif-balance/blob/main/CONTRIBUTING.md) for development and [LICENSE](https://github.com/e-south/motif-balance/blob/main/LICENSE) for
 software reuse.
 

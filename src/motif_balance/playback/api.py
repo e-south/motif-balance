@@ -42,8 +42,8 @@ def inspect_playback(
         checked = SearchObservation.model_validate(observation.model_dump(mode="python"))
     else:
         raise ArtifactError("playback requires a SearchObservation or its JSON bytes")
-    if checked.spec.length > 128 or len(checked.spec.specifications) > 8:
-        raise ArtifactError("compact playback supports at most 128 bases and eight motifs")
+    if checked.spec.length > 128 or len(checked.spec.specifications) > 12:
+        raise ArtifactError("playback supports at most 128 bases and twelve motifs")
     if any(
         not math.isclose(p, 0.25, abs_tol=1e-12)
         for item in checked.spec.specifications

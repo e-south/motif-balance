@@ -46,7 +46,11 @@ class UniformRandomSearchEngine:
                 hint="Use explicit seek/avoid specifications for this search method.",
             )
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
-        ledger = _SearchLedger(budget=problem.spec.evaluations, observer=self.observer)
+        ledger = _SearchLedger(
+            budget=problem.spec.evaluations,
+            observer=self.observer,
+            retention_capacity=DEFAULT_ELITE_CAPACITY if problem.spec.count == 1 else None,
+        )
         while ledger.evaluations_used < ledger.budget:
             state = rng.integers(0, 4, size=problem.spec.length, dtype=np.int8)
             ledger.record(evaluate(_sequence(state), problem))
@@ -68,9 +72,9 @@ class UniformRandomSearchEngine:
         )
         return SearchResult(
             evaluations=evaluations,
-            first_evaluation_indices=tuple(ledger.first_evaluation_indices.values()),
+            first_evaluation_indices=ledger.retained_first_indices,
             evaluations_used=ledger.evaluations_used,
-            unique_evaluations=len(evaluations),
+            unique_evaluations=ledger.unique_evaluations,
             completion_status="budget_exhausted",
             search_validation_status="contract_tested",
             diagnostics=diagnostics,

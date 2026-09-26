@@ -378,3 +378,13 @@ def test_release_preparation_rejects_dirty_source_without_creating_output(tmp_pa
     assert completed.returncode == 1
     assert "release checkout is not clean" in completed.stderr
     assert not output.exists()
+
+
+@pytest.mark.parametrize("version", ["0.6.0", "0.6.0a2", "1.0.0rc1"])
+def test_release_accepts_stable_or_numbered_prerelease(version):
+    assert _module().VERSION_PATTERN.fullmatch(version)
+
+
+@pytest.mark.parametrize("version", ["0.6", "0.6.0dev", "0.6.0a", "0.6.0+local", "v0.6.0"])
+def test_release_rejects_ambiguous_version(version):
+    assert not _module().VERSION_PATTERN.fullmatch(version)

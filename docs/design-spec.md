@@ -72,8 +72,14 @@ Validation also caps the work implied by otherwise valid fields:
 - at most 1,000,000 candidate–motif rows across specifications;
 - at most 10,000,000 selected portfolio bases;
 - at most 25,000,000 evaluated bases;
-- at most 100,000,000 motif-window base-score operations across specifications;
+- at most 100,000,000 motif-window base-score operations across specifications,
+  or 2,000,000,000 when requesting exactly one candidate;
 - at most 10,000,000 pairwise distance base comparisons when distance is positive.
+
+Single-output searches retain at most 256 full evaluation records, which suffices
+for exact winner and elite selection. They still retain exact sequence discovery
+identities, bounded by the unchanged evaluation and evaluated-base limits.
+Multi-output searches retain their complete pool for exact constrained selection.
 
 These bounds prevent unexpectedly large allocations and calculations. Requests outside them
 fail before search. A request within them can still fail: the evaluator budget

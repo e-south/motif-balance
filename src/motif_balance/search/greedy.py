@@ -63,7 +63,11 @@ class GreedySearchEngine:
         if sequence_space_at_most(problem.spec.length, problem.spec.evaluations) is not None:
             return ExhaustiveSearchEngine(observer=self.observer).search(problem)
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
-        ledger = _SearchLedger(budget=problem.spec.evaluations, observer=self.observer)
+        ledger = _SearchLedger(
+            budget=problem.spec.evaluations,
+            observer=self.observer,
+            retention_capacity=DEFAULT_ELITE_CAPACITY if problem.spec.count == 1 else None,
+        )
         states, current = initial_states(
             problem, rng=rng, ledger=ledger, initialization=self.initialization
         )
@@ -110,9 +114,9 @@ class GreedySearchEngine:
         )
         return SearchResult(
             evaluations=evaluations,
-            first_evaluation_indices=tuple(ledger.first_evaluation_indices.values()),
+            first_evaluation_indices=ledger.retained_first_indices,
             evaluations_used=ledger.evaluations_used,
-            unique_evaluations=len(evaluations),
+            unique_evaluations=ledger.unique_evaluations,
             completion_status="budget_exhausted",
             search_validation_status="contract_tested",
             diagnostics=diagnostics,

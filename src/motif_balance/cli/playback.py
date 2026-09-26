@@ -57,6 +57,19 @@ def animate_command(
     frame: Annotated[
         int, typer.Option("--frame", help="Zero-based SVG/PNG frame; -1 is final.")
     ] = -1,
+    transition_frames: Annotated[
+        int,
+        typer.Option(
+            "--transition-frames",
+            min=0,
+            max=30,
+            help="Display-only motion between recorded GIF/MP4 states.",
+        ),
+    ] = 0,
+    width: Annotated[
+        int | None,
+        typer.Option("--width", min=320, help="Raster output width; default is native size."),
+    ] = None,
     debug: Annotated[bool, typer.Option("--debug")] = False,
 ) -> None:
     """Replay recorded search states beside a sampled best-score trace."""
@@ -66,13 +79,24 @@ def animate_command(
             raise ArtifactError("output suffix must match --format")
         if format_name not in ("svg", "png") and frame != -1:
             raise ArtifactError("--frame is supported only for SVG or PNG")
+        if transition_frames and format_name not in ("gif", "mp4"):
+            raise ArtifactError("--transition-frames requires GIF or MP4")
+        if width is not None and format_name in ("html", "svg"):
+            raise ArtifactError("--width requires PNG, GIF or MP4")
         value = inspect_playback(_read_observation(observation), chain_id=chain)
         if format_name == "html":
             payload = render_playback_html(value, fps=fps)
         elif format_name == "svg":
             payload = render_playback_svg(value, frame=frame)
         else:
-            payload = render_playback_media(value, format_name=format_name, fps=fps, frame=frame)
+            payload = render_playback_media(
+                value,
+                format_name=format_name,
+                fps=fps,
+                frame=frame,
+                transition_frames=transition_frames,
+                width=width,
+            )
         _write_new_file(out, payload, label="playback output")
         typer.echo(f"Wrote {len(value.frames)} recorded observations to {out.name}")
     except (MotifBalanceError, ValidationError, ValueError, OSError) as exc:

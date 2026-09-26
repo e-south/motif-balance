@@ -14,3 +14,4 @@ dist/*
 
 # Publisher data are prepared locally, not redistributed.
 /examples/argr-cra/inputs/
+/examples/twelve-motifs/inputs/

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import typer
 from pydantic import ValidationError
@@ -33,6 +33,13 @@ def design_command(
     check: Annotated[
         bool, typer.Option("--check", help="Compile and validate without search.")
     ] = False,
+    method: Annotated[
+        Literal["annealed", "greedy", "random"],
+        typer.Option(
+            "--method",
+            help="Annealed/greedy enumerate when the full space fits; random always samples.",
+        ),
+    ] = "annealed",
     debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
 ) -> None:
     """Validate or execute one immutable DesignSpec."""
@@ -41,6 +48,9 @@ def design_command(
         spec = load_design_spec(specification)
         problem_id = compile_design(spec).problem_id
         if check:
+            search_kind = planned_search_kind(spec)
+            if method == "random" or search_kind != "exhaustive":
+                search_kind = method
             typer.echo(f"valid {problem_id}")
             specification_summary = " ".join(
                 (
@@ -54,7 +64,7 @@ def design_command(
             typer.echo(
                 f"{specification_summary} length={spec.length} count={spec.count} "
                 f"strands={spec.strands} evaluations={spec.evaluations} "
-                f"min_distance={spec.min_distance} search={planned_search_kind(spec)}"
+                f"min_distance={spec.min_distance} method={method} search={search_kind}"
             )
             return
         if out is None:
@@ -69,7 +79,7 @@ def design_command(
                 field="out",
                 hint="Choose a new output directory.",
             )
-        portfolio = design(spec)
+        portfolio = design(spec, method=method)
         portfolio.write(out)
         best = portfolio.best
         best_observed = portfolio.best_observed
@@ -80,6 +90,7 @@ def design_command(
             f"Returned {len(portfolio.candidates)} of {spec.count} candidates for "
             f"{motif_summary}, each {spec.length} nt."
         )
+        typer.echo(f"Requested method: {method}; engine: {portfolio.manifest.search_engine}.")
         typer.echo(f"Best observed balance score: {best_observed.balance_score:.6g}.")
         if best_observed.sequence not in {candidate.sequence for candidate in portfolio.candidates}:
             typer.echo(

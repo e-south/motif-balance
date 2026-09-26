@@ -21,7 +21,7 @@ design; use the references when you need to change an input or interpret a resul
 | --- | --- |
 | Install a wheel or source checkout | [Installation](installation.md) |
 | Run, inspect and export a first design | [Quickstart](quickstart.md) |
-| Work with transcription-factor profiles | [Dorsal, Twist and Zelda example](biological-example.md) |
+| Work with transcription-factor profiles | [Twelve-model recorded search](biological-example.md) |
 | Prepare count or probability matrices | [Motif inputs](motif-models.md) |
 | Write a design request | [Design specification](design-spec.md) |
 | Design from Python | [Python tutorial](python-api.md) |

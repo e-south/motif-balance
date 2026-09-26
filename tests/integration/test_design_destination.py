@@ -73,7 +73,8 @@ def test_destination_created_during_search_is_not_replaced(
 ) -> None:
     output = tmp_path / "result"
 
-    def racing_search(spec: DesignSpec) -> Portfolio:
+    def racing_search(spec: DesignSpec, *, method: str) -> Portfolio:
+        assert method == "annealed"
         portfolio = design(spec)
         output.mkdir()
         (output / "owner.txt").write_text("another caller")

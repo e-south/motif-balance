@@ -27,6 +27,7 @@ from motif_balance.constants import (
     MAX_RUN_MANIFEST_BYTES,
     MAX_SCORE_BASE_OPERATIONS,
     MAX_SEQUENCE_LENGTH,
+    MAX_SINGLE_OUTPUT_SCORE_BASE_OPERATIONS,
     OBJECTIVE_SEMANTICS,
     SCORING_SEMANTICS,
     TIE_BREAK_SEMANTICS,
@@ -88,7 +89,12 @@ class DesignSpec(FrozenModel):
             for motif in scored_motifs
             if motif.width <= self.length
         )
-        if score_operations > MAX_SCORE_BASE_OPERATIONS:
+        score_limit = (
+            MAX_SINGLE_OUTPUT_SCORE_BASE_OPERATIONS
+            if self.count == 1
+            else MAX_SCORE_BASE_OPERATIONS
+        )
+        if score_operations > score_limit:
             raise ValueError("design exceeds the score-operation limit")
         if self.evaluations * self.length > MAX_EVALUATED_BASES:
             raise ValueError("evaluations times length exceeds the evaluated-base limit")

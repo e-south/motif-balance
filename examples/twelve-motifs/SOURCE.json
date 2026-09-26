@@ -1,0 +1,113 @@
+{
+  "publication": "Baumgart et al. (2021), Persistence and plasticity in bacterial gene regulation",
+  "doi": "https://doi.org/10.1038/s41592-021-01312-2",
+  "dataset": "Supplementary Data 2",
+  "url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41592-021-01312-2/MediaObjects/41592_2021_1312_MOESM5_ESM.zip",
+  "retrieved": "2026-09-24",
+  "archive_sha256": "ed353947e5422afcffab24dd22188d4cddc9e3c01313fa5484fcdf0e819c5cfb",
+  "taxon": "Escherichia coli",
+  "assay": "DAP-seq",
+  "preparation": "Normalize each source row to sum to one, then p = (p0 + 0.025) / 1.1; uniform scoring background",
+  "content": "Numerical probability data extracted from the named source records; no article text or published artwork is included.",
+  "profiles": [
+    {
+      "record": "nagC",
+      "protein": "nagC",
+      "width": 21,
+      "archive_member": "motifs/escherichia_coli_motifs/nagC.txt",
+      "original_sha256": "c5ed20a21588052847bfa665a3bb3ff4babbb7bcf9d255f765ec37f7586cbc21",
+      "prepared_model_digest": "447a2a06ef77eb9a9201b828e2e3f652fa7aae26e094d60b4a6774210f5d1d4f"
+    },
+    {
+      "record": "kdpE",
+      "protein": "kdpE",
+      "width": 22,
+      "archive_member": "motifs/escherichia_coli_motifs/kdpE.txt",
+      "original_sha256": "c988eb1d46e43d4c35ab1b9e99573a5fca337c2b3bdc93f2ec31e562ad7c6dad",
+      "prepared_model_digest": "8c0baf154c55f2680714c953d8fd9acfb1a8f738def0d38567e4088a787927ef"
+    },
+    {
+      "record": "sgrR",
+      "protein": "sgrR",
+      "width": 15,
+      "archive_member": "motifs/escherichia_coli_motifs/sgrR.txt",
+      "original_sha256": "a8b1f8ebb9019721afa5469880e0ac0d31d9c909d7417ebfd5affe6f590f465e",
+      "prepared_model_digest": "656d260b1c66aa79979f69fd5748e41a0480e0a1b2504cd9a13188006323188b"
+    },
+    {
+      "record": "nadR",
+      "protein": "nadR",
+      "width": 20,
+      "archive_member": "motifs/escherichia_coli_motifs/nadR.txt",
+      "original_sha256": "94c5145cc8ae18a7fcc146e0ce871a372644521e8cded40e8d67e1246a6af8df",
+      "prepared_model_digest": "264b724050ac9b727ff282e3eb0b1bfd1c68b2866096aacd01471c292561133f"
+    },
+    {
+      "record": "dpiA",
+      "protein": "dpiA",
+      "width": 32,
+      "archive_member": "motifs/escherichia_coli_motifs/dpiA.txt",
+      "original_sha256": "aecbe26318a9d69821002d06b9afdf323e91a559d8e1ddaf5b49b0bcc862d462",
+      "prepared_model_digest": "94f19103332a85be4848134eee6dbd9e4cddf11c2146d46c96edbfe8e1bb22bc"
+    },
+    {
+      "record": "iscR",
+      "protein": "iscR",
+      "width": 24,
+      "archive_member": "motifs/escherichia_coli_motifs/iscR.txt",
+      "original_sha256": "aef367c381944f6a85757674bee27ab5ff1c9582f66d02993a160ea47705f28e",
+      "prepared_model_digest": "214939b487ce4c60102193721b03fc9945d08ab82794fe3fb099e6bea09072ba"
+    },
+    {
+      "record": "cra",
+      "protein": "cra",
+      "width": 14,
+      "archive_member": "motifs/escherichia_coli_motifs/cra.txt",
+      "original_sha256": "3d6600144e0bc848b4a7f6559102fb1aa3b58ab41ff674eb0bdad62c45f76e70",
+      "prepared_model_digest": "24562ab683482d47a95228af02fcaa3a0309947ab4d2332574e092dd04dd14e1"
+    },
+    {
+      "record": "alsR",
+      "protein": "alsR",
+      "width": 21,
+      "archive_member": "motifs/escherichia_coli_motifs/alsR.txt",
+      "original_sha256": "dfb76d59296cf5a54acb0bce37380b20224c57b04fdecd013394cb30d93074c4",
+      "prepared_model_digest": "81672439fd66e330eaca2851b4f4bfcde373c81d6cffea0c4317961816df1421"
+    },
+    {
+      "record": "modE",
+      "protein": "modE",
+      "width": 12,
+      "archive_member": "motifs/escherichia_coli_motifs/modE.txt",
+      "original_sha256": "1b0ce76b36042d7a40ac72bc273fd929e9f6e3d59d6664b8f6071eacc99c908b",
+      "prepared_model_digest": "107d3113e2fc376e66d26acb5e9b4c98ec753231ea428ebb8cc96cdb6d77ef9c"
+    },
+    {
+      "record": "nsrR",
+      "protein": "nsrR",
+      "width": 31,
+      "archive_member": "motifs/escherichia_coli_motifs/nsrR.txt",
+      "original_sha256": "d28481d90c65725a13484085fefd6a102a14fc6a685337ecb7a3fd1aa6ddcb49",
+      "prepared_model_digest": "a968fda684c82c5110c478b835302874082cb4bd6c14e70800e3e7f95fc389a3"
+    },
+    {
+      "record": "csiR",
+      "protein": "csiR",
+      "width": 24,
+      "archive_member": "motifs/escherichia_coli_motifs/csiR.txt",
+      "original_sha256": "3bceb3d7150426ad1c68537c6c6c51cb8802dc3e10128011a72d1940220342ed",
+      "prepared_model_digest": "7804f4afec395eefe1e2ae6ede9df8c59baa8aa05d08cc5ff7669592ab66e2c4"
+    },
+    {
+      "record": "mntR",
+      "protein": "mntR",
+      "width": 13,
+      "archive_member": "motifs/escherichia_coli_motifs/mntR.txt",
+      "original_sha256": "6558259948303a091a03338f07191c96ef9588b4fda7994ea6485e031fcb213d",
+      "prepared_model_digest": "8cdb0e49f60c3d1874d1fc25a999a54a7581a4545955c92874a295d97a673a03"
+    }
+  ],
+  "distribution": "Source and prepared matrices are downloaded and generated locally; they are not bundled with the repository or distributions.",
+  "redistribution_license": "Not established; no third-party matrices are redistributed.",
+  "attribution": "Numerical motif models from Baumgart et al. (2021); derived sequence and visualization by Eric J. South, Dunlop Lab."
+}

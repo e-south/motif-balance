@@ -52,6 +52,7 @@ class ExhaustiveSearchEngine:
         ledger = _SearchLedger(
             budget=sequence_space,
             observer=self.observer,
+            retention_capacity=DEFAULT_ELITE_CAPACITY if problem.spec.count == 1 else None,
         )
         for bases in itertools.product(DNA_ALPHABET, repeat=problem.spec.length):
             ledger.record(evaluate("".join(bases), problem))
@@ -73,9 +74,9 @@ class ExhaustiveSearchEngine:
         evaluations = tuple(ledger.evaluations.values())
         return SearchResult(
             evaluations=evaluations,
-            first_evaluation_indices=tuple(ledger.first_evaluation_indices.values()),
+            first_evaluation_indices=ledger.retained_first_indices,
             evaluations_used=ledger.evaluations_used,
-            unique_evaluations=len(ledger.evaluations),
+            unique_evaluations=ledger.unique_evaluations,
             completion_status="exhaustive",
             search_validation_status="not_applicable",
             diagnostics=diagnostics,
@@ -112,6 +113,7 @@ class AnnealedSearchEngine(SearchMoves):
         ledger = _SearchLedger(
             budget=problem.spec.evaluations,
             observer=self.observer,
+            retention_capacity=DEFAULT_ELITE_CAPACITY if problem.spec.count == 1 else None,
         )
         states, current = initial_states(
             problem,
@@ -205,9 +207,9 @@ class AnnealedSearchEngine(SearchMoves):
         evaluations = tuple(ledger.evaluations.values())
         return SearchResult(
             evaluations=evaluations,
-            first_evaluation_indices=tuple(ledger.first_evaluation_indices.values()),
+            first_evaluation_indices=ledger.retained_first_indices,
             evaluations_used=ledger.evaluations_used,
-            unique_evaluations=len(ledger.evaluations),
+            unique_evaluations=ledger.unique_evaluations,
             completion_status="budget_exhausted",
             search_validation_status="contract_tested",
             diagnostics=diagnostics,

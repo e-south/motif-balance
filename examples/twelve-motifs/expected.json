@@ -1,0 +1,21 @@
+{
+  "sequence": "ATAGCTCAGGCTAAATTTAGTGTAAAAAAAGTATAAAACCACAAACTGAAACGATTCAGC",
+  "balance": 0.7235860006528714,
+  "seed": 839,
+  "evaluations": 65536,
+  "model_ids": [
+    "nagC",
+    "kdpE",
+    "sgrR",
+    "nadR",
+    "dpiA",
+    "iscR",
+    "cra",
+    "alsR",
+    "modE",
+    "nsrR",
+    "csiR",
+    "mntR"
+  ],
+  "producer": "motif-balance 0.6.0a2"
+}
