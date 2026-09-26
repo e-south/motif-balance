@@ -214,6 +214,10 @@ PY
       cp -R "$smoke_root/argr-cra-inputs" "$example_destination/inputs"
     done
   fi
+  if [[ "$guide" == "README.md" ]]; then
+    cp -R "$smoke_root/argr-cra-inputs" "$smoke_root/source-$guide_name/inputs"
+    cp -R "$smoke_root/argr-cra-inputs" "$smoke_root/wheel-$guide_name/inputs"
+  fi
   source_guide="$(cd "$smoke_root/source-$guide_name" && "$source_python" -c "$guide_program")"
   wheel_guide="$(cd "$smoke_root/wheel-$guide_name" && "$smoke_root/venv/bin/python" -c "$guide_program")"
   if [[ "$source_guide" != "$wheel_guide" ]]; then

@@ -17,5 +17,6 @@
     "csiR",
     "mntR"
   ],
-  "producer": "motif-balance 0.6.0a2"
+  "producer": "motif-balance 0.6.0a2",
+  "replay_package_version": "0.6.0"
 }

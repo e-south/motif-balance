@@ -245,3 +245,17 @@ def test_resized_movie_supplies_complete_raster_frames(observation, monkeypatch)
     )
     assert len(seen) > len(view.frames)
     assert len(set(seen)) == 1
+
+
+def test_mp4_total_work_is_bounded_before_loading_encoder(observation, monkeypatch):
+    from motif_balance.playback import media, render_playback_media
+
+    view = inspect_playback(observation)
+    monkeypatch.setattr(media, "_MAX_TOTAL_PIXELS", 1, raising=False)
+
+    def no_dependency(name):
+        raise AssertionError("work must be admitted before media dependencies load")
+
+    monkeypatch.setattr(media, "_dependency", no_dependency)
+    with pytest.raises(ArtifactError, match="total"):
+        render_playback_media(view, format_name="mp4", fps=30, transition_frames=30)

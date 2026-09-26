@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 from motif_balance.api import design_observed
+from motif_balance.constants import PACKAGE_VERSION
 from motif_balance.formats.design import load_design_spec
 from motif_balance.model.search_observation import ObservationSpec
 from motif_balance.playback import (
@@ -16,12 +17,19 @@ from motif_balance.playback import (
 )
 
 
+def verify_replay_version(expected: dict) -> None:
+    if expected.get("replay_package_version") != PACKAGE_VERSION:
+        raise ValueError("Example replay package differs from the declared version")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path, help="A new output directory")
     parser.add_argument("--media", action="store_true", help="Also export an inline GIF and PNG")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
+    expected = json.loads((root / "expected.json").read_text())
+    verify_replay_version(expected)
     spec = load_design_spec(root / "design.yaml")
     provenance = json.loads((root / "SOURCE.json").read_text())
     digests = {p["record"]: p["prepared_model_digest"] for p in provenance["profiles"]}
@@ -32,7 +40,6 @@ def main() -> None:
     portfolio, observation = design_observed(spec, ObservationSpec(max_snapshots=8))
     elapsed = time.perf_counter() - started
     winner = portfolio.candidates[0]
-    expected = json.loads((root / "expected.json").read_text())
     if (
         winner.sequence != expected["sequence"]
         or abs(winner.balance_score - expected["balance"]) > 1e-12

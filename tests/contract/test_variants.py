@@ -216,3 +216,44 @@ def test_small_libraries_agree_with_independent_rescoring(parent):
             if p.spec_direction == "seek":
                 assert (p.start, p.end, p.strand) == (m.start, m.end, m.strand)
     assert lib.minimum_balance >= lib.parent.balance_score - 0.3 - 1e-12
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "changes",
+        "position",
+        "parent_base",
+        "evaluation",
+        "status",
+        "sites",
+        "missing",
+        "duplicate",
+        "model",
+    ],
+)
+def test_serialized_library_rejects_inconsistent_substitution_diagnostics(mutation):
+    from motif_balance.model.variants import VariantLibrary
+
+    value = diversify("AA", request(), max_score_loss=0.04).model_dump(mode="json")
+    row = value["substitutions"][0]
+    if mutation == "changes":
+        row["component_changes"] = []
+    elif mutation == "position":
+        row["position"] = 20
+    elif mutation == "parent_base":
+        row["parent_base"] = "T"
+    elif mutation == "evaluation":
+        row["evaluation"] = value["parent"]
+    elif mutation == "status":
+        row["status"] = "score_loss"
+    elif mutation == "sites":
+        row["changed_desired_sites"] = ["wanted"]
+    elif mutation == "missing":
+        value["substitutions"].pop()
+    elif mutation == "duplicate":
+        value["substitutions"].append(row)
+    else:
+        row["evaluation"]["matches"][0]["motif_id"] = "unrequested"
+    with pytest.raises(ValueError):
+        VariantLibrary.model_validate(value)

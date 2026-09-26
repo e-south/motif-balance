@@ -26,6 +26,7 @@ from .render import frame_dimensions, render_playback_svg, validate_view
 from .transition import blend_svgs
 
 _MAX_PIXELS = 128_000_000
+_MAX_TOTAL_PIXELS = 1_000_000_000
 _MAX_BYTES = 64 * 1024 * 1024
 
 
@@ -76,6 +77,10 @@ def render_playback_media(
     # GIF retains its frames; MP4 streams one raster at a time to the encoder.
     if width * height * (count if format_name == "gif" else 1) > _MAX_PIXELS:
         raise ArtifactError("media exceeds the 128-million-pixel limit; reduce width or use MP4")
+    if width * height * count > _MAX_TOTAL_PIXELS:
+        raise ArtifactError(
+            "media exceeds the one-billion total-pixel limit; reduce width or frames"
+        )
     renderer = _dependency("resvg_py")
     image_module = _dependency("PIL.Image")
 

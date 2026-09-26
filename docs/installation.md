@@ -25,7 +25,7 @@ uv add motif-balance
 uv run motif-balance --help
 ```
 
-Continue with the self-contained [README example](../README.md#try-a-design).
+Continue with the ArgR/Cra [README example](../README.md#try-a-design).
 In an existing uv project, run only `uv add motif-balance`.
 `uv add` records the dependency and updates the project's lockfile; `uv run`
 keeps its environment in sync before running the command.

@@ -18,7 +18,7 @@ uv run motif-balance design examples/twelve-motifs/design.yaml --check
 uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo --media
 ```
 
-Open the generated `playback.html` for play/pause and frame selection, or inspect the GIF directly. Outputs must use a new directory. `expected.json` records the selected sequence, score, seed and software version; the reproduction script checks agreement. The recorded search used Python 3.12.11, NumPy 2.4.6 and Motif Balance 0.6.0a2.
+Open the generated `playback.html` for play/pause and frame selection, or inspect the GIF directly. Outputs must use a new directory. `expected.json` records the selected sequence, score, seed and software version; the reproduction script checks the declared replay package before search and the resulting sequence and balance afterward. Replay uses Motif Balance 0.6.0. The original recorded search used Python 3.12.11, NumPy 2.4.6 and Motif Balance 0.6.0a2.
 
 ## Inputs and interpretation
 

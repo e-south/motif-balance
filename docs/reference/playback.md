@@ -108,3 +108,8 @@ frames to the encoder; GIF holds them in memory and enforces a pixel limit.
 Keep the observation record and source-model attribution with shared media.
 The export is an explanation of that run, not a replacement for its sequence
 and scoring records.
+
+Media export also limits total encoded-frame work to one billion pixels before
+rasterization or encoder startup. MP4 streams frames to bound memory, but is
+subject to this total-work limit. Reduce width, snapshots, or transition frames
+when an export is refused.

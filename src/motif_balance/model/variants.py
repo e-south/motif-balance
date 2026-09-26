@@ -13,7 +13,7 @@ Dunlop Lab
 from __future__ import annotations
 
 from itertools import product
-from math import prod
+from math import isclose, prod
 from typing import Annotated, Literal, Self
 
 from pydantic import Field, model_validator
@@ -116,6 +116,64 @@ class VariantLibrary(FrozenModel):
         expected = {"".join(bases) for bases in product(*self.allowed_bases)}
         if expected != {v.sequence for v in self.variants} or self.variants[0] != self.parent:
             raise ValueError("variants must enumerate the product exactly, with parent first")
+        requested = tuple((s.motif.motif_id, s.direction) for s in self.spec.specifications)
+        if tuple((m.motif_id, m.spec_direction) for m in self.parent.matches) != requested:
+            raise ValueError("parent match identities must match the specification")
+        models = {s.motif.motif_id: s.motif for s in self.spec.specifications}
+        evaluations = (self.parent, *self.variants, *(s.evaluation for s in self.substitutions))
+        for evaluation in evaluations:
+            if (
+                len(evaluation.sequence) != length
+                or tuple((m.motif_id, m.spec_direction) for m in evaluation.matches) != requested
+            ):
+                raise ValueError("evaluation identities and length must match the specification")
+            for match in evaluation.matches:
+                if match.end > length or match.end - match.start != models[match.motif_id].width:
+                    raise ValueError("evaluation sites must fit the sequence and model width")
+                site = evaluation.sequence[match.start : match.end]
+                if match.strand == "-":
+                    if self.spec.strands == "forward":
+                        raise ValueError("reverse match conflicts with forward-only request")
+                    site = site.translate(str.maketrans("ACGT", "TGCA"))[::-1]
+                if match.matched_sequence != site:
+                    raise ValueError("matched sequence must agree with its window and strand")
+        expected_options = tuple(
+            (p, b) for p in self.editable_positions for b in "ACGT" if b != self.parent.sequence[p]
+        )
+        if tuple((s.position, s.base) for s in self.substitutions) != expected_options:
+            raise ValueError("substitutions must cover each editable alternative exactly once")
+        for substitution in self.substitutions:
+            p = substitution.position
+            changed = self.parent.sequence[:p] + substitution.base + self.parent.sequence[p + 1 :]
+            if (
+                substitution.parent_base != self.parent.sequence[p]
+                or substitution.evaluation.sequence != changed
+            ):
+                raise ValueError("substitution must describe its declared parental edit")
+            changes = tuple(
+                m.spec_satisfaction - p.spec_satisfaction
+                for p, m in zip(self.parent.matches, substitution.evaluation.matches, strict=True)
+            )
+            moved = tuple(
+                p.motif_id
+                for p, m in zip(self.parent.matches, substitution.evaluation.matches, strict=True)
+                if p.spec_direction == "seek"
+                and (p.start, p.end, p.strand) != (m.start, m.end, m.strand)
+            )
+            status = (
+                "site_changed"
+                if moved
+                else (
+                    "score_loss" if min(changes) < -self.max_score_loss - 1e-12 else "passes_alone"
+                )
+            )
+            if len(changes) != len(substitution.component_changes) or any(
+                not isclose(a, b, rel_tol=0.0, abs_tol=1e-12)
+                for a, b in zip(changes, substitution.component_changes, strict=True)
+            ):
+                raise ValueError("substitution component changes must agree with evaluations")
+            if substitution.changed_desired_sites != moved or substitution.status != status:
+                raise ValueError("substitution site changes and status must agree with evaluations")
         for variant in self.variants:
             if len(variant.matches) != len(self.parent.matches):
                 raise ValueError("every variant must include every parental model")
