@@ -51,7 +51,7 @@ def test_collection_cli_returns_full_profile_and_explicit_partial_status(tmp_pat
     assert len(output["ranking"]["prefixes"]) == collection["available_count"]
 
 
-def test_collection_cli_requires_a_verified_identity_and_preserves_outputs(tmp_path, pairwise_spec):
+def test_collection_cli_checks_external_identity_and_preserves_outputs(tmp_path, pairwise_spec):
     path, identity = bundle(tmp_path, pairwise_spec)
     out = tmp_path / "review.json"
     out.write_text("keep")

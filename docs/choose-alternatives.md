@@ -34,10 +34,14 @@ To select from a saved design at the terminal:
 
 ```bash
 # Select up to eight distinct arrangements from the result's retained search pool.
-motif-balance collect architecture-result --count 8 --format json
+uv run motif-balance collect architecture-result --count 8 --out collection.json
 ```
 
-The command reports how many arrangements were requested, available and delivered.
+The saved report contains the requested, available, and delivered counts, the
+selected sequences, and their scoring inputs. It checks the saved design's file
+digests and rescans its scores. Add `--expected-bundle-id` when you have retained
+that identity separately and want to check it too. Without it, verification checks
+internal consistency rather than an independently known source identity.
 Use a design without a positive `min_distance`: arrangement grouping does not
 enforce sequence separation. For a fixed-size set with explicit distance
 requirements, use [portfolio selection](reference/portfolio-selection.md).
@@ -233,10 +237,17 @@ for validation and rendering limits.
 
 Once you have chosen an arrangement, [diversify its sequence](diversify-sequences.md)
 to obtain nucleotide alternatives with the same selected desired sites. Pass a
-representative's sequence and the same request to `diversify`; set the permitted
+representative's sequence and the same request to Python's `diversify`; set the permitted
 per-motif score loss and the library-size cap. The [complete Python workflow](python-api.md#vary-a-sequence-within-one-selected-arrangement)
 continues from design through collection selection to a checked FASTA and score
 table. Selecting arrangements and varying a sequence answer different questions.
+
+At the terminal, continue directly from the saved collection:
+
+```bash
+# Keep the first arrangement and vary its sequence within the score tolerance.
+uv run motif-balance diversify collection.json --candidate 1 --out variants
+```
 
 ## Calculation and reference
 

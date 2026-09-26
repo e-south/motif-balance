@@ -140,14 +140,29 @@ This operation is available through Python.
 The command line supports these tasks:
 
 ```text
-assess   inspect a seek pair's length-dependent conflicts before search
-design   validate or execute a DesignSpec
-collect  select up to a requested number of architectures from retained elites
-score    evaluate one supplied sequence
-inspect  verify and review one immutable result
-motif    prepare a motif model from an explicit source
-animate  render recorded sequence states and best-score checkpoints
+design    search for DNA from a saved request
+inspect   review the sequences, sites, and scores in a saved design
+collect   choose different motif arrangements from retained sequences
+diversify vary one sequence while retaining its selected sites
+score     score DNA you already have
+assess    compare motif preferences before sequence search
+motif     prepare a motif model from an explicit source
+animate   replay recorded search states
 ```
+
+`collect RESULT --count K --out collection.json` verifies and rescores the saved
+design, then writes a self-contained `collection-report/v1` containing its ranking,
+selected members, and scoring inputs. `--expected-bundle-id` optionally compares
+a separately retained identity. The report states whether that external check was
+requested. Its source identity remains a declaration when the report is read
+without the original saved design.
+
+`diversify SOURCE --candidate N --out variants` accepts a saved design directory or
+collection JSON. It rescans the chosen parent and exports a complete checked library,
+FASTA, score table, and substitution SVG in one new directory. With a design request,
+supply explicit DNA instead of a rank. See [diversification](../diversify-sequences.md)
+for score constraints, output formats, and the distinction between structure checks
+and reconstruction of a saved library.
 
 `assess LEFT RIGHT --length N` reads two explicit canonical YAML/JSON
 `motif-model/v2` files. It emits a summary or the full `PairAssessment` JSON;

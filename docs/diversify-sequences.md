@@ -16,6 +16,20 @@ After choosing a design, you can vary its nucleotides while retaining the select
 motif sites. This complements [arrangement selection](choose-alternatives.md),
 which chooses different relative site arrangements from saved candidates.
 
+```bash
+# Use the first representative from a saved collection.
+uv run motif-balance diversify collection.json --candidate 1 \
+  --max-score-loss 0.02 --out variants
+```
+
+The new `variants` directory contains every checked sequence in `variants.fasta`,
+per-model scores in `scores.tsv`, the substitution map in `substitutions.svg`, and
+the complete library in `library.json`. You can also supply a saved design directory
+and select one of its returned candidates by rank. Both routes recover the scoring
+inputs and rescore the chosen sequence before diversification.
+
+From Python, use the same operation with your selected candidate and request:
+
 ```python
 from motif_balance.variants import diversify
 
@@ -73,14 +87,19 @@ product sizes can jump past it.
 ## Export and inspect
 
 ```bash
-motif-balance diversify design.yaml ACGT --max-score-loss 0.02 --out library.json
-motif-balance diversify design.yaml ACGT --max-score-loss 0.02 --format fasta --out variants.fasta
-motif-balance diversify design.yaml ACGT --max-score-loss 0.02 --format tsv --out scores.tsv
-motif-balance diversify design.yaml ACGT --max-score-loss 0.02 --format svg --out substitutions.svg
+# Supply your own sequence with the request that defines its models and length.
+uv run motif-balance diversify design.yaml ACGT --max-score-loss 0.02 --out variants
+
+# Or request only FASTA from the first candidate in a saved design.
+uv run motif-balance diversify result --candidate 1 --out variants.fasta
 ```
 
-Replace `ACGT` with a parent of the request's exact length. CLI `--editable-mask`
-accepts one `0` or `1` per position. Existing files are never overwritten.
+Replace `ACGT` with your DNA of the request's exact length. A filename ending in
+`.json`, `.fasta` or `.fa`, `.tsv`, `.svg`, or `.txt` selects that export. An output
+path without a suffix creates a directory with all four exports, calculating the
+library once. Use `--format all` for a directory whose name contains a dot.
+CLI `--editable-mask` accepts one `0` or `1` per position. Existing files and
+directories are never overwritten, and exports must remain outside a saved design.
 The JSON is the complete handoff; FASTA and TSV are derived views. The SVG aligns
 the parent duplex, selected intervals, and four nucleotide rows. Cells distinguish
 jointly retained options from substitutions that pass alone. Hover text supplies

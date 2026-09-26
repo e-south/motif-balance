@@ -5,15 +5,17 @@ intent: Find instructions for sequence design and package maintenance.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-26
 doc_type: index
 ---
 
 # Motif Balance documentation
 
 Supply motif models and an available DNA length, search for candidates, then
-inspect the strongest match to each model. Start with installation and a first
-design; use the references when you need to change an input or interpret a result.
+inspect the strongest match to each model. The main workflow is **design → inspect
+→ collect → diversify**. Start with the [ArgR/Cra walkthrough](../README.md#try-a-design)
+for commands that carry saved results between steps. Use the references when you
+need to change an input or interpret a result.
 
 ## Design and inspect DNA
 

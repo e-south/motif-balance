@@ -14,135 +14,83 @@ models, not measured binding.
 ## Try a design
 
 Fit the *E. coli* ArgR and Cra preferences into 25 bases. Their motif models span
-25 and 14 positions. At the larger model’s width of 25 bases, the shorter
-match must fit entirely within the same DNA. The profiles come from
-[Baumgart et al. (2021), Supplementary Data 2](https://doi.org/10.1038/s41592-021-01312-2),
-which reports preferences inferred from DAP-seq.
+25 and 14 positions, so the shorter match must fit within the same DNA as the
+wider one. These profiles were inferred from the DAP-seq data in
+[Baumgart et al. (2021), Supplementary Data 2](https://doi.org/10.1038/s41592-021-01312-2).
 
 ### 1. Install and prepare the profiles
 
 With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed:
 
 ```bash
-# Create your own Python project and install Motif Balance from PyPI.
+# Create a project and install the package from PyPI.
 uv init --python 3.12 motif-example
 cd motif-example
-uv add motif-balance
+uv add 'motif-balance>=0.7.0'
 
-# Download this release's example recipe and its source/checksum record.
-curl -fLO https://raw.githubusercontent.com/e-south/motif-balance/v0.6.0/examples/argr-cra/prepare_inputs.py
-curl -fLO https://raw.githubusercontent.com/e-south/motif-balance/v0.6.0/examples/argr-cra/SOURCE.json
+# Fetch the attributed example, its source record, and its editable design request.
+MB_EXAMPLE_URL=https://raw.githubusercontent.com/e-south/motif-balance/v0.6.0/examples/argr-cra
+curl -fLO "$MB_EXAMPLE_URL/prepare_inputs.py"
+curl -fLO "$MB_EXAMPLE_URL/SOURCE.json"
+curl -fLO "$MB_EXAMPLE_URL/design.yaml"
 
-# Fetch the publisher's data, verify it, and prepare the two local motif files.
+# Check the publisher's data and prepare local ArgR and Cra models.
 uv run python prepare_inputs.py --out inputs
 ```
 
-The [preparation record](https://github.com/e-south/motif-balance/blob/main/examples/argr-cra/README.md)
-explains how source probabilities become positive scoring probabilities. uv manages
-the environment and records the package dependency in your project.
+`design.yaml` requests four 25-base sequences, 4,096 candidate evaluations, and
+seed 7. Edit that file to change the request. The
+[preparation record](https://github.com/e-south/motif-balance/blob/main/examples/argr-cra/README.md)
+explains the probability adjustment and source checks.
 
 ### 2. Design and inspect DNA
 
-Save this as `design.py`. A request names the desired models, DNA length, and
-number of sequence evaluations. Each candidate is scanned on both strands; its balance is the
-weaker of the two best matches, each rescaled to its model's possible score range.
+```bash
+# Search for DNA with a strong weakest motif match, and save its sequences and scores.
+uv run motif-balance design design.yaml --out result
 
-```python
-from motif_balance import DesignSpec, MotifSpecification, design
-from motif_balance.formats.motif import read_motif
-
-# Load the two prepared profiles. Each position retains preferences for A, C, G, and T.
-argr = read_motif("inputs/motifs/argR.json")
-cra = read_motif("inputs/motifs/cra.json")
-
-# Seek strong matches to both models within the same 25-base sequence.
-spec = DesignSpec(
-    specifications=(
-        MotifSpecification(motif=argr, direction="seek"),
-        MotifSpecification(motif=cra, direction="seek"),
-    ),
-    length=25,          # The wider motif spans all available DNA.
-    count=4,            # Number of candidate sequences to return.
-    evaluations=4096,  # Allowance for complete-sequence scores, shared by this run.
-    seed=7,             # Repeat the same starting choices and search proposals.
-)
-
-# Search, save the result, and print each candidate's sequence and balance.
-result = design(spec)
-result.write("result")
-for candidate in result.candidates:
-    print(candidate.sequence, round(candidate.balance_score, 3))
+# Draw the selected sites and logos, with the score and search summaries alongside.
+uv run motif-balance inspect result --format html --out review.html
 ```
 
-Run the script and draw the best candidate:
+Open `review.html`. The best candidate scores about **0.855**. The review shows
+where each motif matches, on which strand, and how well it scores. Every candidate
+is scanned on both strands. These scores measure agreement with the models.
+
+### 3. Collect different arrangements
 
 ```bash
-# Run the search in your project's environment.
-uv run python design.py
-
-# Rescore the saved candidate and draw its sites and motif logos on a duplex.
-uv run motif-balance inspect result --format svg --view candidate --out candidate.svg
+# Keep up to two representatives with different motif order, strand, or overlap.
+uv run motif-balance collect result --count 2 --out collection.json
 ```
 
-Open `candidate.svg` in an image viewer. This run's best balance is about **0.855**.
-Use new output names when repeating a run. SVG and HTML inspection need no extra
-packages; [Installation](https://github.com/e-south/motif-balance/blob/main/docs/installation.md)
-covers optional PNG, GIF, and MP4 support and ordinary pip installation.
+The representatives score about **0.855** and **0.801**. Collection selection uses
+the retained search pool and reports any shortfall. It does not run another search.
+The saved collection carries its sequences, motif models, and selected sites.
+[Arrangement definitions](https://github.com/e-south/motif-balance/blob/main/docs/choose-alternatives.md)
+explain which differences count.
 
-### 3. Select different site arrangements
+### 4. Diversify one selected sequence
 
-Different sequences can have the same relative motif placement. Append this to
-`design.py` before running it, or continue in the same Python session:
-
-```python
-from motif_balance.alternatives import rank_architectures
-
-# Use the sequences retained during search, including alternatives beyond the four returned.
-pool = tuple(item.sequence for item in result.manifest.elites)
-
-# Group by site order, strand, and overlap, then select two representatives.
-ranking = rank_architectures(pool, spec, grouping="interval_topology")
-selected = ranking.select(2)
-for representative in selected:
-    print(representative.sequence, round(representative.balance_score, 3))
+```bash
+# Vary the first representative while keeping its selected sites fixed.
+# Each motif may lose at most 0.02 on its normalized score scale.
+uv run motif-balance diversify collection.json --candidate 1 \
+  --max-score-loss 0.02 --out variants
 ```
 
-These representatives score about **0.855** and **0.801**. Selection rescans the
-saved pool without running another search. `select(2)` requires two available
-arrangements; [collections](https://github.com/e-south/motif-balance/blob/main/docs/choose-alternatives.md)
-explains how to allow and report a shortfall.
+This parent yields **16 checked sequences**, with balance no lower than about
+**0.838**. Open `variants/substitutions.svg` to see the nucleotide choices. The same
+directory contains `variants.fasta`, `scores.tsv`, and the full `library.json`.
+Every sequence encoded by its ambiguity template is checked. Other parents can
+yield only the parent itself; the tolerance does not guarantee preserved binding.
 
-### 4. Vary a sequence within one arrangement
-
-Continue with the first selected representative. The aim is now nucleotide
-variation while retaining each desired model's selected site and score.
-
-```python
-from pathlib import Path
-from motif_balance.variants import diversify
-from motif_balance.formats.variants import variants_fasta, variants_tsv
-
-# Protect each selected site's position and strand, allowing at most 0.02 score loss per model.
-library = diversify(selected[0].sequence, spec, max_score_loss=0.02, max_variants=256)
-
-# The compact template encodes exactly the concrete sequences checked together.
-print(library.template, library.encoded_sequence_count)
-print(library.minimum_balance, library.maximum_component_loss)
-
-# Export every variant, its scores, and the settings and verification results.
-with Path("variants.fasta").open("x") as output:
-    output.write(variants_fasta(library))
-with Path("variant-scores.tsv").open("x") as output:
-    output.write(variants_tsv(library))
-with Path("library.json").open("x") as output:
-    output.write(library.model_dump_json(indent=2))
-```
-
-This parent yields **sixteen checked sequences**, with balance no lower than about
-**0.838**. The cap includes the parent; other designs may yield only that parent.
-The tolerance concerns model scores, not binding affinity. See
-[diversification](https://github.com/e-south/motif-balance/blob/main/docs/diversify-sequences.md)
-for editable positions and the substitution map.
+Use a new output name when repeating a step. For custom motifs, start with
+[motif inputs](https://github.com/e-south/motif-balance/blob/main/docs/motif-models.md).
+For notebooks and programmable workflows, use the
+[Python tutorial](https://github.com/e-south/motif-balance/blob/main/docs/python-api.md).
+[Installation](https://github.com/e-south/motif-balance/blob/main/docs/installation.md)
+also covers ordinary pip and optional video export.
 
 ## Inspect a larger design
 
@@ -151,7 +99,7 @@ shows a recorded search in 60-base DNA. Playback connects saved states with smoo
 motion; displayed scores remain those of recorded sequences. The best-so-far chart is on the left; the continuous duplex and
 its strand-aligned motif windows are on the right.
 
-https://github.com/user-attachments/assets/40a21023-d083-4495-a289-4931ee3d161b
+https://github.com/user-attachments/assets/fa2dd454-7f39-433d-8f60-d221c6247169
 
 [Full-resolution MP4](https://github.com/e-south/motif-balance/raw/refs/heads/main/examples/twelve-motifs/playback.mp4) · [Inspect the final sequence](https://github.com/e-south/motif-balance/blob/main/examples/twelve-motifs/final-frame.png)
 
