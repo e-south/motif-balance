@@ -131,7 +131,7 @@ def render_duplex(
     for match in sorted(candidate.matches, key=lambda m: m.motif_id):
         lane = lanes[match.strand]
         lanes[match.strand] += 1
-        color = "#74B5A5" if len(problem.motifs) > 8 else COLORS[motif_order[match.motif_id]]
+        color = "#467A6F" if len(problem.motifs) > 8 else COLORS[motif_order[match.motif_id]]
         x = left + match.start * CELL
         width = (match.end - match.start) * CELL
         y = primary - 32 - lane * LANE if match.strand == "+" else complement + 14 + lane * LANE
@@ -154,17 +154,25 @@ def render_duplex(
         name = match.motif_id + (" (avoid)" if match.spec_direction == "avoid" else "")
         parts.append(label(x - 7, y + 16, name, anchor="end", color=color))
         parts.append(label(x + width + 7, y + 16, f"q={match.normalized_score:.2f}", color=color))
-        axis_x = x - 8
-        direction = -1 if match.strand == "+" else 1
-        parts.append(
-            f'<path d="M{axis_x} {zero} h-4 v{direction * 72} h4" fill="none" stroke="#777"/>'
-        )
-        parts.append(
-            label(
-                axis_x - 9, zero + (-5 if direction == -1 else 20), "0", anchor="end", color="#666"
+        # Large sets share the same logo scale; repeated axes obscure the placements.
+        if len(problem.motifs) <= 8:
+            axis_x = x - 8
+            direction = -1 if match.strand == "+" else 1
+            parts.append(
+                f'<path d="M{axis_x} {zero} h-4 v{direction * 72} h4" fill="none" stroke="#777"/>'
             )
-        )
-        parts.append(label(axis_x - 9, zero + direction * 72 + 6, "2", anchor="end", color="#666"))
+            parts.append(
+                label(
+                    axis_x - 9,
+                    zero + (-5 if direction == -1 else 20),
+                    "0",
+                    anchor="end",
+                    color="#666",
+                )
+            )
+            parts.append(
+                label(axis_x - 9, zero + direction * 72 + 6, "2", anchor="end", color="#666")
+            )
         parts.extend(_logo(problem, match, left=left, baseline=zero, color=color))
         parts.append("</g>")
     return "".join(parts)
