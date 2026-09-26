@@ -2,11 +2,15 @@
 
 The recorded search asks one 60-base sequence to agree with twelve supplied *E. coli* motif models. Every candidate is scanned on both strands. Its balance is the weakest of the twelve normalized best matches.
 
-https://github.com/user-attachments/assets/fa2dd454-7f39-433d-8f60-d221c6247169
+https://github.com/user-attachments/assets/a6408061-1620-473f-85c8-e29dabfe9d54
 
 [MP4](playback.mp4) · [GIF](playback.gif) · [Inspect the final frame](final-frame.png) · [Step-by-step guide](../../docs/biological-example.md)
 
-The declared seed-839 search uses 65,536 evaluations and produces the displayed candidate with balance **0.724**. This example demonstrates one achieved arrangement. The full selected search took 177.9 seconds elapsed on an Apple M2 Pro with 16 GiB memory while eight search workers ran concurrently. The chart on the left separates the changing score of one current candidate (gray) from the best balance found (blue). On the right, faint gray placements show that same current candidate behind the colored best DNA. The recording contains 108 observations, 95 distinct current sequences, and 11 distinct best sequences. The selected chain is fixed before playback; it is one of eight candidate sequences sharing the run's budget. It does not represent every proposal. Motion connects recorded drawings, while scores update only at observations. The movie uses all recorded states; the HTML overview selects eight frames. Viewing time is not elapsed search time.
+The seed-839 search uses 655,360 evaluations and produces the displayed candidate with balance **0.733**. It took 27.3 minutes elapsed and 0.452 CPU hours in one process on an Apple M2 Pro with 16 GiB memory, during other workstation activity. Peak search memory was 128.8 MiB. These measurements exclude verification replay and rendering.
+
+This is a fresh search with ten times the earlier evaluation allowance. The same models and seed previously recovered balance 0.724 at 65,536 evaluations. The larger allowance stretches the proposal and acceptance schedules, so the new run is not a continuation of that trajectory. This one comparison illustrates an achieved improvement; it does not establish a general compute-response curve.
+
+The chart on the left separates the changing score of one current candidate (gray) from the best balance found (blue). On the right, faint gray placements show that same current candidate behind the colored best DNA. The recording contains 113 observations, 95 distinct current sequences, and 12 distinct best sequences. The selected chain is fixed before playback; it is one of eight candidate sequences sharing the run's budget. It does not represent every proposal. Motion connects recorded drawings, while scores update only at observations. The movie uses all recorded states; the HTML overview selects eight frames. Viewing time is not elapsed search time.
 
 ## Reproduce
 
@@ -20,7 +24,7 @@ uv run motif-balance design examples/twelve-motifs/design.yaml --check
 uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo --media
 ```
 
-Open the generated `playback.html` for play/pause and frame selection, or use the inline video above. Outputs must use a new directory. `expected.json` records the selected sequence, score, seed and software version; the reproduction script checks the declared replay package before search and the resulting sequence and balance afterward. The playback workflow uses Motif Balance 0.7.0. The original recorded search used Python 3.12.11, NumPy 2.4.6 and Motif Balance 0.6.0a2.
+Open the generated `playback.html` for play/pause and frame selection, or use the inline video above. Outputs must use a new directory. `expected.json` records the selected sequence, score, seed and software version; the reproduction script checks the declared replay package before search and the resulting sequence and balance afterward. Motif Balance 0.7.0 reproduced the complete recorded observation history exactly. The original run used Python 3.12.14 and working source based on revision `9147a98`, with the expanded single-result budget limits subsequently released in 0.7.0. `expected.json` distinguishes the producing source from the replay version.
 
 ## Inputs and interpretation
 

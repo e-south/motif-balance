@@ -13,9 +13,9 @@ doc_type: tutorial
 
 A motif describes alternative bases at each position. When twelve models share a 60-base sequence, their preferred windows may overlap and compete for the same bases. This example searches for DNA whose weakest relative match is strong.
 
-https://github.com/user-attachments/assets/fa2dd454-7f39-433d-8f60-d221c6247169
+https://github.com/user-attachments/assets/a6408061-1620-473f-85c8-e29dabfe9d54
 
-The left plot separates the changing balance of one current search candidate in gray from the highest balance found so far in blue. The faint gray placements on the right follow that same current candidate; the colored duplex retains the best DNA. Each motif score *qᵢ* is its normalized best match. Balance *B(s)* is the weakest score for sequence *s*, and *B* with subscript “best” is the largest balance encountered so far. The final candidate has balance **0.724**. [Inspect the final sequence](../examples/twelve-motifs/final-frame.png) for its nucleotide sequence and motif windows.
+The left plot separates the changing balance of one current search candidate in gray from the highest balance found so far in blue. The faint gray placements on the right follow that same current candidate; the colored duplex retains the best DNA. Each motif score *qᵢ* is its normalized best match. Balance *B(s)* is the weakest score for sequence *s*, and *B* with subscript “best” is the largest balance encountered so far. The final candidate has balance **0.733**. [Inspect the final sequence](../examples/twelve-motifs/final-frame.png) for its nucleotide sequence and motif windows.
 
 ## Prepare the models
 
@@ -37,9 +37,11 @@ The preparation script downloads a checksum-verified archive and generates the l
 uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo --media
 ```
 
-The request uses 65,536 complete candidate evaluations. Its recorded run took about 178 seconds elapsed on an Apple M2 Pro with 16 GiB memory while eight workers ran concurrently. Runtime on another machine will differ.
+The request uses 655,360 complete candidate evaluations. The recorded search took 27.3 minutes elapsed and 0.452 CPU hours in one process on an Apple M2 Pro with 16 GiB memory. Other workstation activity continued during the run. This excludes replay and rendering.
 
-The video plays directly in this GitHub page. A [GIF preview](../examples/twelve-motifs/playback.gif) and the [MP4 file](../examples/twelve-motifs/playback.mp4) are also available. Open `playback.html` in the output directory to inspect an eight-frame overview. The movie uses 108 verified observations, with 95 distinct current sequences and 11 distinct best sequences. Gray follows one fixed candidate among the eight maintained by this search, not every tested proposal. All eight share the same evaluation budget.
+At one tenth of this allowance, the same models and seed recovered balance 0.724. The longer request recovered 0.733. It starts afresh with schedules spread across the larger budget; it does not resume the earlier trajectory. This is one computational example, not an estimate of the improvement expected for other requests.
+
+The video plays directly in this GitHub page. A [GIF preview](../examples/twelve-motifs/playback.gif) and the [MP4 file](../examples/twelve-motifs/playback.mp4) are also available. Open `playback.html` in the output directory to inspect an eight-frame overview. The movie uses 113 verified observations, with 95 distinct current sequences and 12 distinct best sequences. Gray follows one fixed candidate among the eight maintained by this search, not every tested proposal. All eight share the same evaluation budget.
 
 The horizontal axis counts candidate evaluations on a logarithmic scale. At 30 frames per second, four display transitions connect successive changed drawings without checkpoint pauses. These transitions move and crossfade endpoint drawings; they do not supply intermediate scored DNA. Scores change only at actual observations. Viewing time does not represent search time.
 

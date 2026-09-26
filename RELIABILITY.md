@@ -52,7 +52,7 @@ passive observations are unchanged. Multi-output requests retain their complete
 evaluated pool for constrained selection. The discovery index still grows with
 unique sequences within the evaluation/base limits, so profile process peak
 memory when raising an experiment's budget. Single-output requests admit up to
-two billion score operations; multi-output requests retain the 100-million
+15 billion score operations; multi-output requests retain the 100-million
 limit. Observation/replay is separate work, not part of the search-call budget.
 
 Avoidance contributes a directional satisfaction to the objective; it is not

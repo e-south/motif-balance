@@ -99,7 +99,7 @@ shows a recorded search in 60-base DNA. Playback connects saved states with smoo
 motion; displayed scores remain those of recorded sequences. The best-so-far chart is on the left; the continuous duplex and
 its strand-aligned motif windows are on the right.
 
-https://github.com/user-attachments/assets/fa2dd454-7f39-433d-8f60-d221c6247169
+https://github.com/user-attachments/assets/a6408061-1620-473f-85c8-e29dabfe9d54
 
 [Full-resolution MP4](https://github.com/e-south/motif-balance/raw/refs/heads/main/examples/twelve-motifs/playback.mp4) · [Inspect the final sequence](https://github.com/e-south/motif-balance/blob/main/examples/twelve-motifs/final-frame.png)
 
