@@ -21,6 +21,7 @@ from .inspection import inspect_command
 from .playback import animate_command
 from .preparation import execute_command, prepare_motif_command
 from .scoring import score_command
+from .variants import diversify_command
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
 motif_app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False)
@@ -39,6 +40,7 @@ def root() -> None:
 app.command("assess")(assess_command)
 app.command("design")(design_command)
 app.command("collect")(collect_command)
+app.command("diversify")(diversify_command)
 app.command("score")(score_command)
 app.command("inspect")(inspect_command)
 app.command("animate")(animate_command)

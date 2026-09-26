@@ -138,6 +138,7 @@ def test_assessment_is_a_visible_journey_with_specific_help() -> None:
         "assess",
         "collect",
         "design",
+        "diversify",
         "inspect",
         "motif",
         "score",

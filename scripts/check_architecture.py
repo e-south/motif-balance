@@ -55,6 +55,7 @@ KNOWN_LAYERS = {
     "scoring",
     "search",
     "selection",
+    "variants",
 }
 ALLOWED_IMPORTS = {
     "claim_language": set(),
@@ -67,6 +68,7 @@ ALLOWED_IMPORTS = {
     "assessment": {"compile", "constants", "errors", "model"},
     "alternatives": {"compile", "constants", "model", "scoring", "selection"},
     "search": {"compile", "constants", "errors", "model", "scoring"},
+    "variants": {"compile", "constants", "model", "scoring"},
     "selection": {"constants", "errors", "model", "scoring"},
     "artifacts": {"compile", "constants", "errors", "model", "scoring", "selection"},
     "receipt": {"constants", "errors", "model"},
@@ -94,6 +96,7 @@ ALLOWED_IMPORTS = {
         "scoring",
     },
     "cli": {
+        "variants",
         "alternatives",
         "api",
         "artifacts",
@@ -177,6 +180,7 @@ def inspection_boundary_violations(
             "motif_balance.inspection.model",
             "motif_balance.inspection.candidate_model",
             "motif_balance.inspection.assessment.model",
+            "motif_balance.model.variants",
             "motif_balance.inspection.render",
         )
         return [

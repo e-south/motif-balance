@@ -4,9 +4,9 @@ The recorded search asks one 60-base sequence to agree with twelve supplied *E. 
 
 ![Recorded improvement of a twelve-model DNA candidate](playback.gif)
 
-[Inspect the final vector frame](final-frame.svg) · [Step-by-step guide](../../docs/biological-example.md)
+[Inspect the final frame](final-frame.png) · [Step-by-step guide](../../docs/biological-example.md)
 
-The displayed candidate has balance **0.724** and was the best among 32 twelve-model searches at 65,536 evaluations. It is a selected realization, not typical recovery. The full selected search took 177.9 seconds elapsed on an Apple M2 Pro with 16 GiB memory while eight search workers ran concurrently. Animation frames are displayed at equal intervals, which do not represent elapsed search time.
+The declared seed-839 search uses 65,536 evaluations and produces the displayed candidate with balance **0.724**. This example demonstrates one achieved arrangement. The full selected search took 177.9 seconds elapsed on an Apple M2 Pro with 16 GiB memory while eight search workers ran concurrently. Animation frames are displayed at equal intervals, which do not represent elapsed search time.
 
 ## Reproduce
 
@@ -39,4 +39,4 @@ The models are numerical probability records from [Baumgart et al. (2021), Suppl
 | csiR | 24 |
 | mntR | 13 |
 
-Source and prepared matrices are downloaded into ignored `inputs/`, rather than distributed with the repository. The animation and vector frame are newly generated artwork. The input set supplies a computational sharing problem, without asserting that these factors jointly regulate a native sequence. Scores measure agreement with the supplied models, not binding or expression.
+Source and prepared matrices are downloaded into ignored `inputs/`, rather than distributed with the repository. The animation and PNG are newly generated artwork. Editable SVGs containing exact probability metadata are generated only on the caller’s machine. The input set supplies a computational sharing problem, without asserting that these factors jointly regulate a native sequence. Scores measure agreement with the supplied models, not binding or expression.

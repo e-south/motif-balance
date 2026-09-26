@@ -26,6 +26,7 @@ design; use the references when you need to change an input or interpret a resul
 | Write a design request | [Design specification](design-spec.md) |
 | Design from Python | [Python tutorial](python-api.md) |
 | Evaluate DNA you already have | [Sequence scoring](score-sequences.md) |
+| Vary a sequence within its selected arrangement | [Diversify a sequence](diversify-sequences.md) |
 | Select different motif arrangements | [Choose alternatives](choose-alternatives.md) |
 | Understand scores and saved results | [Interpretation](interpreting-results.md) and [visual inspection](reference/result-inspection.md) |
 

@@ -11,9 +11,36 @@ doc_type: how-to
 
 # Install Motif Balance
 
-Motif Balance supports Python 3.12–3.14 on Linux and macOS.
+Motif Balance supports Python 3.12–3.14 on Linux and macOS. The package includes
+the Python library and command-line interface.
+
+## Start a project with uv
+
+With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed:
+
+```bash
+uv init --python 3.12 motif-example
+cd motif-example
+uv add motif-balance
+uv run motif-balance --help
+```
+
+Continue with the self-contained [README example](../README.md#try-a-design).
+In an existing uv project, run only `uv add motif-balance`.
+`uv add` records the dependency and updates the project's lockfile; `uv run`
+keeps its environment in sync before running the command.
+This follows uv's [project workflow](https://docs.astral.sh/uv/concepts/projects/layout/).
+
+SVG figures and HTML inspection work with the base installation. For PNG,
+animated GIF, and MP4 exports, add the visualization extra:
+
+```bash
+uv add 'motif-balance[visualization]'
+```
 
 ## Install with pip
+
+If you already use pip, install into a virtual environment:
 
 ```bash
 python3 -m venv .venv
@@ -22,32 +49,18 @@ python -m pip install motif-balance
 motif-balance --help
 ```
 
-The package includes the Python library and command-line interface. For PNG,
-GIF, and MP4 exports, install the optional media dependencies:
-
-```bash
-python -m pip install 'motif-balance[visualization]'
-```
-
-SVG figures and HTML inspection work with the base installation.
-The [Python API](python-api.md) accepts your own prepared motif models.
+Run Python and package commands directly in that activated environment.
+The optional media package is `motif-balance[visualization]`.
 
 ## Install from source
 
-The biological tutorials also use scripts and input records in the repository.
-With Git and [uv](https://docs.astral.sh/uv/) installed:
+A source checkout is useful for contributing or running the biological examples'
+input-preparation scripts. Follow [development setup](../CONTRIBUTING.md#development),
+then prepare the attributed example inputs:
 
 ```bash
-git clone https://github.com/e-south/motif-balance.git
-cd motif-balance
-uv sync --locked --extra visualization
 uv run python examples/argr-cra/prepare_inputs.py
-uv run motif-balance --help
 ```
 
-Continue with [First design](quickstart.md) or the
-[twelve-model example](biological-example.md). If you already installed with pip,
-clone the repository for its example files and run `python` and `motif-balance`
-in your activated environment instead of `uv run`.
-
-Development and release checks are described in [Contributing](../CONTRIBUTING.md).
+Continue with the [ArgR/Cra tutorial](quickstart.md) or the
+[twelve-model example](biological-example.md).

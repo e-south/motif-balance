@@ -5,7 +5,7 @@ intent: Rank supplied sequences by distinct selected-match architecture and insp
 audience: [users, API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-21
+last_verified: 2026-09-26
 doc_type: how-to
 journey: [integrate]
 
@@ -228,6 +228,15 @@ source and selection receipts separately; see the
 for validation and rendering limits.
 
 </details>
+
+## Diversify a selected representative
+
+Once you have chosen an arrangement, [diversify its sequence](diversify-sequences.md)
+to obtain nucleotide alternatives with the same selected desired sites. Pass a
+representative's sequence and the same request to `diversify`; set the permitted
+per-motif score loss and the library-size cap. The [complete Python workflow](python-api.md#vary-a-sequence-within-one-selected-arrangement)
+continues from design through collection selection to a checked FASTA and score
+table. Selecting arrangements and varying a sequence answer different questions.
 
 ## Calculation and reference
 

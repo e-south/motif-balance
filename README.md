@@ -2,112 +2,92 @@
 
 Supply motif models and a DNA length. Motif Balance searches for sequences that
 strengthen the weakest desired match while optionally limiting unwanted matches.
-Results show each motif's best-matching site, strand and score, so you can compare
-alternative arrangements.
+Inspect each motif's best-matching site, strand, and score, then select different
+arrangements or diversify one selected sequence within its score limits.
+The scores describe agreement with the supplied models, not measured binding.
 
-[Install](https://github.com/e-south/motif-balance/blob/main/docs/installation.md) ·
-[First design](https://github.com/e-south/motif-balance/blob/main/docs/quickstart.md) ·
-[Example](https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md) ·
+[Documentation](https://github.com/e-south/motif-balance/blob/main/docs/README.md) ·
+[Biological example](https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md) ·
 [Supply motifs](https://github.com/e-south/motif-balance/blob/main/docs/motif-models.md) ·
-[Python](https://github.com/e-south/motif-balance/blob/main/docs/python-api.md) ·
-[Documentation](https://github.com/e-south/motif-balance/blob/main/docs/README.md)
-
-## Install
-
-With Python 3.12–3.14:
-
-```bash
-python -m pip install motif-balance
-motif-balance --help
-```
-
-For PNG, animated GIF, and MP4 exports, install `motif-balance[visualization]`.
+[Python API](https://github.com/e-south/motif-balance/blob/main/docs/python-api.md)
 
 ## Try a design
 
-With Git and [uv](https://docs.astral.sh/uv/) installed:
+With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed,
+create a project and add Motif Balance from PyPI:
 
 ```bash
-# Download the code and bundled examples.
-git clone https://github.com/e-south/motif-balance.git
-# Enter the project directory.
-cd motif-balance
-# Install the locked dependencies and image/video support.
-uv sync --locked --extra visualization
-# Download and prepare the two example profiles from the publisher.
-uv run python examples/argr-cra/prepare_inputs.py
-# Open Python in this environment, then paste the examples below.
-uv run python
+uv init --python 3.12 motif-example
+cd motif-example
+uv add motif-balance
 ```
 
-The `visualization` extra adds:
-
-- **PNG images:** a saved search state, with motif logos on double-stranded DNA
-  beside the best-balance curve.
-- **Animated GIFs and MP4 videos:** playback of saved search states, showing how
-  the DNA and motif matches change. A point on the curve identifies the displayed state.
-
-SVG figures and HTML views, including browser playback, work without the extra.
-See the [recorded example](https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md)
-or [export your own recording](https://github.com/e-south/motif-balance/blob/main/docs/reference/playback.md).
-
-**1. Load two TF motifs and design DNA.** ArgR and Cra are *E. coli* profiles
-from [Baumgart et al. (2021), Supplementary Data 2](https://doi.org/10.1038/s41592-021-01312-2).
-Each row of a model's `probabilities` gives the probabilities of A, C, G and T
-at one motif position; the four values sum to one.
-`specifications` pairs each model with a goal: `seek` strengthens its
-best match; `avoid` reduces it. Both DNA strands are scanned.
+Save the following as `design.py`. These two small, synthetic models make the
+example self-contained. Each row gives the probabilities of A, C, G, and T at
+one motif position.
 
 ```python
-# Load the prepared profiles and define the design request.
-from motif_balance import DesignSpec, MotifSpecification, design
-from motif_balance.formats.motif import read_motif
+from motif_balance import DesignSpec, MotifModel, MotifSpecification, design
 
-argr = read_motif("examples/argr-cra/inputs/motifs/argR.json")  # 25-position ArgR model
-cra = read_motif("examples/argr-cra/inputs/motifs/cra.json")    # 14-position Cra model
+first = MotifModel(
+    motif_id="first",
+    probabilities=((0.7, 0.1, 0.1, 0.1), (0.1, 0.7, 0.1, 0.1),
+                   (0.1, 0.1, 0.7, 0.1), (0.1, 0.1, 0.1, 0.7)),
+    background=(0.25,) * 4,
+)
+second = MotifModel(
+    motif_id="second",
+    probabilities=((0.1, 0.7, 0.1, 0.1), (0.1, 0.1, 0.7, 0.1),
+                   (0.7, 0.1, 0.1, 0.1), (0.1, 0.7, 0.1, 0.1)),
+    background=(0.25,) * 4,
+)
 spec = DesignSpec(
-    specifications=(                                            # Each motif and its seek/avoid goal
-        MotifSpecification(motif=argr, direction="seek"),       # Strengthen ArgR's best match
-        MotifSpecification(motif=cra, direction="seek"),        # Strengthen Cra's best match
-    ),
-    length=32,                                                  # DNA length in base pairs
-    count=4,                                                    # Number of sequences to return
-    evaluations=4096,                                           # Maximum candidate evaluations
+    specifications=tuple(MotifSpecification(motif=m, direction="seek")
+                         for m in (first, second)),
+    length=6,
+    count=4,
+    evaluations=1024,
     seed=7,
 )
-result = design(spec)                                           # Search by editing and rescanning DNA
+result = design(spec)
+result.write("result")
 for candidate in result.candidates:
     print(candidate.sequence, round(candidate.balance_score, 3))
 ```
 
-A candidate evaluation scans every motif across both strands and computes the
-balance: the lowest of their best-match scores, each rescaled to that model's
-possible score range from 0 to 1. This run returns four sequences; the best
-balance is about **0.880**.
+Run it, then draw the best candidate and its motif matches:
 
-**2. Collect different arrangements.** Different sequences can place their
-motif matches in the same way. Group the saved candidates by order, strand and
-overlap, then select two arrangements:
-
-```python
-# Select arrangements from the sequences already evaluated.
-from motif_balance.alternatives import rank_architectures
-
-pool = tuple(c.sequence for c in result.manifest.elites)        # Retained search candidates
-ranking = rank_architectures(pool, spec, grouping="interval_topology")
-collection = ranking.select(2)                                  # Best two distinct arrangements
-for candidate in collection:
-    print(candidate.sequence, round(candidate.balance_score, 3))
+```bash
+uv run python design.py
+uv run motif-balance inspect result --format svg --view candidate --out candidate.svg
 ```
 
-This collection has balances of about **0.880** and **0.823**. Selection rescans
-the saved sequences; it does not run another search. See [First design](https://github.com/e-south/motif-balance/blob/main/docs/quickstart.md)
-to save a result and view its motif matches, or the [input provenance](https://github.com/e-south/motif-balance/blob/main/examples/argr-cra/README.md)
-for these two profiles.
+Open `candidate.svg` in an image viewer. Each candidate is scanned on both
+strands. Its balance is the weakest motif match, with each match rescaled to
+that model's possible score range. Use new output names when repeating a run.
+
+uv manages the Python environment and records dependencies in the project.
+For other installation options and optional PNG, GIF, and MP4 support, see
+[Installation](https://github.com/e-south/motif-balance/blob/main/docs/installation.md).
+
+## Explore the recovered sequences
+
+- [Select arrangements](https://github.com/e-south/motif-balance/blob/main/docs/choose-alternatives.md)
+  from retained candidates using site order, strand, and overlap.
+- [Diversify a selected sequence](https://github.com/e-south/motif-balance/blob/main/docs/diversify-sequences.md)
+  into a checked variant library while retaining selected desired sites and
+  limiting every requested score's loss.
+- [Use measured motif profiles](https://github.com/e-south/motif-balance/blob/main/docs/quickstart.md)
+  in the attributed ArgR/Cra example.
+
+The [twelve-model example](https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md)
+shows a recorded search in 60-base DNA. Playback connects saved states with
+smooth motion; displayed scores remain those of recorded sequences.
+
+![Recorded twelve-model search with aligned motif matches](https://raw.githubusercontent.com/e-south/motif-balance/main/examples/twelve-motifs/playback.gif)
 
 Motif Balance supports Python 3.12–3.14 on Linux and macOS.
-See [Contributing](https://github.com/e-south/motif-balance/blob/main/CONTRIBUTING.md) for development and [LICENSE](https://github.com/e-south/motif-balance/blob/main/LICENSE) for
-software reuse.
-
-If you use Motif Balance in your research, please cite the accompanying paper
-when available.
+See [Contributing](https://github.com/e-south/motif-balance/blob/main/CONTRIBUTING.md)
+for development and [LICENSE](https://github.com/e-south/motif-balance/blob/main/LICENSE)
+for software reuse. If you use Motif Balance in research, cite the accompanying
+paper when available.

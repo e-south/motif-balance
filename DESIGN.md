@@ -124,3 +124,13 @@ Changing a method or initialization policy changes the run identity, not the
 scoring problem. Observation must leave the RNG stream, evaluated sequences and
 selected portfolio unchanged. A bounded run reports the best result evaluated
 within its budget; only complete enumeration establishes a whole-space optimum.
+
+## Post-design diversification
+
+[Diversification](docs/diversify-sequences.md) preserves each desired model's
+selected coordinates and strand under the canonical tie rule. Every desired
+score loss and unwanted-score increase is bounded separately relative to the
+parent. The complete Cartesian product is rescored before its template is
+returned. The parent is included, flanks are fixed by default, and a parent-only
+result remains explicit. Search, model preparation, and arrangement grouping
+are unchanged. Diversification counts its own evaluations and records provenance.

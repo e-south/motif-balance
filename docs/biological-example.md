@@ -15,7 +15,7 @@ A motif describes alternative bases at each position. When twelve models share a
 
 ![Recorded search for a 60-base sequence matching twelve motif models](../examples/twelve-motifs/playback.gif)
 
-The animation shows saved improvements and the corresponding DNA. The final candidate has balance **0.724**. It is the best of 32 twelve-model searches at this budget, selected to make one achieved arrangement inspectable. [Open the vector view](../examples/twelve-motifs/final-frame.svg) for the nucleotide sequence and individual match windows.
+The animation shows saved improvements and the corresponding DNA. The final candidate has balance **0.724**. It is the best of 32 twelve-model searches at this budget, selected to make one achieved arrangement inspectable. [Open the vector view](../examples/twelve-motifs/final-frame.png) for the nucleotide sequence and individual match windows.
 
 ## Prepare the models
 
