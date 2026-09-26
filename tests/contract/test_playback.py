@@ -209,6 +209,8 @@ def test_playback_rejects_thirteen_models_before_replay(pairwise_spec, monkeypat
 
 
 def test_resized_movie_supplies_complete_raster_frames(observation, monkeypatch):
+    pytest.importorskip("resvg_py")
+    pytest.importorskip("PIL.Image")
     from pathlib import Path
     from types import SimpleNamespace
 
