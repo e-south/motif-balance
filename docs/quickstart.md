@@ -5,7 +5,7 @@ intent: Design and inspect DNA using the ArgR and Cra transcription-factor profi
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-21
+last_verified: 2026-09-26
 doc_type: tutorial
 journey: [install, design, verify]
 ---
@@ -14,7 +14,8 @@ journey: [install, design, verify]
 
 Fit two motif preferences into one short sequence, save the result, then inspect
 where each motif matches. Start with the [README installation and input preparation](../README.md#1-install-and-prepare-the-profiles).
-For Python inputs, use the [README examples](../README.md#try-a-design).
+That step supplies both the prepared profiles and `design.yaml`.
+For Python inputs, use the [Python tutorial](python-api.md).
 
 ## 1. Check the inputs and run the search
 
@@ -24,9 +25,6 @@ must share some positions. Their [source and preparation](../examples/argr-cra/R
 are recorded with the inputs.
 
 ```bash
-# Download the ready-to-run request beside your prepared inputs.
-curl -fLO https://raw.githubusercontent.com/e-south/motif-balance/v0.6.0/examples/argr-cra/design.yaml
-
 # Check the motif files, DNA length and search settings without running a search.
 uv run motif-balance design design.yaml --check
 

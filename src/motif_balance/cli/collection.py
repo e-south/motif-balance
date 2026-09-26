@@ -81,5 +81,16 @@ def collect_command(
             typer.echo(payload, nl=False)
         else:
             _write_new_file(out, payload.encode(), label="collection output")
+            typer.echo(
+                f"Selected {collection.delivered_count} of {count} requested arrangements. "
+                f"Saved to {out}."
+            )
+            for member in collection.members:
+                typer.echo(
+                    f"Rank {member.rank}: balance {member.evaluation.balance_score:.3f}; "
+                    f"{member.evaluation.sequence}"
+                )
+            if collection.delivered_count < count:
+                typer.echo("The retained sequences did not supply the full requested collection.")
     except (OSError, MotifBalanceError, ValueError) as exc:
         _emit_error(exc, debug=debug, domain="design")

@@ -42,11 +42,12 @@ def _layout(view: PlaybackInspection) -> dict[str, float]:
         molecule_x = recovery_x + chart_size + 150
         width = molecule_x + molecule_width + 40
         molecule_height = 110 + len(view.problem.motifs) * LANE
+        recovery_y = 170 + (molecule_height - chart_size) / 2
         return {
             "width": width,
-            "height": 170 + molecule_height + 40,
+            "height": max(170 + molecule_height + 40, recovery_y + chart_size + 182),
             "recovery_x": recovery_x,
-            "recovery_y": 170 + (molecule_height - chart_size) / 2,
+            "recovery_y": recovery_y,
             "chart_size": chart_size,
             "molecule_x": molecule_x,
             "molecule_y": 170,
@@ -199,6 +200,13 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         tick *= 10
     if last_evaluation > 1:
         ticks.append(last_evaluation)
+    # Preserve the exact endpoint while leaving room for its full count label.
+    while len(ticks) > 2:
+        gap = x_position(ticks[-1]) - x_position(ticks[-2])
+        label_space = 8 + 0.28 * tick_font * (len(f"{ticks[-1]:,}") + len(f"{ticks[-2]:,}"))
+        if gap >= label_space:
+            break
+        ticks.pop(-2)
     for tick in ticks:
         x = x_position(tick)
         parts.append(f'<path d="M{x:g} {y0} V{y1}" stroke="#E3E5E8" stroke-width="1.2"/>')

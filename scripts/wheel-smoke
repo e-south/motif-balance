@@ -184,10 +184,14 @@ PY
 "$smoke_root/venv/bin/python" examples/argr-cra/prepare_inputs.py --out "$smoke_root/argr-cra-inputs"
 source_python="$(uv run --locked python -c 'import sys; print(sys.executable)')"
 # Execute the README command blocks with both installations, outside the checkout.
-readme_program="$(python3 - "$repo_root/README.md" <<'PYDOC'
+readme_program="$("$source_python" - "$repo_root/README.md" <<'PYDOC'
 import re
 import sys
+import tomllib
 from pathlib import Path
+readme = Path(sys.argv[1])
+version = tomllib.loads((readme.parent / "pyproject.toml").read_text())["project"]["version"]
+assert f"motif-balance/v{version}/examples/argr-cra" in readme.read_text(), "README example URL must match the release"
 blocks = re.findall(r"```bash\n(.*?)```", Path(sys.argv[1]).read_text(), flags=re.DOTALL)
 commands = [block for block in blocks if "uv run motif-balance " in block]
 assert len(commands) == 3, "README must exercise design/inspect, collect, and diversify"

@@ -68,6 +68,11 @@ def test_saved_design_flows_through_collection_to_a_variant_directory(tmp_path, 
     run = runner.invoke(app, ["collect", str(saved), "--count", "2", "--out", str(collection)])
     assert run.exit_code == 0, run.output
     report = json.loads(collection.read_text())
+    assert (
+        f"Selected {report['collection']['delivered_count']} of 2 requested arrangements"
+        in run.output
+    )
+    assert "Rank 1:" in run.output
     assert report["source_bundle_id"] == result.manifest.bundle_id
     assert report["source_verification"] == "self_consistent"
     parent = report["collection"]["members"][0]["evaluation"]["sequence"]

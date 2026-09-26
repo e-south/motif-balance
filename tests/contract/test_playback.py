@@ -156,7 +156,10 @@ def test_chain_cursor_shows_chain_score_instead_of_running_best(observation):
         assert float(cursor.attrib["data-score"]) == frame.candidate.balance_score
 
 
-def test_twelve_model_playback_keeps_one_duplex_right_of_a_fixed_recovery_panel(pairwise_spec):
+@pytest.mark.parametrize("motif_count", (9, 10, 11, 12))
+def test_expanded_playback_keeps_one_duplex_right_of_a_fixed_recovery_panel(
+    pairwise_spec, motif_count
+):
     from motif_balance.model import MotifSpecification
 
     motif = pairwise_spec.specifications[0].motif
@@ -164,7 +167,7 @@ def test_twelve_model_playback_keeps_one_duplex_right_of_a_fixed_recovery_panel(
         MotifSpecification(
             motif=motif.model_copy(update={"motif_id": f"model-{i}"}), direction="seek"
         )
-        for i in range(12)
+        for i in range(motif_count)
     )
     spec = pairwise_spec.model_copy(
         update={"specifications": items, "length": 60, "count": 1, "evaluations": 91}
@@ -176,6 +179,9 @@ def test_twelve_model_playback_keeps_one_duplex_right_of_a_fixed_recovery_panel(
     for i, frame in enumerate(view.frames):
         root = ET.fromstring(render_playback_svg(view, frame=i))
         dimensions.add(root.attrib["viewBox"])
+        height = float(root.attrib["viewBox"].split()[3])
+        for text in root.findall("s:text", ns):
+            assert float(text.attrib["y"]) + 0.25 * float(text.attrib["font-size"]) <= height
         panels = {p.attrib["data-panel"]: p for p in root.findall(".//s:rect[@data-panel]", ns)}
         assert panels["recovery"].attrib["width"] == panels["recovery"].attrib["height"]
         assert float(panels["recovery"].attrib["width"]) >= 0.75 * float(
@@ -195,8 +201,16 @@ def test_twelve_model_playback_keeps_one_duplex_right_of_a_fixed_recovery_panel(
         assert f"{frame.candidate.balance_score:.3f}" in "".join(score.itertext())
         assert float(score.attrib["y"]) < float(cursor.attrib["cy"])
         assert float(score.attrib["font-size"]) >= 48
-        assert len(root.findall(".//s:g[@data-motif-id]", ns)) == 12
+        assert len(root.findall(".//s:g[@data-motif-id]", ns)) == motif_count
     assert len(dimensions) == 1
+    # A large endpoint must remain legible beside the nearest logarithmic tick.
+    long_view = view.model_copy(
+        update={"frames": (view.frames[-1].model_copy(update={"evaluations": 655360}),)}
+    )
+    root = ET.fromstring(render_playback_svg(long_view))
+    labels = [t.text for t in root.findall(".//s:text", ns)]
+    assert "655,360" in labels
+    assert "100,000" not in labels
 
 
 def test_playback_rejects_thirteen_models_before_replay(pairwise_spec, monkeypatch):

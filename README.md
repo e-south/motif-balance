@@ -29,7 +29,7 @@ cd motif-example
 uv add 'motif-balance>=0.7.0'
 
 # Fetch the attributed example, its source record, and its editable design request.
-MB_EXAMPLE_URL=https://raw.githubusercontent.com/e-south/motif-balance/v0.6.0/examples/argr-cra
+MB_EXAMPLE_URL=https://raw.githubusercontent.com/e-south/motif-balance/v0.7.0/examples/argr-cra
 curl -fLO "$MB_EXAMPLE_URL/prepare_inputs.py"
 curl -fLO "$MB_EXAMPLE_URL/SOURCE.json"
 curl -fLO "$MB_EXAMPLE_URL/design.yaml"
@@ -55,7 +55,7 @@ uv run motif-balance inspect result --format html --out review.html
 
 Open `review.html`. The best candidate scores about **0.855**. The review shows
 where each motif matches, on which strand, and how well it scores. Every candidate
-is scanned on both strands. These scores measure agreement with the models.
+is scanned on both strands.
 
 ### 3. Collect different arrangements
 
@@ -83,7 +83,7 @@ This parent yields **16 checked sequences**, with balance no lower than about
 **0.838**. Open `variants/substitutions.svg` to see the nucleotide choices. The same
 directory contains `variants.fasta`, `scores.tsv`, and the full `library.json`.
 Every sequence encoded by its ambiguity template is checked. Other parents can
-yield only the parent itself; the tolerance does not guarantee preserved binding.
+yield only the parent itself.
 
 Use a new output name when repeating a step. For custom motifs, start with
 [motif inputs](https://github.com/e-south/motif-balance/blob/main/docs/motif-models.md).
