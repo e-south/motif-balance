@@ -33,14 +33,15 @@ def _layout(view: PlaybackInspection) -> dict[str, float]:
     molecule_width = left_margin(view.problem) + view.problem.length * CELL + 100
     molecule_height = 110 + (forward + reverse) * LANE
     if len(view.problem.motifs) > 8:
-        width = max(WIDTH, molecule_width + 40)
+        width = RIGHT + molecule_width + 40
         molecule_height = 110 + len(view.problem.motifs) * LANE
         return {
             "width": width,
-            "height": HEIGHT + 80 + molecule_height,
-            "recovery_x": (width - PANEL) / 2,
-            "molecule_x": (width - molecule_width) / 2,
-            "molecule_y": HEIGHT + 40,
+            "height": TOP + molecule_height + 40,
+            "recovery_x": LEFT,
+            "recovery_y": TOP + (molecule_height - PANEL) / 2,
+            "molecule_x": RIGHT,
+            "molecule_y": TOP,
             "molecule_width": molecule_width,
             "molecule_height": molecule_height,
             "zoom": 1,
@@ -51,6 +52,7 @@ def _layout(view: PlaybackInspection) -> dict[str, float]:
         "width": WIDTH,
         "height": HEIGHT,
         "recovery_x": LEFT,
+        "recovery_y": TOP,
         "molecule_x": RIGHT + (PANEL - molecule_width * zoom) / 2,
         "molecule_y": TOP + (PANEL - molecule_height * zoom) / 2,
         "molecule_width": PANEL,
@@ -87,10 +89,10 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
     current = view.frames[index]
     width, height, top_lanes = frame_dimensions(view)
     geometry = _layout(view)
-    stacked = len(view.problem.motifs) > 8
+    expanded = len(view.problem.motifs) > 8
     canvas_width, canvas_height = geometry["width"], geometry["height"]
     molecule_x, molecule_y, zoom = geometry["molecule_x"], geometry["molecule_y"], geometry["zoom"]
-    recovery_x = geometry["recovery_x"]
+    recovery_x, recovery_y = geometry["recovery_x"], geometry["recovery_y"]
     scope = "Motif preferences share one sequence"
     if view.chain_id is not None:
         scope = "Search explores alternative sequences"
@@ -107,22 +109,24 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         "Logos show 0 to 2 bits, with the matched nucleotide colored. "
         "DNA gray saturation reports the largest relative matched-base probability. </desc>",
         f'<rect width="{canvas_width:g}" height="{canvas_height:g}" fill="white"/>',
-        label(recovery_x + PANEL / 2, 35, "Best balance during search", anchor="middle"),
         label(
-            canvas_width / 2 if stacked else RIGHT + PANEL / 2,
-            HEIGHT + 16 if stacked else 35,
+            recovery_x + PANEL / 2, recovery_y - 31, "Best balance during search", anchor="middle"
+        ),
+        label(
+            molecule_x + geometry["molecule_width"] / 2 if expanded else RIGHT + PANEL / 2,
+            35,
             scope,
             anchor="middle",
         ),
     ]
     panels: list[tuple[str, float, float, float, float]] = [
-        ("recovery", recovery_x, TOP, PANEL, PANEL)
+        ("recovery", recovery_x, recovery_y, PANEL, PANEL)
     ]
     panels.append(
         (
             "molecule",
-            molecule_x if stacked else RIGHT,
-            molecule_y if stacked else TOP,
+            molecule_x if expanded else RIGHT,
+            molecule_y if expanded else TOP,
             geometry["molecule_width"],
             geometry["molecule_height"],
         )
@@ -132,7 +136,7 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
             f'<rect data-panel="{name}" x="{panel_x:g}" y="{panel_y:g}" '
             f'width="{panel_width:g}" height="{panel_height:g}" fill="white"/>'
         )
-    x0, x1, y0, y1 = recovery_x, recovery_x + PANEL, TOP, TOP + PANEL
+    x0, x1, y0, y1 = recovery_x, recovery_x + PANEL, recovery_y, recovery_y + PANEL
     max_log = math.log10(max(2, view.frames[-1].evaluations))
 
     def x_position(evaluations: int) -> float:
@@ -148,13 +152,19 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         parts.append(f'<path d="M{x0} {y:g} H{x1}" stroke="#E3E5E8" stroke-width="1.2"/>')
         parts.append(f'<path d="M{x0 - 6} {y:g} H{x0}" stroke="#444" stroke-width="1.8"/>')
         parts.append(label(x0 - 12, y + 6, f"{value:g}", anchor="end"))
-    tick = 1
-    while tick <= view.frames[-1].evaluations:
+    last_evaluation = view.frames[-1].evaluations
+    ticks = [1]
+    tick = 10
+    while tick <= last_evaluation / 2:
+        ticks.append(tick)
+        tick *= 10
+    if last_evaluation > 1:
+        ticks.append(last_evaluation)
+    for tick in ticks:
         x = x_position(tick)
         parts.append(f'<path d="M{x:g} {y0} V{y1}" stroke="#E3E5E8" stroke-width="1.2"/>')
         parts.append(f'<path d="M{x:g} {y1} v6" stroke="#444" stroke-width="1.8"/>')
         parts.append(label(x, y1 + 28, f"{tick:,}", anchor="middle"))
-        tick *= 10
     parts.append(f'<path d="M{x0} {y0} V{y1} H{x1}" stroke="#444" stroke-width="1.8" fill="none"/>')
     parts.append(
         label((x0 + x1) / 2, y1 + 61, "Candidate evaluations (log scale)", anchor="middle")
@@ -188,7 +198,7 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
             view.problem,
             current.candidate,
             top_lanes=(
-                sum(m.strand == "+" for m in current.candidate.matches) if stacked else top_lanes
+                sum(m.strand == "+" for m in current.candidate.matches) if expanded else top_lanes
             ),
         )
     )

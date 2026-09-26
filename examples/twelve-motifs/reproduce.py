@@ -25,7 +25,7 @@ def verify_replay_version(expected: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path, help="A new output directory")
-    parser.add_argument("--media", action="store_true", help="Also export an inline GIF and PNG")
+    parser.add_argument("--media", action="store_true", help="Also export an MP4, GIF, and PNG")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     expected = json.loads((root / "expected.json").read_text())
@@ -50,6 +50,10 @@ def main() -> None:
     (args.out / "playback.html").write_bytes(render_playback_html(view))
     (args.out / "final-frame.svg").write_bytes(render_playback_svg(view))
     if args.media:
+        # The movie moves between saved placements; it does not invent search states.
+        (args.out / "playback.mp4").write_bytes(
+            render_playback_media(view, format_name="mp4", fps=20, transition_frames=16, width=1920)
+        )
         (args.out / "playback.gif").write_bytes(
             render_playback_media(view, format_name="gif", fps=20, transition_frames=16, width=700)
         )

@@ -28,15 +28,16 @@ button{font:inherit;background:white;border:1px solid #777;border-radius:5px;pad
 input{flex:1;min-width:200px}p{font-size:16px;color:#555;line-height:1.5}
 </style><main><div id="screen">$first_frame</div><div class="controls">
 <button id="play" type="button" aria-pressed="false">Play</button>
-<label for="frame">Observation</label>
+<label for="frame">Saved state</label>
 <input id="frame" type="range" min="0" max="$last" value="0" step="1">
-<output id="position">1 / $count</output></div>
-<p>The blue curve joins sampled best scores. The orange point identifies the DNA shown.
-Unequal horizontal spacing reflects the recorded evaluation counts on a logarithmic axis.
-Each molecular view is a recorded sequence,
-rescored under the supplied models and strand policy. Frame timing is for viewing
-and does not represent elapsed search time. Use the slider to inspect changes in
-position, orientation and overlap.</p></main>
+<output id="position" aria-live="polite">1 / $count</output></div>
+<p>The blue line joins saved best scores. The orange point identifies the DNA on the right.
+Use the slider or arrow keys to inspect its motif sites.</p>
+<details><summary>Reading this view</summary><p>
+The horizontal axis is logarithmic. Equal distances mean equal ratios of candidate evaluations.
+Each displayed sequence has been rescored. Logo heights show nucleotide probability multiplied
+by positional information, on a shared 0 to 2 bit scale. Playback speed is for viewing
+and does not represent search time.</p></details></main>
 <script type="application/json" id="frames">$frames</script>
 <script>
 "use strict";

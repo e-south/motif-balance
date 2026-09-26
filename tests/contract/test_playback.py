@@ -155,7 +155,7 @@ def test_chain_cursor_shows_chain_score_instead_of_running_best(observation):
         assert float(cursor.attrib["data-score"]) == frame.candidate.balance_score
 
 
-def test_twelve_model_playback_keeps_one_duplex_below_a_fixed_recovery_panel(pairwise_spec):
+def test_twelve_model_playback_keeps_one_duplex_right_of_a_fixed_recovery_panel(pairwise_spec):
     from motif_balance.model import MotifSpecification
 
     motif = pairwise_spec.specifications[0].motif
@@ -177,9 +177,9 @@ def test_twelve_model_playback_keeps_one_duplex_below_a_fixed_recovery_panel(pai
         dimensions.add(root.attrib["viewBox"])
         panels = {p.attrib["data-panel"]: p for p in root.findall(".//s:rect[@data-panel]", ns)}
         assert panels["recovery"].attrib["width"] == panels["recovery"].attrib["height"]
-        assert float(panels["molecule"].attrib["y"]) > float(
-            panels["recovery"].attrib["y"]
-        ) + float(panels["recovery"].attrib["height"])
+        assert float(panels["molecule"].attrib["x"]) > float(
+            panels["recovery"].attrib["x"]
+        ) + float(panels["recovery"].attrib["width"])
         cursor = root.find(".//s:circle[@data-current-state]", ns)
         assert float(cursor.attrib["data-score"]) == frame.candidate.balance_score
         assert len(root.findall(".//s:g[@data-motif-id]", ns)) == 12

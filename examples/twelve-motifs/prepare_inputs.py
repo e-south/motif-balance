@@ -11,6 +11,7 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 from motif_balance import MotifModel
+from motif_balance.model import MotifConversion
 
 ROOT = Path(__file__).resolve().parent
 MAX_BYTES = 32 * 1024 * 1024
@@ -64,6 +65,15 @@ def prepare(destination: Path) -> None:
                 list(map(float, line.split()))
                 for line in text[header.end() :].splitlines()[: profile["width"]]
             ]
+            match = re.search(
+                r"Background letter frequencies[^\n]*\n\s*A\s+([\d.]+)\s+C\s+([\d.]+)"
+                r"\s+G\s+([\d.]+)\s+T\s+([\d.]+)",
+                text,
+            )
+            if match is None:
+                raise ValueError("Source background is missing")
+            source_background = tuple(map(float, match.groups()))
+            # Preserve the source background even though scoring uses a uniform one.
             prepared = [[(v / math.fsum(row) + 0.025) / 1.1 for v in row] for row in rows]
             probabilities = tuple(canonical_row(row) for row in prepared)
             model = MotifModel(
@@ -72,6 +82,15 @@ def prepare(destination: Path) -> None:
                 background=(0.25,) * 4,
                 source_name=profile["record"] + ".txt",
                 source_digest=profile["original_sha256"],
+                conversion=MotifConversion(
+                    schema_version="motif-conversion/v2",
+                    method="probability_matrix_target_background_v1",
+                    prior_weight=0.1,
+                    source_motif_id=profile["record"],
+                    source_background=source_background,
+                    target_background=(0.25,) * 4,
+                    target_background_policy="explicit_target_background_v1",
+                ),
             )
             if model.model_digest != profile["prepared_model_digest"]:
                 raise ValueError("Prepared model differs from the declared conversion")

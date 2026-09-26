@@ -44,7 +44,7 @@ the environment and records the package dependency in your project.
 ### 2. Design and inspect DNA
 
 Save this as `design.py`. A request names the desired models, DNA length, and
-search allowance. Each candidate is scanned on both strands; its balance is the
+number of sequence evaluations. Each candidate is scanned on both strands; its balance is the
 weaker of the two best matches, each rescaled to its model's possible score range.
 
 ```python
@@ -129,7 +129,7 @@ library = diversify(selected[0].sequence, spec, max_score_loss=0.02, max_variant
 print(library.template, library.encoded_sequence_count)
 print(library.minimum_balance, library.maximum_component_loss)
 
-# Export every variant, its scores, and the complete verification record.
+# Export every variant, its scores, and the settings and verification results.
 with Path("variants.fasta").open("x") as output:
     output.write(variants_fasta(library))
 with Path("variant-scores.tsv").open("x") as output:
@@ -148,9 +148,10 @@ for editable positions and the substitution map.
 
 The [twelve-model example](https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md)
 shows a recorded search in 60-base DNA. Playback connects saved states with smooth
-motion; displayed scores remain those of recorded sequences.
+motion; displayed scores remain those of recorded sequences. The best-so-far chart is on the left; the continuous duplex and
+its strand-aligned motif windows are on the right.
 
-https://github.com/user-attachments/assets/bda79928-4b92-4f5d-899a-a2c6df3daf72
+https://github.com/user-attachments/assets/dfbfdb47-a784-42db-b53e-81a32f640d08
 
 [Full-resolution MP4](https://github.com/e-south/motif-balance/raw/refs/heads/main/examples/twelve-motifs/playback.mp4) · [Inspect the final sequence](https://github.com/e-south/motif-balance/blob/main/examples/twelve-motifs/final-frame.png)
 

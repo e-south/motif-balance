@@ -2,19 +2,21 @@
 
 The recorded search asks one 60-base sequence to agree with twelve supplied *E. coli* motif models. Every candidate is scanned on both strands. Its balance is the weakest of the twelve normalized best matches.
 
-![Recorded improvement of a twelve-model DNA candidate](playback.gif)
+https://github.com/user-attachments/assets/dfbfdb47-a784-42db-b53e-81a32f640d08
 
 [MP4](playback.mp4) · [GIF](playback.gif) · [Inspect the final frame](final-frame.png) · [Step-by-step guide](../../docs/biological-example.md)
 
-The declared seed-839 search uses 65,536 evaluations and produces the displayed candidate with balance **0.724**. This example demonstrates one achieved arrangement. The full selected search took 177.9 seconds elapsed on an Apple M2 Pro with 16 GiB memory while eight search workers ran concurrently. Playback pauses at recorded states and smoothly moves the motif drawings between them. Viewing time does not represent search time.
+The declared seed-839 search uses 65,536 evaluations and produces the displayed candidate with balance **0.724**. This example demonstrates one achieved arrangement. The full selected search took 177.9 seconds elapsed on an Apple M2 Pro with 16 GiB memory while eight search workers ran concurrently. The chart on the left tracks the best balance found. Motif windows remain aligned to one duplex on the right. Playback pauses at recorded states and smoothly moves the motif drawings between them. Viewing time does not represent search time.
 
 ## Reproduce
 
 From the installed source checkout with the visualization extra:
 
 ```bash
+# Prepare the recorded models and check the request before searching.
 uv run python examples/twelve-motifs/prepare_inputs.py
 uv run motif-balance design examples/twelve-motifs/design.yaml --check
+# Repeat the search, then export a player, MP4, GIF, and final frame.
 uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo --media
 ```
 
