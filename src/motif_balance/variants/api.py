@@ -14,10 +14,11 @@ from __future__ import annotations
 
 import math
 from itertools import product
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from motif_balance.compile import compile_scoring
 from motif_balance.constants import BUILD_LOCK_SHA256, PACKAGE_VERSION, RUNTIME_CONTRACT
+from motif_balance.formats.structured import load_json_unique
 from motif_balance.model import DesignSpec, Evaluation
 from motif_balance.model.variants import IUPAC, Substitution, VariantLibrary, VariantVerification
 from motif_balance.scoring import evaluate
@@ -26,6 +27,7 @@ from motif_balance.scoring import evaluate
 _MAX_SCORE_OPERATIONS = 1_000_000_000
 _MAX_CACHE_BASES = 32_000_000
 _MAX_DIAGNOSTIC_MATCHES = 50_000
+_MAX_HANDOFF_BYTES = 64_000_000
 
 
 def _changes(parent: Evaluation, variant: Evaluation) -> tuple[tuple[float, ...], tuple[str, ...]]:
@@ -200,3 +202,52 @@ def diversify(
         score_rejected_expansions=score_rejected,
         stop_reason="size_cap" if size_rejected else "no_further_passing_expansion",
     )
+
+
+def _replay_equal(recorded: Any, replayed: Any) -> bool:
+    if isinstance(recorded, float) and isinstance(replayed, float):
+        return math.isclose(recorded, replayed, rel_tol=0.0, abs_tol=1e-12)
+    if isinstance(recorded, dict) and isinstance(replayed, dict):
+        return recorded.keys() == replayed.keys() and all(
+            _replay_equal(value, replayed[key]) for key, value in recorded.items()
+        )
+    if isinstance(recorded, list) and isinstance(replayed, list):
+        return len(recorded) == len(replayed) and all(
+            _replay_equal(a, b) for a, b in zip(recorded, replayed, strict=True)
+        )
+    return bool(recorded == replayed)
+
+
+def verify_library(library: VariantLibrary) -> VariantLibrary:
+    """Replay construction and check scores, selected sites, decisions, and effort.
+
+    Producer version and lock are retained as declarations, not authenticated
+    provenance. Numerical fields permit 1e-12 absolute roundoff; structural
+    fields and all counters must match exactly. Replay has the same admission
+    bounds as construction and does not rerun the original design search.
+    """
+    replay = diversify(
+        library.parent.sequence,
+        library.spec,
+        max_score_loss=library.max_score_loss,
+        max_variants=library.max_variants,
+        editable_mask=tuple(i in library.editable_positions for i in range(library.spec.length)),
+    )
+    declarations = {"package_version", "build_lock_sha256"}
+    recorded = library.model_dump(mode="json", exclude=declarations)
+    expected = replay.model_dump(mode="json", exclude=declarations)
+    if not _replay_equal(recorded, expected):
+        raise ValueError("library records disagree with deterministic diversification replay")
+    return library
+
+
+def load_library(raw: str | bytes) -> VariantLibrary:
+    """Load a bounded JSON handoff and verify it against the authoritative scorer."""
+    if not isinstance(raw, (str, bytes)):
+        raise TypeError("library JSON must be text or bytes")
+    if len(raw) > _MAX_HANDOFF_BYTES:
+        raise ValueError("library JSON exceeds the byte limit")
+    encoded = raw.encode("utf-8") if isinstance(raw, str) else raw
+    if len(encoded) > _MAX_HANDOFF_BYTES:
+        raise ValueError("library JSON exceeds the byte limit")
+    return verify_library(VariantLibrary.model_validate(load_json_unique(encoded)))

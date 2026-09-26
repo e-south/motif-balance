@@ -68,7 +68,7 @@ ALLOWED_IMPORTS = {
     "assessment": {"compile", "constants", "errors", "model"},
     "alternatives": {"compile", "constants", "model", "scoring", "selection"},
     "search": {"compile", "constants", "errors", "model", "scoring"},
-    "variants": {"compile", "constants", "model", "scoring"},
+    "variants": {"compile", "constants", "formats", "model", "scoring"},
     "selection": {"constants", "errors", "model", "scoring"},
     "artifacts": {"compile", "constants", "errors", "model", "scoring", "selection"},
     "receipt": {"constants", "errors", "model"},

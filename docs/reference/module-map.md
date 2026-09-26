@@ -76,7 +76,9 @@ errors, constants, claim-language advisory, and model
 - `variants/` owns deterministic post-design diversification. It reuses compilation
   and complete-sequence scoring, and never calls search or arrangement selection.
   `model/variants.py` owns immutable product-library and substitution records;
-  `formats/variants.py` supplies FASTA and score tables. The data-only variant
+  `formats/variants.py` supplies FASTA and score tables. `variants.load_library` uses
+  the bounded JSON parser and replays the complete construction before accepting
+  saved scores and effort counts. The data-only variant
   renderer consumes these records directly. It cannot import the diversification
   API or scoring. The CLI is a thin adapter to these owners.
 - `artifacts/` serializes canonical bundles and replays their identities and

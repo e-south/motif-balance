@@ -257,3 +257,43 @@ def test_serialized_library_rejects_inconsistent_substitution_diagnostics(mutati
         row["evaluation"]["matches"][0]["motif_id"] = "unrequested"
     with pytest.raises(ValueError):
         VariantLibrary.model_validate(value)
+
+
+def test_library_handoff_replays_scores_and_accounting():
+    from motif_balance.variants import load_library
+
+    library = diversify("AA", request(), max_score_loss=0.04)
+    assert load_library(library.model_dump_json()) == library
+
+
+@pytest.mark.parametrize(
+    "field", ["raw_score", "evaluations_used", "score_operations", "stop_reason", "problem_id"]
+)
+def test_library_handoff_rejects_fabricated_records(field):
+    import json
+
+    from motif_balance.variants import load_library
+
+    library = diversify("AA", request(), max_score_loss=0.04)
+    payload = library.model_dump(mode="json")
+    if field == "raw_score":
+        payload["substitutions"][0]["evaluation"]["matches"][0][field] += 0.1
+    elif field == "stop_reason":
+        payload[field] = "size_cap"
+    elif field == "problem_id":
+        payload[field] = "f" * 64
+    else:
+        payload[field] = 1
+    with pytest.raises(ValueError):
+        load_library(json.dumps(payload))
+
+
+def test_library_handoff_refuses_duplicate_keys_and_oversize_before_parsing(monkeypatch):
+    import motif_balance.variants.api as api
+    from motif_balance.variants import load_library
+
+    with pytest.raises(ValueError):
+        load_library('{"x":1,"x":2}')
+    monkeypatch.setattr(api, "_MAX_HANDOFF_BYTES", 10)
+    with pytest.raises(ValueError, match="byte limit"):
+        load_library(" " * 11)

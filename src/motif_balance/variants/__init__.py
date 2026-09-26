@@ -12,6 +12,6 @@ Dunlop Lab
 
 from motif_balance.model.variants import Substitution, VariantLibrary
 
-from .api import diversify
+from .api import diversify, load_library, verify_library
 
-__all__ = ["Substitution", "VariantLibrary", "diversify"]
+__all__ = ["Substitution", "VariantLibrary", "diversify", "load_library", "verify_library"]

@@ -93,3 +93,25 @@ records. Conservative bounds use all editable single options and the library cap
 A refused request can use a smaller mask or cap. These checks and all diversification
 evaluations are separate from the original search allowance. Explicit rescanning
 is authoritative; no information-content heuristic substitutes for it.
+
+
+## Verify a saved library
+
+```python
+from pathlib import Path
+from motif_balance.variants import load_library
+
+# Reconstruct the library from its parent and settings, then compare every record.
+library = load_library(Path("library.json").read_bytes())
+```
+
+Use `load_library` for a JSON handoff. It rejects duplicate keys and inputs above
+64 MB, then reruns the bounded diversification operation. Scores, selected sites,
+allowed bases, substitution decisions, evaluation counts, rejection counts, and
+stopping reason must agree. Numerical comparisons allow only `1e-12` absolute
+roundoff. This verifies the library without repeating the original design search.
+
+Direct `VariantLibrary.model_validate_json` checks the data structure and internal
+relationships only; it does not verify the recorded scores against the models.
+For an already parsed record, use `verify_library`. Producer-version and build-lock
+fields remain recorded declarations, not cryptographically authenticated history.
