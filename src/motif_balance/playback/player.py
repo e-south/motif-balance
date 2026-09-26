@@ -32,7 +32,7 @@ input{flex:1;min-width:200px}p{font-size:16px;color:#555;line-height:1.5}
 <input id="frame" type="range" min="0" max="$last" value="0" step="1">
 <output id="position" aria-live="polite">1 / $count</output></div>
 <p>The blue line joins saved best scores. The orange point identifies the DNA on the right.
-Use the slider or arrow keys to inspect its motif sites.</p>
+Use the slider or arrow keys to inspect its motif sites. $search_description</p>
 <details><summary>Reading this view</summary><p>
 The horizontal axis is logarithmic. Equal distances mean equal ratios of candidate evaluations.
 Each displayed sequence has been rescored. Logo heights show nucleotide probability multiplied
@@ -74,13 +74,19 @@ def render_playback_html(view: PlaybackInspection, *, fps: int = 4) -> bytes:
     if type(fps) is not int or not 1 <= fps <= 30:
         raise ArtifactError("fps must be an integer from 1 through 30")
     glyph_count = sum(motif.width for motif in view.problem.motifs) * 4 * len(view.frames)
-    if glyph_count * 1800 > 32 * 1024 * 1024:
+    if glyph_count * 1800 * (2 if view.search_chain_id is not None else 1) > 32 * 1024 * 1024:
         raise ArtifactError("projected playback HTML exceeds 32 MiB; request fewer snapshots")
     frames = [render_playback_svg(view, frame=i).decode() for i in range(len(view.frames))]
     # Escape '<' so motif identifiers cannot terminate the JSON script element.
     serialized = json.dumps(frames, ensure_ascii=True).replace("<", "\\u003c")
     result = _PAGE.substitute(
         first_frame=frames[0],
+        search_description=(
+            "Gray shows sampled states of one fixed search chain behind the best DNA. "
+            "It is not every evaluated proposal."
+            if view.search_chain_id is not None
+            else ""
+        ),
         last=len(frames) - 1,
         count=len(frames),
         frames=serialized,

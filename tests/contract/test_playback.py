@@ -178,20 +178,23 @@ def test_twelve_model_playback_keeps_one_duplex_right_of_a_fixed_recovery_panel(
         dimensions.add(root.attrib["viewBox"])
         panels = {p.attrib["data-panel"]: p for p in root.findall(".//s:rect[@data-panel]", ns)}
         assert panels["recovery"].attrib["width"] == panels["recovery"].attrib["height"]
-        assert float(panels["recovery"].attrib["width"]) >= 0.6 * float(
+        assert float(panels["recovery"].attrib["width"]) >= 0.75 * float(
             panels["molecule"].attrib["height"]
         )
         axis = next(
-            t
-            for t in root.findall(".//s:text", ns)
-            if t.text == "Candidate evaluations (log scale)"
+            t for t in root.findall(".//s:text", ns) if "DNA candidates evaluated" in (t.text or "")
         )
-        assert float(axis.attrib["font-size"]) >= 26
+        assert float(axis.attrib["font-size"]) >= 44
         assert float(panels["molecule"].attrib["x"]) > float(
             panels["recovery"].attrib["x"]
         ) + float(panels["recovery"].attrib["width"])
         cursor = root.find(".//s:circle[@data-current-state]", ns)
         assert float(cursor.attrib["data-score"]) == frame.candidate.balance_score
+        score = root.find(".//s:text[@data-current-score]", ns)
+        assert score is not None
+        assert f"{frame.candidate.balance_score:.3f}" in "".join(score.itertext())
+        assert float(score.attrib["y"]) < float(cursor.attrib["cy"])
+        assert float(score.attrib["font-size"]) >= 48
         assert len(root.findall(".//s:g[@data-motif-id]", ns)) == 12
     assert len(dimensions) == 1
 
@@ -314,3 +317,85 @@ def test_combined_checkpoint_limit_precedes_expensive_replay(pairwise_spec, monk
     )
     with pytest.raises(ArtifactError, match="256 combined"):
         inspect_playback(observation)
+
+
+def test_search_overlay_uses_one_actual_chain_and_preserves_the_best(observation):
+    from motif_balance.playback.media import _movie_steps
+    from motif_balance.playback.transition import blend_svgs
+
+    view = inspect_playback(observation, search_chain_id=0)
+    assert view.search_chain_id == 0
+    for frame, recorded in zip(view.frames, observation.snapshots, strict=True):
+        assert frame.candidate.sequence == recorded.incumbent.sequence
+        assert frame.search_candidate.sequence == recorded.states[0].evaluation.sequence
+        assert frame.search_evaluations == recorded.evaluations
+    root = ET.fromstring(render_playback_svg(view))
+    ns = {"s": "http://www.w3.org/2000/svg"}
+    point = root.find(".//s:circle[@data-search-state]", ns)
+    assert float(point.get("data-score")) == view.frames[-1].search_candidate.balance_score
+    assert root.find(".//s:g[@data-duplex-layout='search']", ns) is not None
+    assert root.find(".//s:g[@data-duplex-layout='best']", ns) is not None
+    assert "Best so far" in "".join(root.itertext())
+    ids = [n.get("id") for n in root.iter() if n.get("id")]
+    assert len(ids) == len(set(ids))
+    # Ongoing exploration remains visible even when the incumbent does not improve.
+    for i in range(1, len(view.frames)):
+        if view.frames[i].search_candidate != view.frames[i - 1].search_candidate:
+            assert i in [index for index, _ in _movie_steps(view, 2)]
+    tween = ET.fromstring(
+        blend_svgs(render_playback_svg(view, frame=0), render_playback_svg(view, frame=1), 0.5)
+    )
+    assert len(tween.findall(".//s:g[@data-duplex-layout]", ns)) == 2
+    assert tween.find(".//s:circle[@data-search-state]", ns).get("data-score") == str(
+        view.frames[0].search_candidate.balance_score
+    )
+
+
+def test_search_overlay_never_invents_an_early_chain_state(pairwise_spec):
+    spec = pairwise_spec.model_copy(update={"length": 7, "evaluations": 91, "count": 1})
+    observation = design_observed(
+        spec, ObservationSpec(max_snapshots=2, incumbent_evaluations=(1, 16, 32))
+    )[1]
+    view = inspect_playback(observation, search_chain_id=0)
+    for frame in view.frames:
+        previous = [r for r in observation.snapshots if r.evaluations <= frame.evaluations]
+        if previous:
+            assert frame.search_evaluations == previous[-1].evaluations
+            assert frame.search_candidate.sequence == previous[-1].states[0].evaluation.sequence
+        else:
+            assert frame.search_candidate is None
+            assert frame.search_evaluations is None
+    with pytest.raises(ArtifactError, match="chain"):
+        inspect_playback(observation, chain_id=0, search_chain_id=1)
+    with pytest.raises(ArtifactError, match="chain"):
+        inspect_playback(observation, search_chain_id=True)
+
+
+def test_search_overlay_refuses_random_search_before_replay(pairwise_spec, monkeypatch):
+    from motif_balance.playback import api
+
+    observation = design_observed(
+        pairwise_spec.model_copy(update={"count": 1}), ObservationSpec(), method="random"
+    )[1]
+    monkeypatch.setattr(
+        api, "verify_search_observation", lambda _: pytest.fail("missing chain reached replay")
+    )
+    with pytest.raises(ArtifactError, match="chain"):
+        inspect_playback(observation, search_chain_id=0)
+
+
+def test_search_overlay_rejects_missing_future_and_reordered_records(observation):
+    from motif_balance.playback.model import PlaybackInspection
+
+    view = inspect_playback(observation, search_chain_id=0)
+    for updates, message in (
+        ({"search_evaluations": None}, "recorded evaluation count"),
+        ({"search_evaluations": view.frames[-1].evaluations + 1}, "future"),
+        ({"search_candidate": None, "search_evaluations": None}, "disappear"),
+        ({"search_evaluations": 1}, "chronological"),
+    ):
+        bad = view.model_copy(
+            update={"frames": (*view.frames[:-1], view.frames[-1].model_copy(update=updates))}
+        )
+        with pytest.raises(ValueError, match=message):
+            PlaybackInspection.model_validate(bad.model_dump(mode="python"))

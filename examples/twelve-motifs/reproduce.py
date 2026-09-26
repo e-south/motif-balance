@@ -41,7 +41,7 @@ def main() -> None:
     # Recording does not change the proposal sequence, acceptance, or search budget.
     checkpoints = tuple(sorted({*(2**power for power in range(3, 17)), 49_152}))
     portfolio, observation = design_observed(
-        spec, ObservationSpec(max_snapshots=2, incumbent_evaluations=checkpoints)
+        spec, ObservationSpec(max_snapshots=96, incumbent_evaluations=checkpoints)
     )
     elapsed = time.perf_counter() - started
     winner = portfolio.candidates[0]
@@ -51,17 +51,21 @@ def main() -> None:
     ):
         raise ValueError("Recorded example differs; check the declared software and environment")
     (args.out / "observation.json").write_text(observation.model_dump_json())
-    view = inspect_playback(observation)
+    # Keep one fixed search chain behind the best result, rather than splicing chains.
+    view = inspect_playback(observation, search_chain_id=0)
     (args.out / "inspected.json").write_text(view.model_dump_json())
-    (args.out / "playback.html").write_bytes(render_playback_html(view))
+    # The controllable HTML overview stays small; the movie uses every recorded state.
+    indices = sorted({round(i * (len(view.frames) - 1) / 7) for i in range(8)})
+    overview = view.model_copy(update={"frames": tuple(view.frames[i] for i in indices)})
+    (args.out / "playback.html").write_bytes(render_playback_html(overview))
     (args.out / "final-frame.svg").write_bytes(render_playback_svg(view))
     if args.media:
         # The movie moves between saved placements; it does not invent search states.
         (args.out / "playback.mp4").write_bytes(
-            render_playback_media(view, format_name="mp4", fps=20, transition_frames=24, width=1920)
+            render_playback_media(view, format_name="mp4", fps=30, transition_frames=4, width=1800)
         )
         (args.out / "playback.gif").write_bytes(
-            render_playback_media(view, format_name="gif", fps=20, transition_frames=24, width=700)
+            render_playback_media(view, format_name="gif", fps=30, transition_frames=4, width=480)
         )
         (args.out / "final-frame.png").write_bytes(render_playback_media(view, format_name="png"))
     print(f"Best balance {winner.balance_score:.3f}; complete search {elapsed:.1f} seconds elapsed")

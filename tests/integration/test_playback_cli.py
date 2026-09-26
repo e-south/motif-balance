@@ -52,3 +52,22 @@ def test_playback_cli_refuses_symbolic_link_input(tmp_path):
     out = tmp_path / "view.html"
     result = CliRunner().invoke(app, [str(alias), "--out", str(out)])
     assert result.exit_code != 0 and not out.exists()
+
+
+def test_playback_cli_can_overlay_one_recorded_search_chain(pairwise_spec, tmp_path):
+    app = typer.Typer()
+    app.command()(animate_command)
+    _, observation = design_observed(
+        pairwise_spec.model_copy(update={"count": 1, "evaluations": 64}),
+        ObservationSpec(max_snapshots=3),
+    )
+    source = tmp_path / "observation.json"
+    source.write_text(observation.model_dump_json())
+    out = tmp_path / "playback.svg"
+    args = [str(source), "--search-chain", "0", "--format", "svg", "--out", str(out)]
+    result = CliRunner().invoke(app, args)
+    assert result.exit_code == 0, result.output
+    assert 'data-duplex-layout="search"' in out.read_text()
+    invalid = tmp_path / "conflict.svg"
+    result = CliRunner().invoke(app, [*args[:-1], str(invalid), "--chain", "1"])
+    assert result.exit_code != 0 and not invalid.exists()

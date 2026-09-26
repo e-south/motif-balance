@@ -44,7 +44,7 @@ def _movie_steps(view: PlaybackInspection, transition_frames: int) -> list[tuple
     steps = [(0, 0)]
     for i in range(1, len(view.frames)):
         old, new = view.frames[steps[-1][0]], view.frames[i]
-        changed = old.candidate != new.candidate
+        changed = old.candidate != new.candidate or old.search_candidate != new.search_candidate
         if (
             transition_frames
             and not changed
