@@ -17,6 +17,7 @@ import typer
 from .assessment import assess_command
 from .collection import collect_command
 from .design import design_command
+from .expansion import expand_command
 from .inspection import inspect_command
 from .playback import animate_command
 from .preparation import execute_command, prepare_motif_command
@@ -34,13 +35,14 @@ app.add_typer(orchestration_app, name="orchestration", hidden=True)
 
 @app.callback()
 def root() -> None:
-    """Design DNA, inspect motif matches, collect arrangements, and diversify a sequence."""
+    """Design DNA, inspect motif matches, collect arrangements, and expand sequences."""
 
 
 app.command("design")(design_command)
 app.command("inspect")(inspect_command)
 app.command("collect")(collect_command)
 app.command("diversify")(diversify_command)
+app.command("expand")(expand_command)
 app.command("score")(score_command)
 app.command("assess")(assess_command)
 app.command("animate")(animate_command)

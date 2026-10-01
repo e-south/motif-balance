@@ -128,7 +128,7 @@ def test_empty_mask_cap_and_determinism():
     "kwargs",
     [
         {"max_variants": 0},
-        {"max_variants": 257},
+        {"max_variants": 1025},
         {"max_variants": True},
         {"max_variants": 2.5},
         {"max_score_loss": -1},
@@ -266,6 +266,34 @@ def test_library_handoff_replays_scores_and_accounting():
     assert load_library(library.model_dump_json()) == library
 
 
+@pytest.mark.parametrize("field", ["evaluations_used", "size_rejected_expansions"])
+def test_parsed_library_rejects_boolean_counters_before_replay(field, monkeypatch):
+    from motif_balance.variants import api
+
+    library = diversify("AA", request(), editable_mask=(False, False))
+    changed = library.model_copy(update={field: bool(getattr(library, field))})
+
+    def unexpected_replay(*args, **kwargs):
+        pytest.fail("malformed library reached diversification replay")
+
+    monkeypatch.setattr(api, "diversify", unexpected_replay)
+    with pytest.raises(ValueError, match="boolean"):
+        api.verify_library(changed)
+
+
+def test_parsed_library_rejects_boolean_in_nested_summary_before_replay(monkeypatch):
+    from motif_balance.variants import api
+
+    library = diversify("AA", request(), editable_mask=(False, False))
+    summary = library.verification.model_copy(update={"encoded_sequence_count": True})
+    changed = library.model_copy(update={"verification": summary})
+    monkeypatch.setattr(
+        api, "diversify", lambda *a, **k: pytest.fail("invalid summary reached replay")
+    )
+    with pytest.raises(ValueError, match="boolean"):
+        api.verify_library(changed)
+
+
 @pytest.mark.parametrize(
     "field", ["raw_score", "evaluations_used", "score_operations", "stop_reason", "problem_id"]
 )
@@ -297,3 +325,67 @@ def test_library_handoff_refuses_duplicate_keys_and_oversize_before_parsing(monk
     monkeypatch.setattr(api, "_MAX_HANDOFF_BYTES", 10)
     with pytest.raises(ValueError, match="byte limit"):
         load_library(" " * 11)
+
+
+def test_floor_is_absolute_without_an_implicit_parental_loss_limit():
+    library = diversify("AA", request(), min_balance=0.9)
+    assert library.max_score_loss is None
+    assert library.min_balance == 0.9
+    assert library.encoded_sequence_count == 4
+    assert library.maximum_component_loss > 0.02
+    assert all(score(v.sequence, request()).balance_score >= 0.9 for v in library.variants)
+
+
+def test_floor_checks_combinations_and_replays_declared_order():
+    from motif_balance.variants import load_library
+
+    for order in ("least_loss", "greatest_loss", "hashed"):
+        library = diversify("AA", request(), min_balance=0.96, construction_order=order)
+        assert len(library.variants) == 2
+        assert "CC" not in {v.sequence for v in library.variants}
+        assert load_library(library.model_dump_json()) == library
+    left = diversify("AA", request(), min_balance=0.96, construction_order="least_loss")
+    right = diversify("AA", request(), min_balance=0.96, construction_order="greatest_loss")
+    assert left.template != right.template
+
+
+@pytest.mark.parametrize("floor", [True, -0.1, 1.1, float("nan"), float("inf")])
+def test_floor_rejects_invalid_controls(floor):
+    with pytest.raises(ValueError, match="min_balance"):
+        diversify("AA", request(), min_balance=floor)
+
+
+def test_floor_rejects_ineligible_parent_conflicting_modes_and_invalid_order():
+    with pytest.raises(ValueError, match=r"parent.*floor"):
+        diversify("CC", request(), min_balance=0.99)
+    with pytest.raises(ValueError, match="either"):
+        diversify("AA", request(), min_balance=0.8, max_score_loss=0.02)
+    with pytest.raises(ValueError, match="construction_order"):
+        diversify("AA", request(), construction_order="random")
+
+
+def test_floor_preserves_reverse_sites_and_avoidance_components():
+    spec = request(3, both=True, unwanted=True)
+    parent = score("TTT", spec)
+    library = diversify("TTT", spec, min_balance=parent.balance_score - 0.1)
+    for variant in library.variants:
+        checked = score(variant.sequence, spec)
+        assert checked.balance_score >= library.min_balance - 1e-12
+        for a, b in zip(parent.matches, checked.matches, strict=True):
+            if a.spec_direction == "seek":
+                assert (a.start, a.end, a.strand) == (b.start, b.end, b.strand)
+
+
+def test_larger_library_tier_is_explicit_and_still_fully_enumerated():
+    library = diversify(
+        "AAAAAAA",
+        request(7),
+        min_balance=1.0,
+        max_variants=1024,
+        editable_mask=(False, False, True, True, True, True, True),
+    )
+    assert library.encoded_sequence_count == 1024
+    assert library.template == "AANNNNN"
+    assert library.minimum_balance == 1.0
+    with pytest.raises(ValueError, match="max_variants"):
+        diversify("AA", request(), max_variants=1025)

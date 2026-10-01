@@ -5,7 +5,7 @@ intent: Locate implementation responsibilities and permitted dependencies.
 audience: [maintainers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-20
+last_verified: 2026-09-26
 doc_type: reference
 ---
 
@@ -14,10 +14,10 @@ doc_type: reference
 ```text
 errors, constants, claim-language advisory, and model
   <- formats, compile, scoring, and assessment
-  <- search, selection, and alternatives
+  <- search, selection, alternatives, and variants
   <- api and artifacts
   <- receipt and execution
-  <- inspection/{verify, project, render}
+  <- inspection/{verify, project, render} and playback
   <- cli
 ```
 
@@ -81,6 +81,10 @@ errors, constants, claim-language advisory, and model
   saved scores and effort counts. The data-only variant
   renderer consumes these records directly. It cannot import the diversification
   API or scoring. The CLI is a thin adapter to these owners.
+  `variants/expansion.py` owns bounded explicit-list traversal and replay;
+  `expansion_collection.py` admits and coordinates collections. Their immutable
+  contracts are `model/sequence_expansion.py` and `model/expanded_collection.py`.
+  These operations preserve every passing evaluation and do not construct IUPAC products.
 - `artifacts/` serializes canonical bundles and replays their identities and
   scientific records. `encoding` owns canonical bytes and identities; `decoding`
   reconstructs strict records; `snapshot` pins bounded reads to file descriptors;
@@ -108,6 +112,9 @@ errors, constants, claim-language advisory, and model
   search or bundle loading. Its path-free `CandidateInspection` is defined in
   the data-only `inspection/candidate_model.py`; it preserves caller-assigned
   rank without inventing a run, selected portfolio, or artifact trust state.
+  That data module also owns candidate-to-problem consistency checks, shared by
+  molecular rendering and every playback frame. These inspect projected records
+  without scanning sequences or importing a renderer.
 - `inspection/assessment/` computes a path-free pre-search column projection
   from two explicit models through the assessment authority. It cannot render
   or create a candidate. The projection retains model identity, relative
@@ -131,8 +138,16 @@ errors, constants, claim-language advisory, and model
   `output` share diagnostic and atomic no-replace publication behavior.
   The package entrypoint remains `motif_balance.cli:app`; no command owns
   scientific derivations or imports caller repositories.
+  CLI adapters may import immutable `model` types for annotations and handoffs.
   `collection` verifies a saved bundle through `artifacts` and delegates its
   retained sequences to `alternatives`; it performs no grouping or scoring itself.
+
+`playback/` owns presentation of recorded searches. Its `api` verifies the source
+observation and projects saved states; `model` binds each displayed candidate to
+the scoring problem. `render` draws a saved state, `transition` moves drawings
+between saved states, and `media` validates once before bounded raster or movie
+export. Presentation never proposes DNA or invents intermediate scores. The
+interactive HTML player and exported video consume the same recorded states.
 
 `scripts/check_architecture.py` enforces this direction for absolute and
 relative imports and fails on unknown first-party modules. Add a new layer only
@@ -140,3 +155,10 @@ with an explicit architecture update and tests.
 
 
 Return to the [architecture overview](../../ARCHITECTURE.md).
+
+`variants/api.py` owns bounded single-parent admission, construction, and declared-version replay.
+`variants/bounds.py` supplies the necessary fixed-site quality rejection check;
+it never accepts a library or replaces complete-sequence scoring.
+`variants/collection.py` validates every collection member and aggregate work before
+coordinating that same constructor. `model/variant_collection.py` binds each
+separate library to its source representative; it does not merge templates.

@@ -15,17 +15,18 @@ from __future__ import annotations
 import csv
 import io
 
+from motif_balance.model.sequence_expansion import SequenceExpansion
 from motif_balance.model.variants import VariantLibrary
 
 
-def variants_fasta(library: VariantLibrary) -> str:
+def variants_fasta(library: VariantLibrary | SequenceExpansion) -> str:
     return "".join(
         f">variant-{i} balance={v.balance_score:.12g}\n{v.sequence}\n"
         for i, v in enumerate(library.variants, 1)
     )
 
 
-def variants_tsv(library: VariantLibrary) -> str:
+def variants_tsv(library: VariantLibrary | SequenceExpansion) -> str:
     stream = io.StringIO(newline="")
     writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
     writer.writerow(

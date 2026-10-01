@@ -96,6 +96,7 @@ ALLOWED_IMPORTS = {
         "scoring",
     },
     "cli": {
+        "model",
         "variants",
         "alternatives",
         "api",

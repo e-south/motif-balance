@@ -39,7 +39,7 @@ print("Documented scientific surface: ok")
 
 command = get_command(app)
 visible = sorted(name for name, child in command.commands.items() if not child.hidden)
-if visible != ["animate", "assess", "collect", "design", "diversify", "inspect", "motif", "score"]:
+if visible != ["animate", "assess", "collect", "design", "diversify", "expand", "inspect", "motif", "score"]:
     raise SystemExit(f"ordinary CLI surface differs from the documented commands: {visible}")
 print("Documented ordinary CLI surface: ok")
 PY
@@ -87,5 +87,10 @@ uv run --locked python examples/argr-cra/prepare_inputs.py --out "$smoke_root/ar
 
 uv run --locked motif-balance diversify examples/synthetic-pairwise/design.yaml AT --format json >"$smoke_root/variants.json"
 grep -Fq '"verification"' "$smoke_root/variants.json"
+
+uv run --locked motif-balance expand examples/synthetic-pairwise/design.yaml AT \
+  --min-balance 0 --max-variants 8 --max-evaluations 32 --out "$smoke_root/expanded" >/dev/null
+test -s "$smoke_root/expanded/sequences.fasta"
+test -s "$smoke_root/expanded/expansion.json"
 
 echo "Documentation smoke: ok"

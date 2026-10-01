@@ -13,6 +13,7 @@ Dunlop Lab
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from motif_balance import DesignSpec, design
@@ -20,6 +21,41 @@ from motif_balance.cli import app
 from motif_balance.model.variants import VariantLibrary
 
 runner = CliRunner()
+
+
+@pytest.mark.parametrize("source_kind", ["design", "collection", "request"])
+@pytest.mark.parametrize(
+    "options, message",
+    [
+        (["--out", "variants.unknown"], "Unrecognized output suffix"),
+        (["--format", "all"], "--out is required"),
+        (["--editable-mask", "01X0"], "editable mask must contain only"),
+    ],
+)
+def test_invalid_options_fail_before_loading_or_rescoring_inputs(
+    tmp_path, monkeypatch, source_kind, options, message
+):
+    from motif_balance.cli import variants
+
+    def unexpected_read(*args, **kwargs):
+        pytest.fail("Invalid output options must be rejected before loading saved results")
+
+    for reader in ("read_verified_portfolio", "read_collection", "load_design_spec"):
+        monkeypatch.setattr(variants, reader, unexpected_read)
+    source = tmp_path / "source"
+    if source_kind == "design":
+        source.mkdir()
+    else:
+        source.write_text("{}")
+    args = ["diversify", str(source)]
+    if source_kind == "request":
+        args.append("ACGT")
+    if options[0] == "--out":
+        options = ["--out", str(tmp_path / options[1])]
+    result = runner.invoke(app, [*args, *options])
+    assert result.exit_code == 2, result.output
+    assert message in result.output
+    assert not (tmp_path / "variants.unknown").exists()
 
 
 def test_diversification_exports_checked_scores_and_fasta(
@@ -154,3 +190,109 @@ def test_collection_reader_rejects_duplicate_keys_and_changed_selection(tmp_path
         source.write_text(content)
         run = runner.invoke(app, ["diversify", str(source)])
         assert run.exit_code == 2
+
+
+def test_expand_all_keeps_separate_products_and_exports_atomically(tmp_path, pairwise_spec):
+    saved = tmp_path / "saved"
+    design(pairwise_spec.model_copy(update={"min_distance": None})).write(saved)
+    source = tmp_path / "collection.json"
+    assert (
+        runner.invoke(app, ["collect", str(saved), "--count", "2", "--out", str(source)]).exit_code
+        == 0
+    )
+    out = tmp_path / "expanded"
+    args = [
+        "diversify",
+        str(source),
+        "--all",
+        "--min-balance",
+        "0",
+        "--max-variants",
+        "4",
+        "--out",
+        str(out),
+    ]
+    run = runner.invoke(app, args)
+    assert run.exit_code == 0, run.output
+    data = json.loads((out / "collection.json").read_text())
+    assert len(data["libraries"]) == len(data["source"]["collection"]["members"])
+    assert all(x["min_balance"] == 0 and x["max_score_loss"] is None for x in data["libraries"])
+    assert "template" not in data
+    assert (out / "arrangement-1.fasta").exists()
+    assert runner.invoke(app, args).exit_code == 2
+
+
+@pytest.mark.parametrize("extra", [["--candidate", "1"], ["ACGT"], ["--format", "svg"]])
+def test_all_rejects_ambiguous_selection_before_read(tmp_path, monkeypatch, extra):
+    from motif_balance.cli import variants
+
+    source = tmp_path / "collection.json"
+    source.write_text("{}")
+    monkeypatch.setattr(
+        variants, "read_collection", lambda *a: pytest.fail("invalid options reached reader")
+    )
+    run = runner.invoke(app, ["diversify", str(source), *extra, "--all"])
+    assert run.exit_code == 2, run.output
+
+
+def test_collection_preflight_rejects_below_floor_before_constructing(pairwise_spec, monkeypatch):
+    from motif_balance.alternatives import rank_architectures
+    from motif_balance.formats.collection import collection_json
+    from motif_balance.model.alternatives import CollectionReport
+    from motif_balance.variants import collection as operation
+
+    ranking = rank_architectures(("AAAA",), pairwise_spec.model_copy(update={"min_distance": None}))
+    report = CollectionReport.model_validate_json(
+        collection_json(ranking, count=2, source_id="bundle-" + "0" * 24, anchored=False)
+    )
+    monkeypatch.setattr(
+        operation,
+        "diversify",
+        lambda *a, **k: pytest.fail("invalid collection reached construction"),
+    )
+    with pytest.raises(ValueError, match=r"member.*floor"):
+        operation.diversify_collection(report, min_balance=1.0)
+
+
+def test_collection_work_allowance_does_not_change_products(pairwise_spec, monkeypatch):
+    from itertools import product
+
+    from motif_balance.alternatives import rank_architectures
+    from motif_balance.formats.collection import collection_json
+    from motif_balance.model.alternatives import CollectionReport
+    from motif_balance.variants import collection as operation
+
+    spec = pairwise_spec.model_copy(update={"min_distance": None})
+    ranking = rank_architectures(tuple(map("".join, product("ACGT", repeat=4))), spec)
+    report = CollectionReport.model_validate_json(
+        collection_json(ranking, count=2, source_id="bundle-" + "0" * 24, anchored=False)
+    )
+    expected = tuple(
+        operation.diversify(m.evaluation.sequence, spec, min_balance=0, max_variants=4)
+        for m in report.collection.members
+    )
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            operation, "diversify", lambda *a, **k: pytest.fail("work was not preflighted")
+        )
+        with pytest.raises(ValueError, match=r"total.*work"):
+            operation.diversify_collection(
+                report, min_balance=0, max_variants=4, max_total_score_operations=1
+            )
+    result = operation.diversify_collection(
+        report, min_balance=0, max_variants=4, max_total_score_operations=2_000_000_000
+    )
+    assert result.libraries == expected
+    for invalid in (True, 1.5, 0, 16_000_000_001):
+        with pytest.raises(ValueError, match=r"total.*work"):
+            operation.diversify_collection(report, max_total_score_operations=invalid)
+
+
+def test_collection_work_option_requires_all_before_read(tmp_path):
+    source = tmp_path / "collection.json"
+    source.write_text("{}")
+    run = runner.invoke(
+        app, ["diversify", str(source), "--max-total-score-operations", "2000000000"]
+    )
+    assert run.exit_code == 2
+    assert "requires --all" in run.output

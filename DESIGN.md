@@ -109,9 +109,9 @@ The reader and writer use only `design-spec/v3`, `motif-model/v2`, and
 `run-manifest/v7`, with `relative_pwm_attainment_v2` scores and
 `search-diagnostics/v4`. Every result retains the complete best observed
 evaluation, satisfaction checkpoints, completion fields, and bounded elites.
-Retired formats fail at intake; no compatibility dispatcher or automatic
-conversion is shipped. Historical records remain bound to their original
-software and are not rewritten.
+Retired search and run formats fail at intake; no compatibility dispatcher or
+automatic conversion is shipped for those formats. Historical records remain
+bound to their original software and are not rewritten.
 
 ## Search boundary
 
@@ -125,12 +125,58 @@ scoring problem. Observation must leave the RNG stream, evaluated sequences and
 selected portfolio unchanged. A bounded run reports the best result evaluated
 within its budget; only complete enumeration establishes a whole-space optimum.
 
+## Explicit method selection
+
+Bounded search-engine version 2 always executes the requested annealed, greedy,
+or random method for its declared budget. Default search is annealed. Exact
+enumeration is an explicit method and retains `exhaustive_v1`, version 1.
+The scoring problem, ordinary proposals, RNG policy, and selection rules are
+unchanged. This removes the former automatic substitution on short sequences.
+Preflight, runtime, observation replay, and artifact verification must agree on
+the actual engine. Historical bounded version-1 records remain bound to their
+producing package and fail closed in the current reader; no legacy optimizer
+dispatcher or automatic conversion is introduced.
+
 ## Post-design diversification
+
+The primary [explicit expansion](docs/expand-sequences.md) operation keeps every
+passing evaluation within its declared work and output limits. It traverses
+qualifying one-base neighbours in deterministic breadth-first order. Every
+sequence is checked against the original parent's selected sites and the common
+balance floor. It stops before a further evaluation would exceed either limit.
+Frontier exhaustion is not global sequence-space exhaustion. Full evaluations
+are retained only for accepted sequences; compact edit records describe the
+other tests. Versioned replay verifies every decision. Explicit lists have no
+implied ambiguity template.
 
 [Diversification](docs/diversify-sequences.md) preserves each desired model's
 selected coordinates and strand under the canonical tie rule. Every desired
 score loss and unwanted-score increase is bounded separately relative to the
-parent. The complete Cartesian product is rescored before its template is
+parent in loss mode. Absolute-floor mode instead requires every objective component
+to meet `min_balance`; it imposes no hidden parental-loss limit. The modes are
+mutually exclusive. The complete Cartesian product is rescored before its template is
 returned. The parent is included, flanks are fixed by default, and a parent-only
 result remains explicit. Search, model preparation, and arrangement grouping
 are unchanged. Diversification counts its own evaluations and records provenance.
+
+### Library format decision
+
+`variant-library/v3` records exactly one of `min_balance` and `max_score_loss`,
+the deterministic addition order, and separate size, quality, and selected-site
+rejection counts. Its additive desired-site precheck is a necessary rejection
+condition, not an alternative scorer or a certificate of selected-site identity.
+All accepted members still receive the authoritative complete-sequence scan.
+
+Version 2 remains an explicitly supported read/replay contract because the quality
+rule and produced sequence products are unchanged, while evaluation and rejection
+accounting differ. Its declared algorithm selects the original checks. Version 3
+selects the precheck and detailed accounting. The reader neither infers a missing
+version nor converts one into the other, and newly constructed libraries use v3.
+This narrow library replay decision does not reopen retired search/run schemas.
+Version 1 libraries are rejected and remain with their producing software because
+the earlier quality contract differs. Ordinary calls without a quality control
+retain the 0.02 loss default.
+
+`collection-variants/v1` coordinates separate products without changing scoring,
+arrangement classes, or the optimizer. It validates every parent and aggregate
+work limits before construction and publishes output only after all members pass.
