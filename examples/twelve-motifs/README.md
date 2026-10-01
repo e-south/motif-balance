@@ -4,7 +4,7 @@ The recorded search asks one 60-base sequence to agree with twelve supplied *E. 
 
 ![Recorded best DNA and its motif matches](playback.gif)
 
-[MP4](playback.mp4) · [GIF](playback.gif) · [Inspect the final frame](final-frame.png) · [Step-by-step guide](../../docs/biological-example.md)
+[MP4](playback.mp4) · [GIF](playback.gif) · [Inspect the final frame](final-frame.png) · [Source installation](../../docs/installation.md#install-from-source)
 
 The seed-839 search uses 655,360 evaluations and produces the displayed candidate with balance **0.733**. It took 27.3 minutes elapsed and 0.452 CPU hours in one process on an Apple M2 Pro with 16 GiB memory, during other workstation activity. Peak search memory was 128.8 MiB. These measurements exclude verification replay and rendering.
 

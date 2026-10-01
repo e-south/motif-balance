@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-motif-conversion
-title: Motif conversion records
-intent: Record how counts or source probabilities become scoring inputs.
-audience: [API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: reference
----
-
 # Motif conversion records
 
 Motif Balance recognizes four named conversion methods across two schema

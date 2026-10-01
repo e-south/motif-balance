@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-playback
-title: Show a recorded search
-intent: Render recorded sequence states alongside best observed scores.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: how-to
----
-
 # Show a recorded search
 
 A score curve shows whether search improves, while the corresponding DNA view
@@ -18,7 +7,7 @@ observation before rendering, so altered sequence or score records fail validati
 
 ## Export an observation
 
-The [example](../biological-example.md) creates an observation file.
+The [example](../../examples/twelve-motifs/README.md) creates an observation file.
 For a file saved from your own `design_observed` call:
 
 ```bash
@@ -43,12 +32,9 @@ The blue curve connects recorded snapshots. The orange point gives the score
 and evaluation count for the displayed DNA. Unequal spacing comes from the
 recorded counts on a logarithmic axis. HTML presents these observations at the
 chosen viewing rate.
-For up to eight models, the two views have equal square content areas, with the
-duplex scale and DNA baselines fixed across the recording. This layout exports at
-1,920 × 1,056 pixels. For nine to twelve models, a larger square recovery plot sits on the left of a
-continuous molecular view, with presentation-sized axis labels. The score above
-the orange point gives the displayed candidate's balance. For the best-sequence
-view it is labeled *B* with subscript “best” and evaluation count *e*. Balance
+The recovery plot sits beside the duplex, whose scale stays fixed across frames.
+The score above the orange point gives the displayed candidate's balance. In the
+best-sequence view it is labeled *B* with subscript “best” and evaluation count *e*. Balance
 *B(s)* is the minimum normalized motif score *qᵢ(s)* for DNA sequence *s*. The
 best-so-far value is the largest balance encountered through *e* evaluations.
 Scores stay at recorded values during a display transition.
@@ -57,13 +43,8 @@ positive, finite measurement for the complete source run. Cropping preserves it,
 and the subtitle explicitly labels it as full-search elapsed time. It does not
 create per-frame timestamps. Omit it when timing was not measured.
 
-The larger canvas retains the same dimensions across frames; the duplex moves
-vertically as the number of forward- and reverse-strand matches changes.
-
-The sampled curve cannot recover the time or sequence
-of every intermediate improvement, and playback speed is a presentation choice,
-not elapsed optimization time. Sparse observations should not be described as
-a complete trajectory.
+Playback speed is a viewing choice. Sparse observations do not recover every
+intermediate improvement or its elapsed search time.
 
 ## Use Python
 
@@ -93,17 +74,19 @@ DNA length, motif identities, directions, and positional probability records.
 A mismatched projection is rejected before rendering or loading a media encoder.
 These consistency checks do not replace replay of the search observation.
 
-## Source-checkout playback controls
+## Optional search-chain overlay
 
 To show ongoing exploration behind the best sequence, use `--search-chain all`
 with `animate`, or pass `search_chain_id="all"` to `inspect_playback` in Python.
 This displays each recorded chain separately in faint gray. Use `0` through `7`
-to select one fixed chain instead. The colored molecule and curve retain the best result. It cannot
-be combined with `chain_id`. The eight chains share one run's budget; they are
+to select one fixed chain instead. The colored molecule and curve retain the best
+result. The overlay cannot be combined with `chain_id`. The eight chains share one run's budget; they are
 not eight independent repeated searches. A checkpoint without a new chain state
 keeps the preceding recorded gray state at its original evaluation coordinate.
-No state is shown before it was recorded. The gray curve is not every evaluated
-proposal, and its hard-minimum balance differs from the smooth acceptance score.
+No state is shown before it was recorded. Gray placements can change while the
+best sequence remains fixed. A best-scoring proposal need not be adopted by a chain, and snapshots do not contain every
+evaluated proposal. The gray curve shows hard-minimum balance, which differs
+from the smooth acceptance score.
 
 Recording cadence matters for this overlay. `incumbent_evaluations` saves the best
 candidate only; chain snapshots are spaced across the complete evaluation budget.
@@ -111,18 +94,14 @@ Dense early best-score checkpoints can therefore advance the colored DNA while
 the gray chains retain their initial state. Increasing playback speed or adding
 transitions does not recover the chain changes missing from the recording.
 
-The twelve-model example omits the chain overlay and ends its movie at the first recorded final-best score,
-using `view.until_last_improvement()` or `--until-last-improvement`. This selects
+The twelve-model example omits the chain overlay and ends its movie at the first
+recorded final-best score, using `view.until_last_improvement()` or `--until-last-improvement`. This selects
 an unchanged prefix and rescales the evaluation axis to its endpoint. It does not
 identify the exact discovery time between observations or change the full run's
-budget. The HTML overview selects eight best-sequence frames. Gray placements can
-change while the best sequence remains fixed. A best-scoring proposal need not
-be adopted by a chain, and snapshots do not include every evaluated proposal.
+budget. The HTML overview selects eight best-sequence frames.
 
-Playback produces `playback-inspection/v2`. Earlier saved projections and
-observations require their compatible producing version. There is no automatic
-conversion of search-engine records.
-
+Saved projections use the [current playback format](public-contract.md#artifacts).
+Search observations require a compatible producing version.
 
 ## Export media
 
@@ -139,7 +118,7 @@ uv run motif-balance animate observation.json --format mp4 --out playback.mp4
 Use `--fps` to set 1–30 frames per second. PNG accepts `--frame`; GIF and MP4
 show the recorded frame sequence.
 
-For smooth movement with the **source-checkout controls** above:
+For smooth movement between recorded states:
 
 ```bash
 uv run motif-balance animate observation.json --format mp4 --out smooth.mp4 \

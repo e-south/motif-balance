@@ -1,16 +1,3 @@
----
-doc_id: motif-balance-pair-assessment
-title: Assess a motif pair before sequence search
-intent: Explain and use length-aware shared-base conflict without predicting sequence scores or biology.
-audience: [users, API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: how-to
-journey: [assess]
-
----
-
 # Assess a motif pair before sequence search
 
 Two motif windows may need to share DNA positions. If their preferred bases

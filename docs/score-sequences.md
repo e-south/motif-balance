@@ -1,16 +1,3 @@
----
-doc_id: motif-balance-score-sequences
-title: Score an existing sequence
-intent: Evaluate one caller-supplied sequence through the shared sequence-scoring operation.
-audience: [API consumers, users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: how-to
-journey: [score]
-
----
-
 # Score an existing sequence
 
 After [preparing the example request](quickstart.md),

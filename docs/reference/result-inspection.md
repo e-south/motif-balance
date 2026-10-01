@@ -1,16 +1,3 @@
----
-doc_id: motif-balance-result-inspection
-title: Result inspection
-intent: Explain verified result review and replayed supplied-candidate views without conflating their provenance.
-audience: [users, API consumers, downstream integrators]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: reference
-journey: [inspect]
-
----
-
 # Result inspection
 
 `inspect` verifies one explicit result, replays every published match and

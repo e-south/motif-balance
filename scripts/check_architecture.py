@@ -42,7 +42,6 @@ KNOWN_LAYERS = {
     "api",
     "artifacts",
     "cli",
-    "claim_language",
     "compile",
     "constants",
     "errors",
@@ -58,7 +57,6 @@ KNOWN_LAYERS = {
     "variants",
 }
 ALLOWED_IMPORTS = {
-    "claim_language": set(),
     "constants": set(),
     "errors": set(),
     "model": {"constants", "errors"},

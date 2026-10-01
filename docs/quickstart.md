@@ -1,15 +1,3 @@
----
-doc_id: motif-balance-quickstart
-title: Run a first design
-intent: Design and inspect DNA using the ArgR and Cra transcription-factor profiles.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: tutorial
-journey: [install, design, verify]
----
-
 # Run a first design
 
 Fit two motif preferences into one short sequence, save the result, then inspect
@@ -73,7 +61,7 @@ Edit a copy of the [request](../examples/argr-cra/design.yaml):
 
 Run `--check` before searching the edited request. To select different motif
 arrangements, continue with [collections](choose-alternatives.md). For a
-twelve-model application and recorded search, follow the [example](biological-example.md).
+twelve-model application and recorded search, follow the [example](../examples/twelve-motifs/README.md).
 
 ## Compare search methods
 

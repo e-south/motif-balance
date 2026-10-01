@@ -1,15 +1,3 @@
----
-doc_id: motif-balance-diversification
-title: Vary a sequence while retaining its selected sites
-intent: Build and export a small score-constrained nucleotide library around one DNA design.
-audience: [users, API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: how-to
-journey: [design, score]
----
-
 # Construct checked degenerate libraries
 
 For explicit lists that retain every qualifying sequence tested within a bounded

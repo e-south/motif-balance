@@ -108,13 +108,13 @@ def test_pool_ranking_still_rejects_wide_motifs_before_matrix_compilation(monkey
         rank_architectures(("A",), spec)
 
 
-def test_information_architecture_routes_to_the_current_ranking_contract():
+def test_documentation_routes_to_the_current_ranking_contract():
     from motif_balance.model.alternatives import ArchitectureRanking
 
     root = Path(__file__).resolve().parents[2]
-    authority = (root / "IA.md").read_text()
+    authority = (root / "docs/README.md").read_text()
     contract = root / "docs/reference/public-contract.md"
-    assert "docs/reference/public-contract.md" in authority
+    assert "reference/public-contract.md" in authority
     schema = ArchitectureRanking.model_fields["schema_version"].default
     assert f"`{schema}`" in contract.read_text()
 

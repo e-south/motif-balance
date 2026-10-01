@@ -1,18 +1,7 @@
----
-doc_id: motif-balance-module-map
-title: Module responsibilities
-intent: Locate implementation responsibilities and permitted dependencies.
-audience: [maintainers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-26
-doc_type: reference
----
-
 # Module responsibilities
 
 ```text
-errors, constants, claim-language advisory, and model
+errors, constants, and model
   <- formats, compile, scoring, and assessment
   <- search, selection, alternatives, and variants
   <- api and artifacts
@@ -29,9 +18,6 @@ errors, constants, claim-language advisory, and model
   owns cross-record consistency. These are contract domains, not plugin layers.
 - `constants.py` contains only shared literal constants and imports no other
   first-party layer.
-- `claim_language.py` is a pure, optional wording checker for downstream
-  reports. It does not inspect evidence, search literature,
-  rewrite text, or accept claims, and it is absent from the top-level facade and CLI.
 - `formats/` parses external representations into strict models; it does not
   choose scientific policy.
 - `compile.py` normalizes a specification into evaluator-ready state.

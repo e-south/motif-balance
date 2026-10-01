@@ -1,15 +1,3 @@
----
-doc_id: motif-balance-release
-title: Prepare and publish a release
-intent: Verify installable distributions and publish the reviewed files.
-audience:
-  - maintainers
-owner: Eric J. South, Dunlop Lab
-status: active
-last_verified: 2026-09-21
-doc_type: how-to
----
-
 # Prepare and publish a release
 
 Build a wheel and source distribution for the same version, test their installed
@@ -93,38 +81,14 @@ Publish the GitHub release after these checks pass. The tag-triggered
 does not publish them. Versioned release files are immutable. Correct a defect
 with a new version rather than replacing published bytes.
 
-## Configure PyPI once
-
-Keep the distribution and command name **motif-balance** and the Python import
-**motif_balance**. Hyphens are valid in distribution names. Package indexes treat
-`motif-balance`, `motif_balance`, and `motif.balance` as the same normalized name;
-`motifbalance` would be a different name. See the [PyPA naming specification](https://packaging.python.org/en/latest/specifications/name-normalization/).
-
-A PyPI account needs a verified email address and two-factor authentication.
-There is no separate application by email to become a trusted account. A
-*Trusted Publisher* is an authorized publishing workflow, configured through the
-PyPI website. See [PyPI account requirements](https://pypi.org/help/#my-account).
-
-For the first release, configure a [pending publisher](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)
-in your PyPI account with these values:
-
-- PyPI project: `motif-balance`
-- GitHub owner: `e-south`
-- Repository: `motif-balance`
-- Workflow filename: `publish.yaml`
-- Environment: `pypi`
-
-Also create the `pypi` environment in GitHub and require a release review before
-it runs. PyPI recommends using an environment to restrict trusted publishing.
-For an existing project, add the same configuration under its [Publishing settings](https://docs.pypi.org/trusted-publishers/adding-a-publisher/).
-A pending publisher does not reserve the project name; creation occurs on the
-first successful upload. Check availability when configuring it, since an absent
-public project page does not prove that a name can be registered.
-
 ## Publish the verified GitHub release to PyPI
 
-After account and environment setup, manually run **Publish verified
-distributions** in GitHub Actions and supply the published release tag.
+The `motif-balance` PyPI project's Trusted Publisher authorizes
+`e-south/motif-balance`, workflow `publish.yaml`, and environment `pypi`.
+Maintain that restriction in [PyPI Publishing settings](https://docs.pypi.org/trusted-publishers/adding-a-publisher/)
+and the repository's environment protections.
+
+Manually run **Publish verified distributions** in GitHub Actions and supply the published release tag.
 `publish.yaml` checks the annotated tag and main-branch ancestry, downloads the
 four release assets, verifies the attestation, and reruns distribution tests.
 Only the wheel and source distribution proceed to the protected publishing job.
@@ -140,7 +104,3 @@ python -m pip install "motif-balance==<published-version>"
 # Confirm the installed command and list its available operations.
 motif-balance --help
 ```
-
-An exact version allows an alpha release to be installed deliberately. Ordinary
-unversioned installs generally skip prereleases. Publishing and account setup
-are maintainer actions, separate from building and reviewing the package.

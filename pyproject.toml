@@ -71,7 +71,6 @@ include = [
   "/LICENSE",
   "/CITATION.cff",
   "/README.md",
-  "/IA.md",
   "/ARCHITECTURE.md",
   "/CODE_OF_CONDUCT.md",
   "/CONTRIBUTING.md",

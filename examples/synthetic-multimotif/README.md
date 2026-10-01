@@ -1,16 +1,3 @@
----
-doc_id: motif-balance-synthetic-multimotif-example
-title: Annealed four-motif example
-intent: Exercise one multi-motif design through the same public product contract.
-audience:
-  - users
-  - maintainers
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: tutorial
----
-
 # Annealed four-motif example
 
 Search for four distinct eight-base sequences under four synthetic `seek`

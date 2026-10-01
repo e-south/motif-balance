@@ -1,161 +1,48 @@
----
-doc_id: motif-balance-public-contract
-title: Motif Balance public contract
-intent: Define the supported scientific API, ordinary CLI, and artifact formats.
-audience: [API consumers, integrators]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: reference
-journey: [integrate]
+# API, commands, and saved formats
 
----
-
-# Motif Balance public contract
-
-`motif_balance.variants.expand` and `expand_collection`, and the `expand` CLI,
-return explicit lists retaining every qualifying evaluation under declared limits.
-See [sequence expansion](../expand-sequences.md). Their records use
-`sequence-expansion/v1` and `expanded-collection/v1`, with no implied IUPAC product.
-
-The separate `motif_balance.variants.diversify` operation and ordinary `diversify`
-command produce checked nucleotide libraries after selecting a sequence. See
-[diversification](../diversify-sequences.md) for controls, guarantees, and exports.
-The immutable result uses `variant-library/v3` and is separate from a run bundle. `diversify_collection` and CLI `--all` expand
-every delivered collection member into separate libraries in `collection-variants/v1`.
-The explicit `min_balance` and `max_score_loss` controls are mutually exclusive.
+Start with the [Python tutorial](../python-api.md) for runnable examples or the
+[README](../../README.md#try-a-design) for the command-line workflow.
 
 ## Python
 
-For a runnable first task, start with the [Python tutorial](../python-api.md).
-This page is the interface reference, not an installation walkthrough.
+The top-level interface exports `MotifModel`, `MotifSpecification`, `DesignSpec`,
+`MotifMatch`, `Candidate`, `Portfolio`, `design`, and `score`.
 
-The main Python interface provides the input and result models, plus design
-and scoring functions:
+- `score(sequence, spec)` returns an immutable evaluation. Requested output count
+  and portfolio separation do not affect its score. Model, length, strand, and
+  scoring validation still apply.
+- `design(spec)` returns exactly `spec.count` ranked candidates or raises a typed
+  error. `Portfolio.write(path)` publishes a new, verified result bundle.
+- `design(spec, method=...)` accepts `annealed` (default), `greedy`, `random`, or
+  `exhaustive`. Exact enumeration requires a budget covering the complete space.
+  `initialization="independent"` selects eight independent starts instead of the
+  default related starts for guided search. The method and initialization belong
+  to run identity. See [methods](../methods.md#explicit-comparison-methods).
 
-```python
-# Import the input models, result types and two main operations.
-from motif_balance import (
-    MotifModel,
-    MotifSpecification,
-    DesignSpec,
-    MotifMatch,
-    Candidate,
-    Portfolio,
-    design,
-    score,
-)
-```
+Advanced operations are explicit submodule imports:
 
-`score(sequence, spec)` returns the authoritative immutable evaluation for one
-supplied sequence without requiring a feasible output portfolio. The request's
-count and portfolio-distance condition do not alter that sequence's score;
-model, length, strand and scoring validation still apply. See
-[sequence scoring](../score-sequences.md) for the input and failure boundaries.
-`design(spec)` returns exactly `spec.count` ranked candidates or
-raises a typed error. `Portfolio.write(path)` atomically publishes a new result
-bundle. Inputs and public models are strict and immutable.
+| Operation | Result and reference |
+| --- | --- |
+| `variants.expand`, `variants.expand_collection` | Qualifying sequence lists under declared work and output limits. [Expansion](../expand-sequences.md) |
+| `variants.diversify`, `variants.diversify_collection` | Complete, jointly checked ambiguity products. Absolute floor and parent-relative loss are mutually exclusive. [Degenerate libraries](../diversify-sequences.md) |
+| `alternatives.rank_architectures` | Scores a supplied pool and ranks one representative per arrangement class. `select` requires an exact count; `select_up_to` reports partial delivery. [Collections](../choose-alternatives.md) |
+| `alternatives.measure_prefixes` | Measures an explicit representative order without changing scores. [Ranking reference](architecture-ranking.md) |
+| `alternatives.select_portfolio`, `verify_portfolio_selection` | Count, separation, and optional arrangement constraints over a supplied pool. [Constrained selection](portfolio-selection.md) |
+| `assessment.assess_pair`, `assess_motifs` | Shared-base preference loss for two, or up to four, desired models without sequence search. [Assessment](../pair-assessment.md) |
+| `inspection.inspect_result` | Verifies a bundle or explicit execution workspace. [Inspection](result-inspection.md) |
+| `inspection.inspect_candidate` | Rescores a supplied candidate under explicit models, without asserting its origin or rank. [Candidate inspection](result-inspection.md#inspect-a-supplied-candidate) |
+| `api.design_observed`, `playback.inspect_playback` | Records and replays bounded search observations. [Observations](search-observations.md) and [playback](playback.md) |
 
-For directional requests, `design(spec, initialization="independent")` selects
-eight independently initialized uniform DNA starts instead of the default
-`"related"` starts. `design_observed` accepts the same keyword. This Python
-method option does not change the scoring problem, moves, cooling schedule,
-selection, or evaluator budget. It changes the recorded search-engine identity
-and therefore the run identity. Unknown options and retired request schemas fail validation.
-The ordinary CLI uses the default related initialization. Short sequence spaces
-do not change the requested method.
-
-`design(spec, method="greedy")` selects strict single-base improvement;
-`design(spec, method="random")` selects independent whole-sequence draws with
-replacement. Both require v3 and preserve scoring, selection, budget accounting,
-and retention. Random draws have no chain initialization and never substitute
-enumeration. `design_observed` accepts the same method option and replays the
-recorded engine. See [method contracts](../methods.md#explicit-comparison-methods)
-for ties, plateaus, partial trials, and exact-completion behavior.
-
-`design(spec, method="exhaustive")` explicitly enumerates a tractable sequence
-space. The budget must cover every possible sequence; initialization is omitted.
-The CLI and `design_observed` accept the same explicit choice. Bounded methods
-use search-engine version 2. Exact enumeration retains version 1. Older bounded
-records require their producing package for verification and replay; they are
-not silently reinterpreted under the new method-selection contract.
-
-Serialized numeric fields must be native YAML or JSON numbers; quoted numeric
-strings are rejected. Advanced review uses an explicit submodule:
-
-```python
-# Import inspection helpers for saved results or individually scored candidates.
-from motif_balance.inspection import (
-    CandidateInspection,
-    ResultInspection,
-    inspect_candidate,
-    inspect_result,
-)
-```
-
-`inspect_result` verifies an explicit bundle or execution workspace.
-`inspect_candidate(candidate, spec)` replays one supplied directional candidate
-without inventing a result or checking its caller-assigned rank. The latter
-returns numeric support and uses the same candidate SVG renderer; it performs
-no search or file access. It has no separate CLI command.
-See [inspection](result-inspection.md#inspect-a-supplied-candidate) for its
-input, replay, provenance and rendering boundaries.
-
-Renderers, conversion helpers, bundle readers, and execution attestation remain
-deliberate submodule or CLI surfaces. They are absent from the top-level
-scientific facade and may evolve with their versioned artifact schemas.
-
-The optional [claim-language check](claim-language.md) flags a bounded set of
-wording hazards. It does not assess evidence or decide whether a claim is valid.
-
-The explicit `motif_balance.assessment` module exports `assess_motifs`/`JointAssessment` for bounded two-to-four-model
-exact joint arrangements, alongside `assess_pair` and
-`PairAssessment`. The pair operation returns every relative arrangement; the joint operation
-returns the best joint arrangement. Both calculate shared-base preference loss
-without searching candidate sequences.
-See [pair assessment](../pair-assessment.md) for the runnable example, independent
-formula identity, output fields, equivalence rules, and typed refusal conditions.
-It does not change `score`, `design`, or the top-level facade.
-
-The explicit `motif_balance.alternatives.rank_architectures(sequences, spec)`
-operation scores an explicit pool and returns an immutable
-`architecture-ranking/v4` profile with explicit distance-budget accounting.
-Its `select(count)` returns unchanged
-evaluations for an exact quality-ranked architecture prefix or fails; it does
-not search, publish a bundle, or enforce the portfolio's distance constraint.
-See [choose alternatives](../choose-alternatives.md) for the executable example,
-equivalence rules, separate distances, resource admission, and replay boundary.
-
-The explicit `grouping` is `exact_offsets` (the preserved Python default) or
-`interval_topology` (labeled endpoint order/equality and strand). The latter
-groups spacing variants while preserving exact coordinates for inspection.
-
-`select_up_to(count)` returns an `architecture-collection/v1` with explicit
-partial delivery and weakest delivered quality. It does not turn partial
-delivery into fulfillment of an exact-count request.
-
-The same submodule's `measure_prefixes(ranking, order)` measures a complete
-explicit representative order without editing or rescoring candidates. The
-original order reuses its profile; another order incurs one bounded distance
-pass. The corresponding `collect` CLI uses interval topology; advanced prefix
-measurement remains a Python operation.
-
-For a full set satisfying explicit separation and architecture requirements,
-use `motif_balance.alternatives.select_portfolio(sequences, spec, policy)` and
-`verify_portfolio_selection(result, sequences)`. The current
-[portfolio contract](portfolio-selection.md) returns bottleneck quality and
-finite-pool proof status without changing the original generation request.
-It retains same-architecture variants until constrained selection. Neither
-ranked prefixes nor supplied scores are accepted as an implicit substitute.
-This operation is available through Python.
+Arrangement grouping is `exact_offsets` by default in Python or
+`interval_topology` for boundary order, equality, and strands. The `collect` CLI
+uses interval topology. Arrangement ranking does not enforce sequence separation;
+use constrained selection when that is required.
 
 ## Command line
 
-The command line supports these tasks:
-
 ```text
 design    search for DNA from a saved request
-inspect   review the sequences, sites, and scores in a saved design
+inspect   review sequences, sites, and scores in a saved design
 collect   choose different motif arrangements from retained sequences
 expand    retain qualifying nucleotide sequences at selected sites
 diversify construct a completely checked degenerate template
@@ -165,87 +52,45 @@ motif     prepare a motif model from an explicit source
 animate   replay recorded search states
 ```
 
-`collect RESULT --count K --out collection.json` verifies and rescores the saved
-design, then writes a self-contained `collection-report/v1` containing its ranking,
-selected members, and scoring inputs. `--expected-bundle-id` optionally compares
-a separately retained identity. The report states whether that external check was
-requested. Its source identity remains a declaration when the report is read
-without the original saved design.
+Each command's `--help` lists its controls. Output paths must be new. `inspect`
+verifies bytes, schemas, identities, and scores before drawing views. `collect`
+exports a self-contained report; its optional `--expected-bundle-id` checks an
+externally retained identity. Without the original bundle, a report's source
+identity remains a declaration.
 
-`diversify SOURCE --candidate N --out variants` accepts a saved design directory or
-collection JSON. It rescans the chosen parent and exports a complete checked library,
-FASTA, score table, and substitution SVG in one new directory. With a design request,
-supply explicit DNA instead of a rank. See [diversification](../diversify-sequences.md)
-for score constraints, output formats, and the distinction between structure checks
-and reconstruction of a saved library.
-
-`assess LEFT RIGHT --length N` reads two explicit canonical YAML/JSON
-`motif-model/v2` files. It emits a summary or the full `PairAssessment` JSON;
-`--out` writes only a new file. Use `--additional` for a third or fourth desired motif; joint assessment
-supports text and JSON. It does not accept a DesignSpec, search seed,
-avoidance direction or multi-model database. The [assessment guide](../pair-assessment.md)
-owns its runnable example, formula and interpretation.
-
-`inspect` automatically verifies bytes, schemas, identities, and score replay.
-It emits text by default and can export inspection JSON or one candidate,
-portfolio, or search-record SVG. HTML is the optional linear composition of
-those same renderers.
-
-Motif preparation is available in ordinary help. Exact-wheel execution is an
-advanced integration command:
-
-```text
-motif-balance orchestration execute ...
-```
-
-Motif preparation converts one explicitly supplied supported source. It does
-not discover or fetch databases. Orchestration binds an execution to an exact
-wheel and producer revision. Both operate on explicitly supplied files.
-
-[Playback](playback.md) replays an explicit search observation and exports HTML,
-SVG or optional media. It reports recorded states without interpolating missing
-search events. The `playback-inspection/v2` projection supports separate histories
-for all recorded chains. Last-improvement excerpts and accelerating movie pacing
-change presentation only; search observations and full-run budgets stay intact.
+Motif conversion reads an explicitly supplied source; it does not fetch
+databases. Advanced `orchestration execute` binds a run to an exact wheel and
+producer revision. See [conversion](motif-conversion.md) and
+[execution records](execution-receipts.md).
 
 ## Artifacts
 
-A result bundle contains:
+A result bundle contains `design.json`, `motifs.json`, `candidates.tsv`,
+`matches.tsv`, `manifest.json`, and derived `candidates.fasta`. Its manifest binds
+every member by path, size, and SHA-256, including the best observed evaluation
+when distance constraints exclude it from the selected portfolio. Verification
+replays stored scores and sites without rerunning search. Text and graphical
+reviews remain regenerable outputs outside that bundle.
 
-```text
-design.json
-motifs.json
-candidates.tsv
-matches.tsv
-manifest.json
-candidates.fasta  # derived, manifest-bound
-```
+| Record | Current format |
+| --- | --- |
+| Design, motif, and result bundle | `design-spec/v3`, `motif-model/v2`, `run-manifest/v7` |
+| Scoring and search diagnostics | `relative_pwm_attainment_v2`, `search-diagnostics/v4` |
+| Arrangement ranking and collection | `architecture-ranking/v4`, `architecture-collection/v1`, `collection-report/v1` |
+| Explicit expansion | `sequence-expansion/v1`, `expanded-collection/v1` |
+| Degenerate products | `variant-library/v3`, `collection-variants/v1` |
+| Constrained selection | `portfolio-policy/v1`, `portfolio-selection/v2` |
+| Inspection | `motif-balance.result-inspection/v5`, `motif-balance.candidate-inspection/v2` |
+| Playback | `playback-inspection/v2` |
+| Attested execution | `motif-balance.execution-workspace/v1` |
 
-The manifest binds every other member by relative path, size, and SHA-256.
-Verification recompiles the problem and replays each published candidate's
-matches, directional satisfaction, and
-hard-minimum score. Directional manifests also replay every retained elite and
-bind exact-completion counts or an explicit bounded-run status. Current
-manifests bind the complete best observed evaluation even when it is excluded
-from the distance-constrained selected portfolio. Verification does not rerun
-search. Text, inspection JSON, SVG, and HTML are regenerable projections outside
-the bundle.
+Bounded search engines use version 2; explicit exhaustive enumeration uses
+version 1. Earlier bounded runs and unsupported formats require their producing
+software. The degenerate-library reader additionally supports explicit v2 replay;
+its unchanged quality rule but different evaluation accounting is described in
+[the library guide](../diversify-sequences.md). Versions are not inferred or
+silently converted.
 
-The reader and writer use only `run-manifest/v7` for directional v3 inputs. New
-bundle projections use `motif-balance.result-inspection/v5`; supplied-candidate
-projections use `motif-balance.candidate-inspection/v2`. Unknown schemas fail
-closed. Retired scoring and artifact formats are not converted; historical
-records require their original software. A workflow that
-needs exact runtime identity retains the complete
-`motif-balance.execution-workspace/v1` with its wheel and external trust
-anchors.
-
-Verification checks the saved computational result. Biological interpretation
-and comparisons across runs require the corresponding experimental evidence.
-
-Directional runs may request [bounded search observations](search-observations.md)
-from the same search as the returned portfolio. No complete-pool compatibility
-module is shipped; historical observations require their original producing build.
-These retain separate chain snapshots, exact first-hit counts, and move-change
-counts without changing the canonical portfolio. They are not a complete pool
-or a replacement for the manifest's elite reservoir.
+[Result integrity](../../RELIABILITY.md) defines deterministic encoding,
+publication, and verification. Model scores and verified files establish a
+computational result; biological interpretation requires experimental evidence.

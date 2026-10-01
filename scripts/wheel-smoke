@@ -52,7 +52,7 @@ for forbidden in '/.git/' '/.venv/' '/.artifacts/' '/examples/argr-cra/inputs/' 
     exit 1
   fi
 done
-for required in LICENSE CITATION.cff README.md IA.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md assets/motif-balance-banner.svg docs/README.md docs/quickstart.md docs/score-sequences.md docs/reference/execution-receipts.md docs/reference/result-inspection.md; do
+for required in LICENSE CITATION.cff README.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md assets/motif-balance-banner.svg docs/README.md docs/quickstart.md docs/score-sequences.md docs/reference/execution-receipts.md docs/reference/result-inspection.md; do
   if ! grep -Fq "/$required" <<<"$sdist_contents"; then
     echo "source distribution omits routed content: $required" >&2
     exit 1
@@ -241,7 +241,7 @@ blocks = re.findall(r"```python\n(.*?)```", guide, flags=re.DOTALL)
 assert blocks, f"no runnable Python example in {guide_path.name}"
 print("\n".join(blocks))
 if guide_path.name == "choose-alternatives.md":
-    print("print(ranking.model_dump_json())\nprint(recovered.model_dump_json())")
+    print("print(ranking.model_dump_json())")
 if guide_path.name == "portfolio-selection.md":
     print("print(result.model_dump_json())")
 if guide_path.name == "search-observations.md":
@@ -254,6 +254,11 @@ PY
   if [[ "$guide" == "README.md" || "$guide" == "docs/python-api.md" ]]; then
     cp -R "$smoke_root/argr-cra-inputs" "$smoke_root/source-$guide_name/inputs"
     cp -R "$smoke_root/argr-cra-inputs" "$smoke_root/wheel-$guide_name/inputs"
+  fi
+  if [[ "$guide" == "docs/choose-alternatives.md" || "$guide" == "docs/reference/portfolio-selection.md" ]]; then
+    # Continue from the same real saved design already checked by the README smoke.
+    cp -R "$smoke_root/source-README/result" "$smoke_root/source-$guide_name/result"
+    cp -R "$smoke_root/wheel-README/result" "$smoke_root/wheel-$guide_name/result"
   fi
   source_guide="$(cd "$smoke_root/source-$guide_name" && "$source_python" -c "$guide_program")"
   wheel_guide="$(cd "$smoke_root/wheel-$guide_name" && "$smoke_root/venv/bin/python" -c "$guide_program")"

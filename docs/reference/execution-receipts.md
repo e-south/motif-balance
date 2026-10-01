@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-execution-receipts
-title: Reproduce the exact software environment
-intent: Define exact-wheel execution provenance and explicit verification inputs.
-audience: [integrators, execution producers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: reference
----
-
 # Reproduce the exact software environment
 
 The canonical bundle is deterministic scientific output. Runtime facts such as

@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-methods
-title: Scoring and search methods
-intent: Define the calculations behind sequence scores and bounded search.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-20
-doc_type: reference
----
-
 # Scoring and search methods
 
 The design problem is to improve the weakest motif requirement within a fixed

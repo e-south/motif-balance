@@ -57,7 +57,7 @@ def test_valid_repository_and_external_links_are_accepted() -> None:
     text = "\n".join(
         f"[Guide]({url})"
         for url in (
-            "https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md",
+            "https://github.com/e-south/motif-balance/blob/main/examples/twelve-motifs/README.md",
             "https://github.com/e-south/motif-balance/tree/main/examples/twelve-motifs/",
             "https://raw.githubusercontent.com/e-south/motif-balance/main/assets/motif-balance-banner.svg",
             "https://github.com/another/project/blob/main/README.md",
@@ -94,3 +94,30 @@ def test_readme_and_example_links_are_included(
     output = capsys.readouterr().out
     assert "README.md: broken link" in output
     assert "examples/demo/README.md: broken link" in output
+
+
+def test_plain_markdown_keeps_link_and_fence_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = checker()
+    (tmp_path / "docs").mkdir()
+    guide = tmp_path / "docs" / "guide.md"
+    guide.write_text("# Read a saved result\n\nOpen its score table.\n")
+    (tmp_path / "README.md").write_text(
+        "# Example\n\n[Guide](docs/guide.md)\n![Overview](assets/motif-balance-banner.svg)\n"
+    )
+    assets = tmp_path / "assets"
+    assets.mkdir()
+    banner = assets / "motif-balance-banner.svg"
+    banner.write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="230" '
+        'viewBox="0 0 1280 230"><title>Overview</title><desc>Design DNA</desc></svg>'
+    )
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(module, "ROOT_DOCS", [])
+    monkeypatch.setattr(module, "BANNER_PATH", banner)
+
+    assert module.main() == 0
+    guide.write_text("# Read a saved result\n\n```python\nprint('incomplete')\n")
+    assert module.main() == 1
+    assert "unbalanced fenced code blocks" in capsys.readouterr().out

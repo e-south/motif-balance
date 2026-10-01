@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-security
-title: Motif Balance security and public-data boundary
-intent: Define safe inputs, output paths, repository content, and release gates.
-audience: [maintainers, security reviewers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-20
-doc_type: reference
----
-
 # Motif Balance security and public-data boundary
 
 ## Public repository content

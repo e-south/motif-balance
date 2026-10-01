@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-installation
-title: Install Motif Balance
-intent: Install the package without a research workspace.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: how-to
----
-
 # Install Motif Balance
 
 Motif Balance supports Python 3.12–3.14 on Linux and macOS. The package includes
@@ -63,7 +52,7 @@ uv run python examples/argr-cra/prepare_inputs.py
 ```
 
 Continue with the [ArgR/Cra tutorial](quickstart.md) or the
-[twelve-model example](biological-example.md).
+[twelve-model example](../examples/twelve-motifs/README.md).
 
 For reproducible work, record the installed package version and preserve the project's
 `uv.lock`. A source checkout can contain changes beyond the latest release. Record
