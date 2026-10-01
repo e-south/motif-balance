@@ -56,4 +56,4 @@ The scores quantify agreement with supplied models. Regulatory activity also
 depends on context and must be measured experimentally. A bounded search gives
 the best candidates found within its budget; only complete enumeration proves
 an optimum. Read [interpretation](interpreting-results.md) for result fields
-and [limitations](limitations.md) before drawing biological conclusions.
+and the biological scope of the returned sequences.

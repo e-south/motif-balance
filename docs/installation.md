@@ -52,7 +52,7 @@ uv run python examples/argr-cra/prepare_inputs.py
 ```
 
 Continue with the [ArgR/Cra tutorial](quickstart.md) or the
-[twelve-model example](biological-example.md).
+[twelve-model example](../examples/twelve-motifs/README.md).
 
 For reproducible work, record the installed package version and preserve the project's
 `uv.lock`. A source checkout can contain changes beyond the latest release. Record

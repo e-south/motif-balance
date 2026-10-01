@@ -12,7 +12,7 @@ change inputs, choose outputs, or interpret the returned scores.
 | --- | --- |
 | Start a uv project | [Installation](installation.md) |
 | Run, inspect and export a first design | [Quickstart](quickstart.md) |
-| Work with transcription-factor profiles | [Twelve-model recorded search](biological-example.md) |
+| Work with transcription-factor profiles | [Twelve-model recorded search](../examples/twelve-motifs/README.md) |
 | Prepare count or probability matrices | [Motif inputs](motif-models.md) |
 | Write a design request | [Design specification](design-spec.md) |
 | Design from Python | [Python tutorial](python-api.md) |
@@ -27,8 +27,7 @@ change inputs, choose outputs, or interpret the returned scores.
 [Concepts](concepts.md) explains the balanced objective.
 [Methods](methods.md) defines scoring and search.
 [Pair assessment](pair-assessment.md) examines shared-base preferences before
-sequence search. [Limitations](limitations.md) describes what these model scores
-can establish.
+sequence search. [Interpretation](interpreting-results.md) explains the scores and their biological scope.
 
 For integration, use the [API and CLI reference](reference/public-contract.md),
 [search observations](reference/search-observations.md),
@@ -40,7 +39,7 @@ For integration, use the [API and CLI reference](reference/public-contract.md),
 
 Start with [Contributing](../CONTRIBUTING.md). The
 [architecture overview](../ARCHITECTURE.md) and [module map](reference/module-map.md)
-locate code; [information architecture](../IA.md) locates records and their meaning.
+locate the implementation of each operation.
 [Design contracts](../DESIGN.md), [reliability](../RELIABILITY.md) and
 [security](../SECURITY.md) define the guarantees to preserve.
 Use the [release procedure](reference/prerelease.md) to prepare distributions.

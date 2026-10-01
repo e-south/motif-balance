@@ -57,7 +57,7 @@ def test_valid_repository_and_external_links_are_accepted() -> None:
     text = "\n".join(
         f"[Guide]({url})"
         for url in (
-            "https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md",
+            "https://github.com/e-south/motif-balance/blob/main/examples/twelve-motifs/README.md",
             "https://github.com/e-south/motif-balance/tree/main/examples/twelve-motifs/",
             "https://raw.githubusercontent.com/e-south/motif-balance/main/assets/motif-balance-banner.svg",
             "https://github.com/another/project/blob/main/README.md",

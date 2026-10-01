@@ -156,4 +156,4 @@ serialized profile represents the original complete pool. Re-run this API
 on the retained sequences and trusted specification to reproduce it; a ranking
 record is not a verified search bundle or evidence of the original pool's completeness.
 See [pair assessment](../pair-assessment.md) to inspect motif conflicts before
-search, and [interpretation limits](../limitations.md) before making broader claims.
+search, and [interpretation](../interpreting-results.md#biological-interpretation) before making broader claims.

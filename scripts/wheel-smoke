@@ -52,7 +52,7 @@ for forbidden in '/.git/' '/.venv/' '/.artifacts/' '/examples/argr-cra/inputs/' 
     exit 1
   fi
 done
-for required in LICENSE CITATION.cff README.md IA.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md assets/motif-balance-banner.svg docs/README.md docs/quickstart.md docs/score-sequences.md docs/reference/execution-receipts.md docs/reference/result-inspection.md; do
+for required in LICENSE CITATION.cff README.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md assets/motif-balance-banner.svg docs/README.md docs/quickstart.md docs/score-sequences.md docs/reference/execution-receipts.md docs/reference/result-inspection.md; do
   if ! grep -Fq "/$required" <<<"$sdist_contents"; then
     echo "source distribution omits routed content: $required" >&2
     exit 1

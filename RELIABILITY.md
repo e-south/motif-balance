@@ -1,119 +1,64 @@
-# Motif Balance reliability contract
+# Reproducibility and result integrity
 
 ## Determinism
 
-Within one declared package and runtime environment, the same validated
-specification, motif content, scoring version, seed, and budgets must produce
-the same evaluated records, selection, and canonical artifact bytes. Canonical
-JSON is UTF-8, key-sorted, human-readable, and ends with one newline. Tables
-have fixed columns, stable row order, explicit float formatting, and one
-trailing newline. Host paths, usernames, timestamps, thread completion order,
-and environment mapping order do not enter content identity.
+Within one declared package and runtime environment, the same validated request,
+motif content, seed, and budgets produce the same evaluations, selection, and
+canonical bytes. JSON is UTF-8, key-sorted, and newline-terminated. Tables use
+fixed columns, row ordering, and float formatting. Host paths, usernames, time,
+and scheduling do not enter content identity.
 
-Hosted CI verifies behavior on Linux with CPython 3.12-3.14, but it does not
-currently compare artifact digests across that matrix. Local checks cover macOS.
-Reproducing exact bytes across runtimes therefore requires a direct comparison
-of those environments.
-
-`build_lock_sha256` identifies the repository lock used to build this alpha;
-it is not a claim that a wheel consumer installed that exact environment.
-Runtime versions are deliberately excluded from canonical bundle identity and
-belong in an attested execution workspace when a caller needs them.
+CI tests supported Linux and macOS runtimes. Exact byte identity between runtimes
+requires a direct comparison; passing their tests alone does not establish it.
+`build_lock_sha256` identifies the build's dependency lock, not a consumer's
+installed environment. [Attested execution](docs/reference/execution-receipts.md)
+records the exact wheel and runtime separately from bundle identity.
 
 ## Bounded execution
 
-Every search has explicit evaluation and candidate budgets. Specification
-validation also bounds evaluated bases, score operations, and positive-distance
-comparisons before compilation. A successful
-result records whether it exhausted the full sequence space or the declared
-budget. A budget-limited result is never represented as exhaustive. An
-infeasible request raises a typed failure and publishes no partial bundle or
-completed execution workspace. Workflows measuring failure rates must record
-their trial outcome separately. The requested output count and diversity
-constraints are hard postconditions.
+[Request validation](docs/design-spec.md#combined-resource-bounds) limits
+allocation and work before search. Every evaluator call counts. A run records
+bounded or exhaustive completion; random sampling remains bounded even when its
+allowance could cover the sequence space. Requested count and separation are hard
+postconditions. Infeasibility publishes no partial successful bundle.
 
-An explicit random method samples with replacement and reports bounded
-completion even if its budget could cover the entire space. All methods count
-every evaluator call and track exact sequence discovery identities. For a
-single requested output, full evaluation retention is bounded to the exact top
-256 unique candidates; search states, the selected winner, exported elites and
-passive observations are unchanged. Multi-output requests retain their complete
-evaluated pool for constrained selection. The discovery index still grows with
-unique sequences within the evaluation/base limits, so profile process peak
-memory when raising an experiment's budget. Single-output requests admit up to
-15 billion score operations; multi-output requests retain the 100-million
-limit. Observation/replay is separate work, not part of the search-call budget.
-
-Avoidance contributes a directional satisfaction to the objective; it is not
-a hard exclusion guarantee. Portfolio infeasibility and the distance-selection
-node limit remain separate outcomes.
-
-The public specification also caps sequence length, candidate count, evaluator
-calls, total portfolio bases, and canonical match rows. Sequence-space
-classification stops once the declared bound is exceeded; it never computes
-an arbitrarily large exponent or allocates a sequence-space-sized collection.
-Compilation computes attainable raw-score extrema directly from motif columns.
+Single-output search retains the best 256 complete evaluations plus bounded
+sequence-discovery identities. Multi-output search keeps its evaluated pool for
+constrained selection. Raising the budget can increase memory use even when
+complete-evaluation retention is capped. Observation and replay are separate work.
+[Search observations](docs/reference/search-observations.md) declare their own
+snapshot, quality-sample, base, and byte limits without changing search decisions.
 
 ## Artifact integrity
 
-`manifest.json` inventories every other bundle artifact with a normalized
-relative path, byte count, and SHA-256 digest. Verification rejects
-missing, symlinked, modified, unmanifested, path-traversing, or schema-invalid
-content. Verification parses and replays one descriptor-bound, bounded byte
-snapshot; it does not reread member paths after verification. JSON, bundle
-bytes, and semantic table rows have explicit pre-read or streaming bounds.
-Bundle publication writes to a sibling temporary directory, verifies
-the complete result, and renames it atomically. The publisher pins the source
-directory identity through the no-replace rename and then performs a complete
-semantic reread and replay from the published destination before returning.
-A destination that fails this publish-time check is not accepted as a result.
-The failure path deliberately does not rename, delete, quarantine, or otherwise
-mutate that destination pathname: under concurrent same-user substitution, no
-pathname cleanup can safely prove it still addresses the rejected directory.
-The path is left for explicit inspection and owner-directed cleanup. Existing
-output paths are never merged, replaced, or partially repaired. These checks
-detect mutation during publication; they are not an access-control mechanism
-and do not prevent the same user from tampering with accepted files later.
-Consumers must verify a bundle or execution workspace again at the point of
-use.
+The manifest binds normalized relative paths, byte counts, and SHA-256 digests.
+Verification rejects missing, changed, unlisted, symlinked, unsafe, or schema-
+invalid members. It parses one descriptor-bound, bounded byte snapshot and replays
+scores and selected sites. [Security](SECURITY.md) details untrusted-input handling.
 
-Bulk traces and optimizer state are not canonical bundle members. Directional
-v7 manifests retain only logarithmic checkpoints and a deterministic reservoir
-of at most 256 unique elites. External
-systems may register their locations and digests without changing the software
-artifact identity.
+Publication verifies a sibling temporary directory, uses a no-replace atomic
+rename, then performs a complete semantic reread from the published destination.
+A failed post-publication check is not accepted as a result. Its destination is
+left for explicit inspection: concurrent same-user substitution makes automatic
+cleanup of that pathname unsafe. Existing output paths are never merged,
+replaced, or repaired. Verify results again when consuming them; integrity checks
+are not access controls against later tampering.
 
-Directional v7 manifests have a 64 MiB transport ceiling, enforced before reads
-and before canonical manifest publication. This accommodates the bounded elite
-reservoir's per-specification realizations. Model/specification inputs retain
-their 1 MB limits; all schema, row-count, and semantic
-replay checks remain independent of the transport ceiling. Before search, v3 admission conservatively projects
-manifest bytes from the bounded elite count, specification identifiers and
-widths, sequence length, and logarithmic checkpoint count. Requests exceeding
-the transport ceiling are refused before evaluation; the actual serialized
-byte ceiling remains an independent publication check.
+Manifests have a 64 MiB transport ceiling. Model and specification inputs have
+1 MB limits. Admission estimates manifest size before search, and publication
+independently checks actual serialized bytes. Byte bounds do not replace schema,
+row-count, or score checks.
 
-Result inspections are derived after verification and are never inserted into
-canonical manifests. Inspection accepts one explicit result;
-cross-result joining remains a caller responsibility. Exact
-pairwise distance inspection has an explicit base-comparison limit and reports
-`not_computed_limit` instead of entering unbounded quadratic work. HTML and SVG
-views bound rendered candidates, matches, motifs, and checkpoints while
-preserving exact displayed and total counts. Wide SVGs keep explicit dimensions
-and are horizontally scrollable rather than illegibly compressed. Print output
-uses a bounded print-only copy of progressively disclosed tables because
-Chromium does not print descendants of closed `details` elements.
+## Inspection and failures
 
-Directional search observations are opt-in, bounded side records, separate
-from canonical bundles. Their
-[contract](docs/reference/search-observations.md) bounds snapshots, quality
-samples, bases, and bytes before search, checks actual serialized size before
-return, and replays all observations on reading. Passive retention and
-instrumentation do not change the canonical portfolio or evaluator-call budget.
+Inspection accepts one verified result. It keeps derived text, JSON, SVG, and
+HTML outside the canonical bundle. Rendered candidates, sites, motifs, and
+checkpoints are bounded while their displayed and total counts remain explicit.
+Exact distance summaries report `not_computed_limit` when their work limit would
+be exceeded. Views do not recompute scientific state.
 
-## Failure behavior
-
-Unknown schemas, scoring versions or strand rules, corrupted models, incomplete
-artifact inventories and unavailable candidate counts fail explicitly. Derived FASTA is a verified bundle member. On-demand text,
-JSON, SVG, and HTML reviews are not bundle members or scientific authorities;
-they may not recompute candidate or match state.
+Unknown schemas or score rules, corrupt models, incomplete inventories, and
+unavailable requested counts fail explicitly. FASTA remains a verified bundle
+member. [Supported formats](docs/reference/public-contract.md#artifacts) and
+[release verification](docs/reference/prerelease.md) specify the remaining
+compatibility and distribution requirements.

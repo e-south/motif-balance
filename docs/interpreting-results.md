@@ -1,66 +1,59 @@
-# Interpreting Motif Balance results
+# Interpret scores and returned sequences
 
-Verify a bundle before reading it. Then use each file for one question:
+Verify a result with `motif-balance inspect`. The saved files answer different
+questions:
 
-- `design.json`: what was requested?
-- `motifs.json`: what model content defined the score?
-- `candidates.tsv`: which immutable sequences were selected and ranked?
-- `matches.tsv`: which span and strand won for each candidate–motif pair?
-- `manifest.json`: which search method, parameters, checkpoints and file digests
-  describe this result?
+| File | Question |
+| --- | --- |
+| `design.json` | What DNA length, motifs, roles, and search settings were requested? |
+| `motifs.json` | Which probability matrices and backgrounds defined the scores? |
+| `candidates.tsv` | Which sequences were selected, and how were they ranked? |
+| `matches.tsv` | Which position and strand supplied each motif's strongest match? |
+| `manifest.json` | Which method, checkpoints, completion state, and file identities belong to this result? |
 
 ## Find the limiting requirement
 
-For a directional design, `balance_score` is the lowest **specification
-satisfaction**. A seek requirement's satisfaction equals its relative PWM
-attainment; an avoid requirement's satisfaction is one minus its strongest
-attainment. `matches.tsv` retains both the direction and satisfaction alongside
-the normalized match score. Inspect the limiting requirement rather than
-reading the aggregate as a probability. A weak balance can reflect either a
-poor desired match or an unwanted match that remains too strong.
+[Balance](concepts.md#one-objective-for-desired-and-unwanted-matches) is the lowest
+requirement satisfaction. Seek satisfaction equals normalized match attainment;
+avoid satisfaction is one minus the strongest unwanted attainment.
+`matches.tsv` records the direction, attainment, and satisfaction separately. A
+low balance can reflect a weak desired match or an unwanted match that remains
+strong.
 
-## Read attainment on its declared scale
+Zero and one are the theoretical raw-score extrema over a single motif-width
+word, rescaled to a common range. The reported score scans all placements and
+strands. Embedding a maximum-scoring word can attain one, but a complete sequence
+need not attain zero as its strongest match. Under nonuniform background, the
+most probable nucleotide can differ from the highest log-odds nucleotide.
+[Methods](methods.md#scoring-a-candidate) defines this calculation.
 
-Zero is the theoretical minimum raw LLR over one motif-width word, and one is
-the corresponding maximum. Both word-level extrema are attained by choosing a
-minimum- or maximum-scoring base at every motif position.
+## Distinguish recovery from delivery
 
-Motif Balance reports the best score across all valid placements and orientations: embedding a
-score-maximizing word can attain one, while no sequence need have zero as its
-reported best match.
+Best-score checkpoints report computational progress at evaluation counts, not
+elapsed time or every improvement. A bounded search reports what it found; only
+complete enumeration establishes a whole-space optimum. The best observed
+sequence is recorded separately from the selected portfolio because separation
+constraints can exclude it.
 
-Under a nonuniform background, the most probable base can differ from the base
-with the highest log odds.
+A portfolio meets the requested count and sequence separation. A retained elite
+pool is a bounded set encountered during search. An arrangement collection picks
+representatives by site geometry. [Expansion](expand-sequences.md) supplies
+sequence alternatives within a selected layout. These outputs have different
+selection rules; none estimates the total number of possible solutions.
 
-When comparing repeated designs, keep motif content,
-scoring version and strand rule fixed. Scores from different models express
-attainment relative to each model's own range, not a shared physical affinity.
+If constrained selection reaches its work limit, feasibility remains unresolved.
+That differs from proving that the supplied pool cannot meet the request. Read
+the reported completion and delivery fields before comparing outcomes.
 
-Each reported match identifies one motif-width sequence segment, its coordinates
-and its strand. When representative windows
-overlap, they share candidate coordinates and bases; that geometry does not
-establish simultaneous occupancy, co-binding, or regulatory function.
+## Biological interpretation
 
-## Distinguish search recovery from alternatives
+Scores describe agreement with the supplied models, backgrounds, and strand
+policy. They are not calibrated binding probabilities or expression predictions.
+Shared site coordinates do not establish simultaneous occupancy. Avoidance lowers
+the strongest model match as an objective trade-off, rather than guaranteeing
+biological specificity. Sequence differences likewise need not imply functional
+differences.
 
-Best-score checkpoints describe computational progress at recorded evaluator
-counts, not the exact time of every improvement. A held-step display does not
-reconstruct events between checkpoints. Restart-final scores
-describe variation among starts. Proposal summaries describe search execution.
-They are not posterior samples, biological replicates, or a global-optimality
-certificate. Complete enumeration establishes an optimum only when the admitted
-sequence space is fully covered. Otherwise the result records the best
-evaluation observed under the declared evaluator-call budget separately from
-the exact portfolio selected under any distance constraint.
-
-The selected portfolio and retained elite archive are not interchangeable.
-The former satisfies the requested count and distance rule; the latter is a
-bounded high-scoring collection encountered during search. Neither alone
-establishes solution-space size or diversity at matched quality across runs.
-Use explicit [search observations](reference/search-observations.md) if those
-comparisons need bounded samples at declared score thresholds.
-
-The package establishes a self-consistent computational result under declared
-inputs. Binding, expression, fitness, cross-context portability, or superiority
-to another method requires a separately specified comparison and validation
-workflow.
+Chromatin, cooperativity, construct context, and assay effects require separate
+models or experiments. Compare repeated designs under the same model and scoring
+rules, and test recovered candidates in the biological context of interest.

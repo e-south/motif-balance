@@ -1,171 +1,80 @@
 # Design contracts
 
-Scoring, search and selection have separate responsibilities. A user should be
-able to change search effort or inspect a result without changing how a fixed
-DNA sequence is evaluated. The contracts below preserve that property.
+Changing search effort or presentation must not change the score assigned to a
+fixed DNA sequence. These invariants govern implementation changes; the linked
+references own formulas, parameters, and file formats.
 
-## Public operations
+## Models and scoring
 
-The top-level API exposes `MotifModel`, `MotifSpecification`, `DesignSpec`,
-`MotifMatch`, `Candidate`, `Portfolio`, `design` and `score`.
-[The public reference](docs/reference/public-contract.md) specifies their inputs,
-outputs and supported versions. [Pair and joint assessment](docs/pair-assessment.md)
-calculates local preference conflict before search; it is distinct from sequence
-scoring. [Architecture ranking](docs/choose-alternatives.md) and
-[portfolio selection](docs/reference/portfolio-selection.md) operate on supplied
-sequences and cannot invoke sequence search.
+- Public models are strict and immutable. Unknown fields, non-finite values, and
+  quoted numeric strings fail validation.
+- Motif preparation is explicit and records its source, prior, and background.
+  Compilation never applies a hidden second correction. See [motif
+  inputs](docs/motif-models.md) and [conversion](docs/reference/motif-conversion.md).
+- DNA uses uppercase A/C/G/T. Coordinates are zero-based and end-exclusive. Each
+  requirement contributes one best match using its strand policy and the
+  deterministic leftmost, plus-strand-first tie rule.
+- Seek satisfaction is normalized match attainment; avoid satisfaction is one
+  minus attainment. Reported balance is their hard minimum. Smooth guidance
+  scores remain internal to search. [Methods](docs/methods.md) defines both.
+- Normalization uses extrema over one motif-width word. Scanning preserves the
+  upper endpoint but can make the lower endpoint unattainable as a sequence's
+  best match. See [interpretation](docs/interpreting-results.md).
+- Scoring produces an immutable evaluation. Search, selection, and rendering
+  cannot edit its sequence, sites, or scores afterward.
 
-## Invariants
+## Search and selection
 
-The current supplied-pool [portfolio contract](docs/reference/portfolio-selection.md)
-is `portfolio-policy/v1` and `portfolio-selection/v2`. It rescans canonical
-literals and keeps the original generation request separate from the output
-count. Exact count, selected-footprint or Hamming separation, and optional
-distinct architecture are hard postconditions. Optimality, a feasible witness,
-unresolved work, pool infeasibility, and a necessary architecture-bound refusal
-are explicit results. There is no permissive reader, legacy adapter, or
-automatic conversion from architecture-ranked prefixes.
+A request fixes DNA length, count, seed, strand policy, and evaluation allowance.
+[Resource bounds](docs/design-spec.md#combined-resource-bounds) are checked before
+allocation or search. Bounded methods execute the requested algorithm at every
+length; exhaustive enumeration requires an explicit request.
 
-- Public models are strict, frozen, reject unknown fields, and reject quoted
-  strings where a native numeric scalar is required.
-- Source conversions are explicit, versioned provenance. Historical
-  probability-matrix conversions use `motif-conversion/v1`; position-specific
-  count priors and explicit source-to-target background conversions use
-  `motif-conversion/v2`. A target-background conversion must preserve both
-  backgrounds and the selection policy, and its target must equal the model's
-  scoring background. Compilation never applies a hidden second correction.
-- DNA is uppercase `A/C/G/T`; coordinate spans are zero-based and half-open.
-- A design has one exact fixed sequence length and an explicit positive target
-  candidate count.
-- Sequence length, candidate count, evaluator calls, evaluated bases, scoring
-  operations, distance comparisons, portfolio bases, and canonical match rows
-  have explicit public upper bounds. Feasibility checks do not materialize or
-  exponentiate beyond those bounds.
-- Each directional specification contributes exactly one best match per
-  candidate under declared strand and deterministic tie-breaking rules. A seek
-  satisfaction is the matched attainment; an avoid satisfaction is one minus
-  that attainment. Hard score ceilings are not part of this design contract.
-- One scoring implementation is authoritative. The v3 public balance score is
-  the hard minimum of per-specification satisfaction; any smooth surrogate is
-  search-internal and is never reported as the public score.
-- Relative-attainment endpoints are exact extrema over one motif-width word.
-  Best-window scanning preserves the reachable upper endpoint but can make the
-  word-level lower endpoint unreachable as a sequence's reported match score.
-- Candidate evaluation produces an immutable record. Search and selection may
-  not mutate sequence or scores after that boundary.
-- Selection returns exactly the requested count or fails explicitly. Diversity
-  constraints cannot be silently relaxed.
-- The complete best observed evaluation remains distinct from the constrained
-  selected portfolio and is bound into every newly written manifest.
-- Directional manifests record logarithmic satisfaction checkpoints, exact or
-  bounded completion status, and no more than 256 deterministic unique elites.
-- Candidate sequences and compact candidate identifiers are independently
-  unique before construction, publication, and read-back.
-- Equal scores have a stable total ordering independent of process scheduling,
-  mapping order, locale, or host.
-- Canonical output contains `design.json`, `motifs.json`, `candidates.tsv`,
-  `matches.tsv`, and `manifest.json`. FASTA is a derived bundle member; review
-  text, JSON, SVG, and HTML are generated on demand outside the bundle.
-- Schema versions, scoring versions, seeds, budgets, and content digests are
-  explicit in replayable artifacts.
-- Attested execution verifies that the running package tree equals the
-  retained wheel before and after search, then atomically publishes the resolved
-  input, wheel, bundle, receipt, and execution index.
-- Inspection defaults to the bundle contract, requires an explicit execution
-  source mode, preserves delivery, search completion, and integrity as separate
-  states, contains no source path, and accepts only current contracts.
-- Supplied-candidate inspection replays a current directional candidate under
-  explicit models without searching or verifying its origin. Its rank is
-  caller-assigned, not a claim of portfolio membership or collection quality.
+A method or initialization change alters the run identity, not the scoring
+problem. Observations must leave the random stream, evaluated candidates, and
+selected portfolio unchanged. Every evaluator call counts, including repeats
+and rejected proposals. The best observed evaluation remains separate from the
+selected portfolio. Only complete enumeration establishes a whole-space optimum.
 
-## Error channels
+Ordinary design returns exactly the requested count under the declared sequence
+separation or fails. [Arrangement ranking](docs/choose-alternatives.md) groups
+supplied sequences and supports explicit partial delivery through `select_up_to`.
+[Constrained selection](docs/reference/portfolio-selection.md) retains the full
+pool and distinguishes a feasible witness, pool optimality, unresolved work,
+and demonstrated infeasibility. None silently relaxes a requested constraint.
 
-Malformed models, unsafe paths, impossible lengths, unknown fields, invalid
-normalization domains, non-deterministic ties, insufficient feasible
-candidates, and artifact-integrity failures raise explicit typed errors.
-Scientific infeasibility is not converted to an empty successful portfolio.
-Search-budget exhaustion, finite-pool portfolio infeasibility, and the bounded
-selection traversal limit are distinct typed failures.
+Candidate sequences and identifiers are unique. Ties use stable total orderings
+independent of scheduling, mapping order, locale, and host.
 
-## Change discipline
+## Expansion after design
 
-Add behavior with a failing contract test first. A public schema or score-
-meaning change requires an architecture decision, compatibility statement,
-negative tests, and reference-document updates. Optimizer improvements must not
-change scoring or selection semantics accidentally.
+[Explicit expansion](docs/expand-sequences.md) traverses qualifying one-base
+neighbors in deterministic breadth-first order. It retains every qualifying
+evaluation within the work and output limits, using the original parent's
+selected sites and the common balance floor. An exhausted frontier does not
+establish global sequence-space exhaustion.
 
-The reader and writer use only `design-spec/v3`, `motif-model/v2`, and
-`run-manifest/v7`, with `relative_pwm_attainment_v2` scores and
-`search-diagnostics/v4`. Every result retains the complete best observed
-evaluation, satisfaction checkpoints, completion fields, and bounded elites.
-Retired search and run formats fail at intake; no compatibility dispatcher or
-automatic conversion is shipped for those formats. Historical records remain
-bound to their original software and are not rewritten.
+[Degenerate libraries](docs/diversify-sequences.md) instead return a complete
+Cartesian product whose every member passes. Absolute-floor and parent-relative
+loss modes are mutually exclusive. The fixed-site additive precheck can reject
+an expansion, but complete scans still establish each accepted member's scores
+and selected sites. Collections validate all parents and aggregate limits before
+construction. Both operations include the parent and freeze uncovered positions
+by default; neither changes search or arrangement definitions.
 
-## Search boundary
+## Results and changes
 
-[Methods](docs/methods.md) defines enumeration, annealed search, greedy search,
-uniform random sampling and their budget accounting. Those policies share the
-same evaluator and immutable evaluations. A smooth search objective must never
-replace the public hard minimum in candidate records.
+Canonical artifacts bind inputs, versions, seeds, budgets, and content digests.
+[Verification](RELIABILITY.md) replays their scoring and decisions before
+publication or inspection. Derived views do not alter the bundle. Supplied-
+candidate inspection verifies its scores and sites without asserting a search
+origin or portfolio membership.
 
-Changing a method or initialization policy changes the run identity, not the
-scoring problem. Observation must leave the RNG stream, evaluated sequences and
-selected portfolio unchanged. A bounded run reports the best result evaluated
-within its budget; only complete enumeration establishes a whole-space optimum.
+The [public contract](docs/reference/public-contract.md#artifacts) lists supported
+schemas. Historical records retain their producing-version requirements.
+Malformed input, infeasible requests, exhausted bounded selection, and corrupted
+artifacts have distinct failures rather than partial successful results.
 
-## Explicit method selection
-
-Bounded search-engine version 2 always executes the requested annealed, greedy,
-or random method for its declared budget. Default search is annealed. Exact
-enumeration is an explicit method and retains `exhaustive_v1`, version 1.
-The scoring problem, ordinary proposals, RNG policy, and selection rules are
-unchanged. This removes the former automatic substitution on short sequences.
-Preflight, runtime, observation replay, and artifact verification must agree on
-the actual engine. Historical bounded version-1 records remain bound to their
-producing package and fail closed in the current reader; no legacy optimizer
-dispatcher or automatic conversion is introduced.
-
-## Post-design diversification
-
-The primary [explicit expansion](docs/expand-sequences.md) operation keeps every
-passing evaluation within its declared work and output limits. It traverses
-qualifying one-base neighbours in deterministic breadth-first order. Every
-sequence is checked against the original parent's selected sites and the common
-balance floor. It stops before a further evaluation would exceed either limit.
-Frontier exhaustion is not global sequence-space exhaustion. Full evaluations
-are retained only for accepted sequences; compact edit records describe the
-other tests. Versioned replay verifies every decision. Explicit lists have no
-implied ambiguity template.
-
-[Diversification](docs/diversify-sequences.md) preserves each desired model's
-selected coordinates and strand under the canonical tie rule. Every desired
-score loss and unwanted-score increase is bounded separately relative to the
-parent in loss mode. Absolute-floor mode instead requires every objective component
-to meet `min_balance`; it imposes no hidden parental-loss limit. The modes are
-mutually exclusive. The complete Cartesian product is rescored before its template is
-returned. The parent is included, flanks are fixed by default, and a parent-only
-result remains explicit. Search, model preparation, and arrangement grouping
-are unchanged. Diversification counts its own evaluations and records provenance.
-
-### Library format decision
-
-`variant-library/v3` records exactly one of `min_balance` and `max_score_loss`,
-the deterministic addition order, and separate size, quality, and selected-site
-rejection counts. Its additive desired-site precheck is a necessary rejection
-condition, not an alternative scorer or a certificate of selected-site identity.
-All accepted members still receive the authoritative complete-sequence scan.
-
-Version 2 remains an explicitly supported read/replay contract because the quality
-rule and produced sequence products are unchanged, while evaluation and rejection
-accounting differ. Its declared algorithm selects the original checks. Version 3
-selects the precheck and detailed accounting. The reader neither infers a missing
-version nor converts one into the other, and newly constructed libraries use v3.
-This narrow library replay decision does not reopen retired search/run schemas.
-Version 1 libraries are rejected and remain with their producing software because
-the earlier quality contract differs. Ordinary calls without a quality control
-retain the 0.02 loss default.
-
-`collection-variants/v1` coordinates separate products without changing scoring,
-arrangement classes, or the optimizer. It validates every parent and aggregate
-work limits before construction and publishes output only after all members pass.
+Add a failing contract test before changing behavior. Changes to score meaning,
+public schemas, or search behavior need compatibility documentation and negative
+cases. Keep refactors separate from numerical changes.

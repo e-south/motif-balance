@@ -9,7 +9,7 @@ models, not measured binding.
 [Documentation](https://github.com/e-south/motif-balance/blob/main/docs/README.md) ·
 [Supply motifs](https://github.com/e-south/motif-balance/blob/main/docs/motif-models.md) ·
 [Python API](https://github.com/e-south/motif-balance/blob/main/docs/python-api.md) ·
-[Recorded twelve-model example](https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md)
+[Recorded twelve-model example](https://github.com/e-south/motif-balance/blob/main/examples/twelve-motifs/README.md)
 
 ## Try a design
 
@@ -97,7 +97,7 @@ also covers ordinary pip and optional video export.
 
 ## Inspect a larger design
 
-The [twelve-model example](https://github.com/e-south/motif-balance/blob/main/docs/biological-example.md)
+The [twelve-model example](https://github.com/e-south/motif-balance/blob/main/examples/twelve-motifs/README.md)
 shows a recorded search in 60-base DNA. Playback connects saved states with smooth
 motion; displayed scores remain those of recorded sequences. The best-so-far chart is on the left; the continuous duplex and
 its strand-aligned motif windows are on the right.

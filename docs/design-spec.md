@@ -46,13 +46,9 @@ Use native numbers, such as `length: 20`, rather than quoted numeric strings.
 Relative motif references must stay inside the specification directory and may
 not traverse symlinks. Inline models follow the [motif-model contract](motif-models.md).
 Serialized YAML and JSON must declare `schema_version` for both the design and
-every structured motif. An omitted version is rejected rather than silently
-interpreted under a historical or directional contract.
-
-`design-spec/v3` rejects `motifs` and `avoiders` rather than assigning them a
-new meaning. Hard score ceilings are not part of this contract and are not
-silently translated into soft avoidance. Historical artifacts remain tied to
-their producing software.
+every structured motif. An omitted version is rejected.
+Avoidance contributes to the balance objective rather than enforcing a hard
+score ceiling.
 
 ## Combined resource bounds
 

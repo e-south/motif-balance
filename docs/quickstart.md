@@ -61,7 +61,7 @@ Edit a copy of the [request](../examples/argr-cra/design.yaml):
 
 Run `--check` before searching the edited request. To select different motif
 arrangements, continue with [collections](choose-alternatives.md). For a
-twelve-model application and recorded search, follow the [example](biological-example.md).
+twelve-model application and recorded search, follow the [example](../examples/twelve-motifs/README.md).
 
 ## Compare search methods
 
