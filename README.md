@@ -106,4 +106,4 @@ its strand-aligned motif windows are on the right.
 Python 3.12–3.14 · Linux and macOS · [MIT license](https://github.com/e-south/motif-balance/blob/main/LICENSE) · [Contributing](https://github.com/e-south/motif-balance/blob/main/CONTRIBUTING.md)
 
 For study data, reproduction, and citation, use the
-[Dunlop lab study companion](https://gitlab.com/dunloplab/motif-balance-companion).
+[Motif Balance Study](https://gitlab.com/dunloplab/motif-balance-study) in the Dunlop lab GitLab group.
