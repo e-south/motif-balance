@@ -6,7 +6,6 @@ src/motif_balance/inspection/assessment/__init__.py
 Inspect a pre-search pair assessment from explicit model inputs.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

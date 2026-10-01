@@ -6,7 +6,6 @@ src/motif_balance/alternatives/__init__.py
 Assess and select architectures from explicit sequence pools, without search.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

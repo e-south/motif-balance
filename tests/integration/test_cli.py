@@ -6,7 +6,6 @@ tests/integration/test_cli.py
 Verify cli behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

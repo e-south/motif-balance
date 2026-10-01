@@ -6,7 +6,6 @@ src/motif_balance/model/base.py
 Strict immutable base and deterministic scalar identities.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

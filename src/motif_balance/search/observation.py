@@ -6,7 +6,6 @@ src/motif_balance/search/observation.py
 Passive, bounded recording; never draws randomness or makes search decisions.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

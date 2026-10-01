@@ -6,7 +6,6 @@ src/motif_balance/cli/design.py
 Validate a design request or run a bounded DNA search from the command line.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

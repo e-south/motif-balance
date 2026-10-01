@@ -6,7 +6,6 @@ src/motif_balance/artifacts/decoding.py
 Strict reconstruction of design and candidate records from bytes.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/__init__.py
 Expose text, JSON, HTML, and SVG renderers for validated inspection records.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

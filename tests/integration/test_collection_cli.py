@@ -6,7 +6,6 @@ tests/integration/test_collection_cli.py
 Collections are a usable installed command over a verified saved search.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

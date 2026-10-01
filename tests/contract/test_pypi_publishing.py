@@ -6,7 +6,6 @@ tests/contract/test_pypi_publishing.py
 Contracts for the manual PyPI publishing boundary.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

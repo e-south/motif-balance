@@ -6,7 +6,6 @@ src/motif_balance/alternatives/api.py
 Score a supplied pool once, then rank its selected-match architectures.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

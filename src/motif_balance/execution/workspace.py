@@ -6,7 +6,6 @@ src/motif_balance/execution/workspace.py
 Coordinate attested execution without weakening atomic publication checks.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

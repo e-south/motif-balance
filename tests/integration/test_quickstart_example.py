@@ -6,7 +6,6 @@ tests/integration/test_quickstart_example.py
 The public first-design example exercises the current directional contract.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/search/engine.py
 Run exhaustive or annealed search under a shared candidate-evaluation budget.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

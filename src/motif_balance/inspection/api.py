@@ -6,7 +6,6 @@ src/motif_balance/inspection/api.py
 Verify result snapshots before producing an immutable inspection record.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

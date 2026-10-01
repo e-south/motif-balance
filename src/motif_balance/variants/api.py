@@ -6,7 +6,6 @@ src/motif_balance/variants/api.py
 Diversify a selected DNA sequence without changing its selected desired sites.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/cli/preparation.py
 Prepare motif models and run designs with explicit software provenance.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

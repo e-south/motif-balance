@@ -6,7 +6,6 @@ tests/integration/test_variants_cli.py
 The diversification handoff enumerates exactly its IUPAC template.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

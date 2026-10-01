@@ -6,7 +6,6 @@ src/motif_balance/scoring.py
 Scan permitted DNA strands and score the weakest desired or avoidance requirement.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

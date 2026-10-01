@@ -6,7 +6,6 @@ src/motif_balance/formats/design.py
 Resolve design files and their motif references through bounded input reads.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

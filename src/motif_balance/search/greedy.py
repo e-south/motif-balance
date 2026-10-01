@@ -6,7 +6,6 @@ src/motif_balance/search/greedy.py
 Fixed-budget multi-start greedy coordinate search; never an optimum claim.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

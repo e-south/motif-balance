@@ -6,7 +6,6 @@ tests/contract/test_search_regression.py
 Verify search regression behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

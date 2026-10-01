@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/search.py
 Plot recorded search checkpoints and best observed balance without rescoring.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

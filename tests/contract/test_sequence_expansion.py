@@ -1,4 +1,13 @@
-"""Explicit expansion retains passing sequences without implying a Cartesian product."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_sequence_expansion.py
+
+Explicit expansion retains passing sequences without implying a Cartesian product.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 from itertools import product
 

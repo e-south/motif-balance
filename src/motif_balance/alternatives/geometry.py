@@ -6,7 +6,6 @@ src/motif_balance/alternatives/geometry.py
 Selected-site equivalence and separate, label-invariant pair distances.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

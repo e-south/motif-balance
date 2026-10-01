@@ -6,7 +6,6 @@ src/motif_balance/inspection/candidate_model.py
 Path-free review of a supplied candidate, without invented search provenance.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

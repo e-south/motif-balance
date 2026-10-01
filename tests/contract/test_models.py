@@ -6,7 +6,6 @@ tests/contract/test_models.py
 Verify models behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

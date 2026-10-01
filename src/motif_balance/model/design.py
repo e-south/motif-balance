@@ -6,7 +6,6 @@ src/motif_balance/model/design.py
 Directional request semantics and pre-search resource admission.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

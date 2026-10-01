@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/json.py
 Serialize validated inspection records as deterministic JSON.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

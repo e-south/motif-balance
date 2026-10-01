@@ -7,7 +7,6 @@ scripts/check_architecture.py
 Enforce Motif Balance first-party dependency direction.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/cli/variants.py
 CLI adapter for post-design, score-constrained nucleotide libraries.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

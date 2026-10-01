@@ -6,7 +6,6 @@ tests/contract/test_release_metadata.py
 Verify release metadata behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

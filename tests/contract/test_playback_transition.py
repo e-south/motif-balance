@@ -1,4 +1,13 @@
-"""Display tweening may move glyphs, but cannot invent scored search states."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_playback_transition.py
+
+Display tweening may move glyphs, but cannot invent scored search states.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 from xml.etree import ElementTree as ET
 

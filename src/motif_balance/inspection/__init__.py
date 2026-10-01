@@ -6,7 +6,6 @@ src/motif_balance/inspection/__init__.py
 Advanced review of verified results or replayed caller-supplied candidates.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

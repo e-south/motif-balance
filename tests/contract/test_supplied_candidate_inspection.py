@@ -6,7 +6,6 @@ tests/contract/test_supplied_candidate_inspection.py
 Caller-selected candidates are replayed without inventing search provenance.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

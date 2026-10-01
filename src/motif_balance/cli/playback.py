@@ -6,7 +6,6 @@ src/motif_balance/cli/playback.py
 Replay an explicit search observation and export a view without overwriting files.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

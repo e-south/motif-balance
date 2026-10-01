@@ -6,7 +6,6 @@ tests/conftest.py
 Provide shared motif and request fixtures for tests.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

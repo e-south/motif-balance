@@ -6,7 +6,6 @@ tests/contract/test_scoring.py
 Verify scoring behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

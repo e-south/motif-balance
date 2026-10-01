@@ -6,7 +6,6 @@ src/motif_balance/inspection/limits.py
 Hard bounds for derived result review.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

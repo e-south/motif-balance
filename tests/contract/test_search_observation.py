@@ -6,7 +6,6 @@ tests/contract/test_search_observation.py
 Observing a search must not change the experiment being observed.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

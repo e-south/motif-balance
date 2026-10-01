@@ -6,7 +6,6 @@ tests/integration/test_bundle_fail_closed.py
 Verify bundle fail closed behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ tests/contract/test_greedy_search.py
 The explicit greedy comparator preserves scoring, budgets, and replay identity.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

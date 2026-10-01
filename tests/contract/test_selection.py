@@ -6,7 +6,6 @@ tests/contract/test_selection.py
 Verify selection behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

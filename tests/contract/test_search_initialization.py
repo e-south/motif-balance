@@ -6,7 +6,6 @@ tests/contract/test_search_initialization.py
 Initialization choices are explicit, budget-matched, and replayable.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

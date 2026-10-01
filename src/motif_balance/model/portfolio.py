@@ -6,7 +6,6 @@ src/motif_balance/model/portfolio.py
 Cross-record portfolio invariants and unchanged selection boundaries.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

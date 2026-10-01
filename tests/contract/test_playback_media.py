@@ -1,4 +1,13 @@
-"""GIF export preserves complete frames without repeatedly storing their background."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_playback_media.py
+
+GIF export preserves complete frames without repeatedly storing their background.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 import io
 import math

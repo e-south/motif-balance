@@ -6,7 +6,6 @@ tests/contract/test_result_inspection.py
 Verify result inspection behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

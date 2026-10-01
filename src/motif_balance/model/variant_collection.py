@@ -6,7 +6,6 @@ src/motif_balance/model/variant_collection.py
 Separate checked products for every selected arrangement in one collection.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

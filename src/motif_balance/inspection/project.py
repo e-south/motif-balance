@@ -6,7 +6,6 @@ src/motif_balance/inspection/project.py
 Project verified scores and matches into inspectable sequence and portfolio records.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

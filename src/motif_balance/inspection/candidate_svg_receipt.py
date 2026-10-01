@@ -6,7 +6,6 @@ src/motif_balance/inspection/candidate_svg_receipt.py
 Bind a candidate SVG to its verified inputs and renderer implementation.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

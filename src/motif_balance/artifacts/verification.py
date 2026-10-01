@@ -6,7 +6,6 @@ src/motif_balance/artifacts/verification.py
 Scientific replay of an already parsed immutable portfolio.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

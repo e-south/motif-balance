@@ -6,7 +6,6 @@ src/motif_balance/api.py
 Design DNA and score supplied sequences through the public Python API.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

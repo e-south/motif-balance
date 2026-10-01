@@ -6,7 +6,6 @@ tests/integration/test_playback_cli.py
 The playback command preserves inputs and refuses invalid output requests.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

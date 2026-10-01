@@ -6,7 +6,6 @@ src/motif_balance/selection.py
 Select unchanged evaluated sequences under explicit count and separation constraints.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

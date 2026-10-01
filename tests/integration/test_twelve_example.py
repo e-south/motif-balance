@@ -6,7 +6,6 @@ tests/integration/test_twelve_example.py
 Example replay admits its declared package before starting an expensive search.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/model/motif.py
 Source conversion receipts and positive motif probability contracts.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

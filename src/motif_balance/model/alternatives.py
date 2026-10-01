@@ -6,7 +6,6 @@ src/motif_balance/model/alternatives.py
 Immutable ranked representatives of supplied selected-match architectures.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

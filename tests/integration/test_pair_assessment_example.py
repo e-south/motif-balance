@@ -6,7 +6,6 @@ tests/integration/test_pair_assessment_example.py
 The assessment guide is executable from an empty caller directory.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

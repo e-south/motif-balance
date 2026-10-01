@@ -6,7 +6,6 @@ src/motif_balance/cli/errors.py
 Translate validation and domain failures into concise command-line errors.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

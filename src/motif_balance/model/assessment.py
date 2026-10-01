@@ -6,7 +6,6 @@ src/motif_balance/model/assessment.py
 Define immutable records and work bounds for pair and joint motif assessments.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

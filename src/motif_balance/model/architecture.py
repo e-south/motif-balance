@@ -6,7 +6,6 @@ src/motif_balance/model/architecture.py
 Threshold-free relationships among labeled selected motif intervals.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

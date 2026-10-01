@@ -6,7 +6,6 @@ src/motif_balance/errors.py
 Define typed failures with context for invalid inputs and incomplete design requests.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

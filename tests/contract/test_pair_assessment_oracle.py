@@ -6,7 +6,6 @@ tests/contract/test_pair_assessment_oracle.py
 Exhaustive literal-sequence oracle independent of the arrangement calculation.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

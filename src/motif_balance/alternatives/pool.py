@@ -6,7 +6,6 @@ src/motif_balance/alternatives/pool.py
 Shared pool contract for architecture ranking and constrained selection.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

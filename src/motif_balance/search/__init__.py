@@ -6,7 +6,6 @@ src/motif_balance/search/__init__.py
 Bounded search entry point; scoring, moves, and recording remain separate.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

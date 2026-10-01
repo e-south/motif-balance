@@ -6,7 +6,6 @@ src/motif_balance/playback/render.py
 Compose recorded recovery and its verified, strand-aligned DNA state.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

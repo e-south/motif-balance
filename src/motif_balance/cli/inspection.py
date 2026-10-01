@@ -6,7 +6,6 @@ src/motif_balance/cli/inspection.py
 Verify saved results and present the requested text, JSON, HTML, or SVG view.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

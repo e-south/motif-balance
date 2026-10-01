@@ -6,7 +6,6 @@ src/motif_balance/cli/expansion.py
 Expand selected layouts into explicit score-qualified sequence lists.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

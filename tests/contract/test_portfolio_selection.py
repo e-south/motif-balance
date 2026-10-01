@@ -6,7 +6,6 @@ tests/contract/test_portfolio_selection.py
 The public supplied-pool journey returns full, replayable constrained sets.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

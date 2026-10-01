@@ -6,7 +6,6 @@ src/motif_balance/model/variants.py
 Immutable, explicitly enumerated sequence libraries around one selected design.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

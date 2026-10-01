@@ -6,7 +6,6 @@ src/motif_balance/cli/collection.py
 Collect ranked architectures from the retained pool of a verified bundle.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

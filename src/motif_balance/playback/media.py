@@ -6,7 +6,6 @@ src/motif_balance/playback/media.py
 Export inspected search frames with optional raster and video dependencies.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

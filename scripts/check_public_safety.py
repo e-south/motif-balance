@@ -7,7 +7,6 @@ scripts/check_public_safety.py
 Reject obvious private or credential-bearing repository content.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

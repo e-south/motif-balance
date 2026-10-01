@@ -6,7 +6,6 @@ src/motif_balance/inspection/verify.py
 Carry a verified byte snapshot and its trust basis into result projection.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

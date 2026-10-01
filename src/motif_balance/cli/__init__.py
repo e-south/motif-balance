@@ -6,7 +6,6 @@ src/motif_balance/cli/__init__.py
 Thin command registration; scientific behavior remains in the owning APIs.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/variants/bounds.py
 Necessary quality checks for a product whose desired sites must stay selected.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

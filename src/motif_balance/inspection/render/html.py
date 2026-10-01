@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/html.py
 Render a navigable HTML review of verified candidates, scores, and provenance.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

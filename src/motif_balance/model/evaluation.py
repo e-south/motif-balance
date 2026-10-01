@@ -6,7 +6,6 @@ src/motif_balance/model/evaluation.py
 Immutable scanned matches, evaluations, and selected candidates.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

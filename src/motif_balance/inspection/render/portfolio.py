@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/portfolio.py
 Display candidate-by-motif scores and limiting matches in a portfolio SVG.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

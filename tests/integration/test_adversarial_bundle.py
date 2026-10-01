@@ -6,7 +6,6 @@ tests/integration/test_adversarial_bundle.py
 Verify adversarial bundle behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

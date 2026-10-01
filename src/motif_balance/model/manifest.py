@@ -6,7 +6,6 @@ src/motif_balance/model/manifest.py
 Versioned result manifests and complete exact-count proofs.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

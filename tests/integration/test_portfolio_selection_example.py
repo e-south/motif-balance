@@ -1,4 +1,13 @@
-"""The portfolio reference selects from the real tutorial's retained search pool."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_portfolio_selection_example.py
+
+The portfolio reference selects from the real tutorial's retained search pool.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 import re
 import subprocess

@@ -6,7 +6,6 @@ src/motif_balance/search/initialization.py
 Shared starting sequences; no optimizer-specific decision policy.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

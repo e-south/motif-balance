@@ -1,4 +1,13 @@
-"""Repeat the twelve-model example and export a recorded search animation."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+examples/twelve-motifs/reproduce.py
+
+Repeat the twelve-model example and export a recorded search animation.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 import argparse
 import hashlib

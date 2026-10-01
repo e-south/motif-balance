@@ -6,7 +6,6 @@ tests/contract/test_docs_checker.py
 Documentation links must resolve before a branch becomes public main.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

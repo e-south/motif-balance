@@ -6,7 +6,6 @@ src/motif_balance/artifacts/__init__.py
 Read, verify, and publish canonical design result bundles.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/__init__.py
 Expose motif models, design requests, sequence scoring, and DNA design.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 
