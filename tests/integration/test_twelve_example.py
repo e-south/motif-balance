@@ -12,12 +12,25 @@ Module Author(s): Eric J. South
 import hashlib
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import pytest
 
 from motif_balance.constants import PACKAGE_VERSION
+
+
+@pytest.mark.parametrize("script", ["prepare_inputs.py", "reproduce.py"])
+def test_example_help_describes_the_task_without_module_banner(script):
+    path = Path(__file__).resolve().parents[2] / "examples/twelve-motifs" / script
+    result = subprocess.run(
+        [sys.executable, str(path), "--help"], check=True, capture_output=True, text=True
+    )
+    assert "--out" in result.stdout
+    assert "Module Author(s)" not in result.stdout
+    assert "examples/twelve-motifs/" not in result.stdout
 
 
 def test_published_example_media_keep_gray_activity_in_molecule_and_bind_assets():

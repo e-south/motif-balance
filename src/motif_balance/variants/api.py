@@ -40,6 +40,20 @@ _MAX_DIAGNOSTIC_MATCHES = 50_000
 _MAX_HANDOFF_BYTES = 64_000_000
 
 
+def _output_bound(spec: DesignSpec, cap: int, editable_count: int) -> int:
+    """Bound pretty JSON, including DNA in every diagnostic and returned match."""
+    # Substitutions can repeat each identifier in both matches and changed sites.
+    match_bytes = sum(1024 + 2 * len(s.motif.motif_id) + s.motif.width for s in spec.specifications)
+    substitutions = 3 * editable_count
+    return (
+        65536
+        + 8 * len(spec.model_dump_json(indent=2).encode())
+        + 32 * spec.length
+        + (cap + 1 + substitutions) * (768 + spec.length + match_bytes)
+        + substitutions * (512 + 64 * len(spec.specifications))
+    )
+
+
 def _changes(parent: Evaluation, variant: Evaluation) -> tuple[tuple[float, ...], tuple[str, ...]]:
     changes = tuple(
         m.spec_satisfaction - p.spec_satisfaction
@@ -109,9 +123,10 @@ def _prepare(
         upper_evaluations * operation_cost > _MAX_SCORE_OPERATIONS
         or upper_evaluations * spec.length > _MAX_CACHE_BASES
         or (3 * len(positions) + max_variants) * len(parent.matches) > _MAX_DIAGNOSTIC_MATCHES
+        or _output_bound(spec, max_variants, len(positions)) > _MAX_HANDOFF_BYTES
     ):
         raise ValueError(
-            "diversification exceeds bounded work or record limits; reduce "
+            "diversification exceeds bounded work, record, or output limits; reduce "
             "max_variants or the editable mask"
         )
     return problem, parent, positions, operation_cost, upper_evaluations, max_score_loss

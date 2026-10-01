@@ -109,8 +109,12 @@ each model's component change and selected site. Scores concern this DNA context
 adding flanks requires rescoring the resulting larger sequence.
 
 Each library is limited to one billion estimated positional scoring operations,
-32 million cached sequence bases, and 50,000 diagnostic/output match records.
-A collection contains at most 16 members and 50,000 combined output match records.
+32 million cached sequence bases, 50,000 diagnostic/output match records, and
+a conservative 64 MB JSON output bound. The byte estimate includes the DNA
+inside every substitution and motif-match record. A collection contains at most
+16 members, 50,000 combined output match records, and 64 MB of estimated JSON,
+including its source collection. These bounds are checked before constructing
+libraries; reduce the variant cap or editable positions if admission fails.
 Its members are expanded sequentially, so their scoring caches do not accumulate.
 The default total work allowance is also one billion operations. If preflight
 reports that a collection needs more total work, explicitly admit that amount:
