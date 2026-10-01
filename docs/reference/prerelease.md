@@ -1,9 +1,7 @@
 # Prepare and publish a release
 
-Build a wheel and source distribution for the same version, test their installed
-behavior, and publish those exact files. A development build can be reviewed
-before committing. A release must identify a clean commit and preserve its
-checksums. Return to the [documentation index](../README.md) for user guides.
+Publish the exact wheel and source distribution tested from a clean commit.
+Keep their checksums and build attestation with the release.
 
 ## Review a development build
 
@@ -18,21 +16,17 @@ uv build --no-sources --out-dir /absolute/path/to/review-dist
 bash ./scripts/wheel-smoke /absolute/path/to/review-dist
 ```
 
-Use an empty output directory. `wheel-smoke` checks both distributions, installs
-each in a separate environment, and compares the installed API and command-line
-behavior with the source tree. It also executes the documented Python workflows
-outside the checkout. Set `MOTIF_BALANCE_SMOKE_PYTHON=3.13` or `3.14` to check another
-supported interpreter. A build from uncommitted files is review material; it does
-not yet have a release attestation.
+Use an empty output directory. `wheel-smoke` installs each distribution separately
+and checks the API, CLI, and documented Python workflows outside the checkout.
+Set `MOTIF_BALANCE_SMOKE_PYTHON=3.13` or `3.14` to check another interpreter.
+Uncommitted builds are for review and have no release attestation.
 
 ## Update dependencies
 
-Review dependency changes before refreshing the lock. After `uv lock` changes
-`uv.lock`, update `BUILD_LOCK_SHA256` in `src/motif_balance/constants.py` to its
-SHA-256 digest, then run verification. Execution records include this identity so
-a retained result can identify the dependency lock used by its producing build.
-Dependabot updates the lock but does not update this embedded digest; its pull
-requests need that small follow-up before the repository checks can pass.
+Review dependency changes and update `BUILD_LOCK_SHA256` in
+`src/motif_balance/constants.py` whenever `uv.lock` changes, then run verification.
+This digest identifies the build's dependency lock in execution records.
+Dependabot changes the lock but needs this digest update before checks pass.
 
 ```bash
 # Calculate the lockfile checksum to record with this dependency update.
@@ -52,14 +46,12 @@ bash ./scripts/prepare-prerelease \
   --limitation independent_rebuild_not_performed
 ```
 
-The output directory must be absolute, outside the repository, and nonexistent.
-The command runs verification, builds from an immutable `git archive` snapshot,
-checks the resulting distributions, and records the revision, dependency lock,
-environment and artifact checksums. It produces the wheel, source distribution,
-`release-build-attestation.json`, and `SHA256SUMS`. Declare only limitations that
-apply to this build; the example states that a second independent build has not
-been compared. The current attestation format requires at least one declared
-limitation.
+The output path must be absolute, outside the repository, and nonexistent.
+The command verifies the source, builds from an immutable `git archive` snapshot,
+tests the distributions, and records revision, lock, environment, and checksums.
+It produces four files: wheel, source distribution,
+`release-build-attestation.json`, and `SHA256SUMS`. Declare at least one applicable
+limitation. The example records that no independent rebuild has been compared.
 
 Create an annotated `v<version>` tag at that commit and a draft GitHub release.
 Upload these four unchanged files, download them into a fresh directory, and
@@ -76,24 +68,23 @@ MOTIF_BALANCE_PRODUCER_REVISION="$(git rev-parse HEAD)" \
   bash ./scripts/wheel-smoke /path/to/fresh-download
 ```
 
-Publish the GitHub release after these checks pass. The tag-triggered
-`release.yaml` workflow can stage the same four verified files for download; it
-does not publish them. Versioned release files are immutable. Correct a defect
-with a new version rather than replacing published bytes.
+Publish the GitHub release after both checks pass. The tag-triggered
+`release.yaml` workflow stages these four files without publishing them.
+Never replace published files; release fixes under a new version.
 
 ## Publish the verified GitHub release to PyPI
 
-The `motif-balance` PyPI project's Trusted Publisher authorizes
-`e-south/motif-balance`, workflow `publish.yaml`, and environment `pypi`.
-Maintain that restriction in [PyPI Publishing settings](https://docs.pypi.org/trusted-publishers/adding-a-publisher/)
-and the repository's environment protections.
+Keep the PyPI Trusted Publisher restricted to `e-south/motif-balance`, workflow
+`publish.yaml`, and protected environment `pypi`. Check
+[PyPI Publishing settings](https://docs.pypi.org/trusted-publishers/adding-a-publisher/)
+and GitHub environment protections before publishing.
 
-Manually run **Publish verified distributions** in GitHub Actions and supply the published release tag.
-`publish.yaml` checks the annotated tag and main-branch ancestry, downloads the
-four release assets, verifies the attestation, and reruns distribution tests.
-Only the wheel and source distribution proceed to the protected publishing job.
-That job uses [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/using-a-publisher/),
-so no persistent API token is stored in this repository.
+Run **Publish verified distributions** in GitHub Actions with the published tag.
+It checks the annotated tag and main ancestry, downloads all four files, verifies
+the attestation, and reruns distribution tests. The protected job uploads only
+the wheel and source distribution through
+[PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/using-a-publisher/),
+without a persistent API token.
 
 Approve the `pypi` environment only for the reviewed version and commit. After
 publication, confirm its files and hashes on PyPI and test an explicit install:

@@ -1,31 +1,50 @@
 {
+  "source_record_sha256": "7305de24d499ca2b3851aeddbc574214172530f73996492347e36ee083b62263",
   "source_evaluations": 655360,
   "final_displayed_evaluations": 121534,
   "recorded_checkpoints": 104,
   "distinct_best": 19,
-  "displayed_chains": 0,
-  "search_chain_id": null,
+  "displayed_chains": 8,
+  "search_chain_id": "all",
+  "search_display": "molecule",
   "balance": 0.7333263307305261,
   "full_run_elapsed_seconds": 1635.9920086245984,
   "render_package_version": "0.8.0",
-  "fps": 20,
-  "transition_frames": 30,
   "pacing": "accelerating",
-  "meaning": "Only recorded best-so-far scores and their DNA are shown. Motion connects saved placements without interpolating scores.",
+  "meaning": "The curve shows the best score. Gray molecular layers show recorded search states. Motion connects saved placements without interpolating scores.",
   "selection": "The displayed record ends at the first recorded occurrence of the final best score.",
   "assets": {
     "playback.mp4": {
-      "sha256": "f7e1e806628575c5744a488673cbe16c92a05135fdb897b828cf04ead4c90eb1",
-      "bytes": 3424779
+      "sha256": "1df9d33bd071934ee5af3c34fa20609a95d74223551e1c581fe0a80fab6f8fa8",
+      "bytes": 2887610,
+      "width": 1800,
+      "fps": 20,
+      "transition_frames": 6
     },
     "playback.gif": {
-      "sha256": "5a306b51db5d1a390ba956b7f2d07b1920602c53a789ef6868f5e8be7d14b08a",
-      "bytes": 11787604
+      "sha256": "1d78b06ea50dd50d2d86cd428a7f1864b464bcd8854ede8dab58b2e984ce61ec",
+      "bytes": 18887699,
+      "width": 1000,
+      "fps": 10,
+      "transition_frames": 2
     },
     "final-frame.png": {
-      "sha256": "59365624ba7d5f90d0a94a45070bd980e6f954858797c2cd84fc664f76c65555",
-      "bytes": 446739
+      "sha256": "fc4a707a4e4fe53c7abf294793804cda02d3f3b0d2bbd86c9a0aa7cb8332f748",
+      "bytes": 1088412,
+      "width": null,
+      "fps": 1,
+      "transition_frames": 0
     }
   },
-  "source_record_sha256": "7305de24d499ca2b3851aeddbc574214172530f73996492347e36ee083b62263"
+  "renderer_sources": {
+    "src/motif_balance/playback/__init__.py": "b7b3f09d0a0756499329599f5e53ee397cbf459ac46b104b5c2167a161b48368",
+    "src/motif_balance/playback/api.py": "dc4b5d769e1de933c41ffe8ecca5f9128cf5ae631943998c9df9f9727c75e975",
+    "src/motif_balance/playback/duplex.py": "b13e65071540bbe956fcd4d19ba7033680edaf1676c69cd1e2bb1ea87fe12024",
+    "src/motif_balance/playback/media.py": "a5176e80c71da784ed4b7a9d0997a95f8006a4d4e7246862ac9462389fd99750",
+    "src/motif_balance/playback/model.py": "03ea6bda81ab3c7e673b315063f030919ac080b52dcb0615799f8629881a04ab",
+    "src/motif_balance/playback/player.py": "c705fe24fdcea03462efb4f78a20b40345195da14c74f5e4b8a671d5432512e5",
+    "src/motif_balance/playback/render.py": "8883252b814917ad1a0b6f20ff7e4f365746c168d48ad87e98d699b6958c3500",
+    "src/motif_balance/playback/transition.py": "d9b2089755348fb3c19d30d1597e215496bd72a6ec5b2c3fb3f846b4121c3c4f"
+  },
+  "gif_encoding": "Opaque frames retain unchanged pixels; all 237 decoded frames match the unoptimized export."
 }

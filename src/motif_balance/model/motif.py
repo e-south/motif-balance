@@ -184,6 +184,30 @@ class MotifModel(FrozenModel):
     canonical_file_name: str | None = None
     conversion: MotifConversion | None = None
 
+    def __str__(self) -> str:
+        """Show up to eight rows, or a head/tail preview, without changing stored values."""
+        position_width = max(len("Position"), len(str(self.width)))
+        lines = [
+            f"{self.motif_id} ({self.width} {'position' if self.width == 1 else 'positions'})",
+            "Background (A C G T): " + " ".join(f"{value:.3g}" for value in self.background),
+            "Probabilities (3 significant digits)",
+            f"{'Position':>{position_width}} " + " ".join(f"{base:>9}" for base in self.alphabet),
+        ]
+        positions: tuple[int | None, ...] = (
+            tuple(range(self.width))
+            if self.width <= 8
+            else (0, 1, 2, None, self.width - 2, self.width - 1)
+        )
+        for index in positions:
+            if index is None:
+                lines.append(f"... {self.width - 5} positions omitted ...")
+                continue
+            lines.append(
+                f"{index + 1:>{position_width}} "
+                + " ".join(f"{value:9.3g}" for value in self.probabilities[index])
+            )
+        return "\n".join(lines)
+
     @field_validator("alphabet")
     @classmethod
     def validate_alphabet(

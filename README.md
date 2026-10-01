@@ -3,8 +3,7 @@
 Supply motif models and a DNA length. Motif Balance searches for sequences that
 strengthen the weakest desired match while optionally limiting unwanted matches.
 Inspect the recovered sites, choose different arrangements, then expand each
-layout into nucleotide alternatives. Scores describe model agreement, not measured
-binding.
+layout into nucleotide alternatives.
 
 [Documentation](https://github.com/e-south/motif-balance/blob/main/docs/README.md) ·
 [Supply motifs](https://github.com/e-south/motif-balance/blob/main/docs/motif-models.md) ·
@@ -25,10 +24,10 @@ With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed:
 # Create a project and install the package from PyPI.
 uv init --python 3.12 my-project
 cd my-project
-uv add 'motif-balance==0.8.0'
+uv add 'motif-balance==0.8.1'
 
 # Fetch the attributed example, its source record, and its editable design request.
-MB_EXAMPLE_URL=https://raw.githubusercontent.com/e-south/motif-balance/v0.8.0/examples/argr-cra
+MB_EXAMPLE_URL=https://raw.githubusercontent.com/e-south/motif-balance/v0.8.1/examples/argr-cra
 curl -fLO "$MB_EXAMPLE_URL/prepare_inputs.py"
 curl -fLO "$MB_EXAMPLE_URL/SOURCE.json"
 curl -fLO "$MB_EXAMPLE_URL/design.yaml"
@@ -96,8 +95,8 @@ covers pip and optional video export.
 
 The [twelve-model example](https://github.com/e-south/motif-balance/blob/main/examples/twelve-motifs/README.md)
 shows improvements during a recorded search in 60-base DNA. The chart follows
-the best balance found; the duplex shows that sequence's motif matches. Smooth
-transitions connect recorded states without adding evaluated sequences.
+the best balance found. Colored motif windows show that sequence; faint gray
+windows show recorded search candidates. Transitions connect saved placements.
 
 ![Recorded improvements in the twelve-model search](https://github.com/e-south/motif-balance/raw/refs/heads/main/examples/twelve-motifs/playback.gif)
 
@@ -105,3 +104,4 @@ Python 3.12–3.14 · Linux and macOS · [MIT license](https://github.com/e-sout
 
 For study data, reproduction, and citation, use the
 [Motif Balance Study](https://gitlab.com/dunloplab/motif-balance-study).
+Publication DOI: pending.

@@ -527,6 +527,25 @@ def test_all_search_chains_keep_their_recorded_identity(observation):
     assert len(tween.findall(".//s:g[@data-duplex-layout]", ns)) == 9
 
 
+def test_molecular_search_layer_does_not_require_chain_score_traces(observation):
+    source = inspect_playback(observation, search_chain_id="all")
+    view = type(source).model_validate(
+        source.model_copy(update={"search_display": "molecule"}).model_dump(mode="python")
+    )
+    assert view.frames == source.frames
+    root = ET.fromstring(render_playback_svg(view))
+    ns = {"s": "http://www.w3.org/2000/svg"}
+    assert not root.findall(".//*[@data-search-trace]")
+    assert not root.findall(".//*[@data-search-state]")
+    assert len(root.findall(".//s:g[@data-duplex-layout]", ns)) == 9
+    assert root.find(".//s:circle[@data-current-state]", ns).get("data-score") == str(
+        view.frames[-1].best_balance
+    )
+    assert "Search candidates" not in "".join(root.itertext())
+    # The default still supports both panels for callers that request that view.
+    assert ET.fromstring(render_playback_svg(source)).findall(".//*[@data-search-trace]")
+
+
 def test_showcase_stops_at_first_record_of_final_best_and_rescales_axis(observation):
     from motif_balance.playback import PlaybackInspection
 

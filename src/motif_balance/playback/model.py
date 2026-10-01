@@ -41,6 +41,9 @@ class PlaybackInspection(FrozenModel):
     engine: str
     chain_id: Annotated[int, Field(strict=True, ge=0, lt=8)] | None = None
     search_chain_id: Annotated[int, Field(strict=True, ge=0, lt=8)] | Literal["all"] | None = None
+    search_display: Literal["molecule", "both"] = Field(
+        default="both", exclude_if=lambda value: value == "both"
+    )
     frames: Annotated[tuple[PlaybackFrame, ...], Field(min_length=1, max_length=256)]
     # Caller-supplied measurement for the complete source run, never a frame clock.
     full_run_elapsed_seconds: (

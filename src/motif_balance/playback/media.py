@@ -152,7 +152,9 @@ def render_playback_media(
             append_images=images[1:],
             duration=round(1000 / fps),
             loop=0,
-            disposal=2,
+            # Opaque RGB frames overwrite old marks; retain unchanged pixels
+            # between frames so the encoder can store only the changed region.
+            disposal=1,
         )
         payload = target.getvalue()
     else:

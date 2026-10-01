@@ -94,8 +94,18 @@ Dense early best-score checkpoints can therefore advance the colored DNA while
 the gray chains retain their initial state. Increasing playback speed or adding
 transitions does not recover the chain changes missing from the recording.
 
-The twelve-model example omits the chain overlay and ends its movie at the first
-recorded final-best score, using `view.until_last_improvement()` or `--until-last-improvement`. This selects
+To keep gray search activity in the molecular view only:
+
+```python
+# Show recorded search placements while keeping the chart on the best score.
+view = inspect_playback(observation, search_chain_id="all")
+view = view.model_copy(update={"search_display": "molecule"})
+```
+
+Render this view as above. The default `"both"` also shows the gray score traces.
+
+The twelve-model example uses this molecular-only overlay and ends its movie at
+the first recorded final-best score, using `view.until_last_improvement()` or `--until-last-improvement`. This selects
 an unchanged prefix and rescales the evaluation axis to its endpoint. It does not
 identify the exact discovery time between observations or change the full run's
 budget. The HTML overview selects eight best-sequence frames.

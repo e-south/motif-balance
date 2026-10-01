@@ -20,18 +20,14 @@ inputs, choose outputs, or interpret scores.
 | Construct a completely checked ambiguity template | [Degenerate libraries](diversify-sequences.md) |
 | Understand scores and saved results | [Interpretation](interpreting-results.md) and [visual inspection](reference/result-inspection.md) |
 
-## Understand and extend the method
+## Scoring, search, and saved results
 
-[Concepts](concepts.md) explains the balanced objective.
-[Methods](methods.md) defines scoring and search.
-[Pair assessment](pair-assessment.md) examines shared-base preferences before
-sequence search.
-
-For integration, use the [API and CLI reference](reference/public-contract.md),
-[search observations](reference/search-observations.md),
-[search playback](reference/playback.md),
-[constrained portfolio selection](reference/portfolio-selection.md), and
-[execution records](reference/execution-receipts.md).
+- [Define balance](concepts.md) and [follow the scoring and search calculations](methods.md).
+- [Compare motif preferences before searching](pair-assessment.md).
+- [Look up Python operations and CLI arguments](reference/public-contract.md).
+- [Record search states](reference/search-observations.md) and [animate them](reference/playback.md).
+- [Select a fixed-size set with sequence-separation requirements](reference/portfolio-selection.md).
+- [Record the software and runtime used for a search](reference/execution-receipts.md).
 
 ## Maintain the package
 

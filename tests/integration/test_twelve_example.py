@@ -21,12 +21,14 @@ import pytest
 from motif_balance.constants import PACKAGE_VERSION
 
 
-def test_published_example_media_are_best_only_and_bound_to_assets():
+def test_published_example_media_keep_gray_activity_in_molecule_and_bind_assets():
     root = Path(__file__).resolve().parents[2] / "examples/twelve-motifs"
     media = json.loads((root / "media.json").read_text())
     expected = json.loads((root / "expected.json").read_text())
-    assert media["displayed_chains"] == 0
-    assert media["search_chain_id"] is None
+    assert media["displayed_chains"] == 8
+    assert media["search_chain_id"] == "all"
+    assert media["search_display"] == "molecule"
+    assert media["assets"]["playback.gif"]["width"] >= 1000
     assert media["final_displayed_evaluations"] == expected["showcase_evaluations"][-1]
     assert media["balance"] == expected["balance"]
     assert "video_url" not in media
@@ -37,7 +39,7 @@ def test_published_example_media_are_best_only_and_bound_to_assets():
         assert record["bytes"] == len(content)
 
 
-def test_example_selection_removes_overlays_without_changing_recorded_best(pairwise_spec):
+def test_example_selection_preserves_molecular_activity_and_recorded_best(pairwise_spec):
     from motif_balance.api import design_observed
     from motif_balance.model.search_observation import ObservationSpec
     from motif_balance.playback import inspect_playback, render_playback_svg
@@ -54,9 +56,10 @@ def test_example_selection_removes_overlays_without_changing_recorded_best(pairw
     )
     view = module.best_progress(source)
     assert source.search_chain_id == "all"
-    assert view.search_chain_id is None
+    assert view.search_chain_id == "all"
+    assert view.search_display == "molecule"
     assert view.full_run_elapsed_seconds == 42.0
-    assert all(not f.recorded_search_candidates for f in view.frames)
+    assert view.frames == source.until_last_improvement().frames
     assert [(f.evaluations, f.best_balance, f.candidate) for f in view.frames] == [
         (f.evaluations, f.best_balance, f.candidate) for f in source.until_last_improvement().frames
     ]
@@ -68,7 +71,7 @@ def test_example_selection_removes_overlays_without_changing_recorded_best(pairw
         assert [
             node.get("data-duplex-layout")
             for node in root.findall(".//s:g[@data-duplex-layout]", ns)
-        ] == ["best"]
+        ] == [*(f"search-{i}" for i in range(8)), "best"]
 
 
 def test_example_checks_replay_version_without_rewriting_original_producer():
