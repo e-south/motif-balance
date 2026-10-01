@@ -49,6 +49,48 @@ def request(length=2, *, both=False, unwanted=False):
     )
 
 
+def test_wide_match_handoff_is_rejected_before_substitution_scans(monkeypatch):
+    """A bounded number of records can still exceed the JSON reader's byte cap."""
+    from motif_balance.variants import api
+
+    spec = DesignSpec(
+        specifications=tuple(
+            MotifSpecification(
+                motif=MotifModel(
+                    motif_id=f"wide{i}",
+                    probabilities=((0.4, 0.35, 0.2, 0.05),) * 2000,
+                    background=(0.25,) * 4,
+                ),
+                direction="seek",
+            )
+            for i in range(20)
+        ),
+        length=2000,
+        count=1,
+        evaluations=1,
+        seed=7,
+        strands="forward",
+    )
+    original = api.evaluate
+    calls = 0
+
+    def parent_only(sequence, problem):
+        nonlocal calls
+        calls += 1
+        assert calls == 1, "oversize output reached substitution scoring"
+        return original(sequence, problem)
+
+    monkeypatch.setattr(api, "evaluate", parent_only)
+    with pytest.raises(ValueError, match="output"):
+        diversify(
+            "A" * 2000,
+            spec,
+            min_balance=0,
+            max_variants=1,
+            editable_mask=(True,) * 600 + (False,) * 1400,
+        )
+
+
 def test_singly_tolerated_substitutions_are_not_combined_unchecked():
     spec = request()
     lib = diversify("AA", spec, max_score_loss=0.04)

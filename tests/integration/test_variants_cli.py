@@ -295,3 +295,25 @@ def test_collection_work_option_requires_all_before_read(tmp_path):
     )
     assert run.exit_code == 2
     assert "requires --all" in run.output
+
+
+def test_collection_output_bound_is_checked_before_construction(pairwise_spec, monkeypatch):
+    from itertools import product
+
+    from motif_balance.alternatives import rank_architectures
+    from motif_balance.formats.collection import collection_json
+    from motif_balance.model.alternatives import CollectionReport
+    from motif_balance.variants import collection as operation
+
+    spec = pairwise_spec.model_copy(update={"min_distance": None})
+    ranking = rank_architectures(tuple(map("".join, product("ACGT", repeat=4))), spec)
+    report = CollectionReport.model_validate_json(
+        collection_json(ranking, count=2, source_id="bundle-" + "0" * 24, anchored=False)
+    )
+    # Lower only the aggregate byte allowance; each member remains admissible.
+    monkeypatch.setattr(operation, "_MAX_HANDOFF_BYTES", 250_000, raising=False)
+    monkeypatch.setattr(
+        operation, "diversify", lambda *a, **k: pytest.fail("oversize collection constructed")
+    )
+    with pytest.raises(ValueError, match="output"):
+        operation.diversify_collection(report, min_balance=0, max_variants=4)

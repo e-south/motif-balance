@@ -117,6 +117,8 @@ def prepare(destination: Path) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description="Download the pinned probability records and prepare the twelve example models."
+    )
     parser.add_argument("--out", type=Path, default=ROOT / "inputs")
     prepare(parser.parse_args().out)

@@ -14,7 +14,7 @@ from typing import Literal
 from motif_balance.model.alternatives import CollectionReport
 from motif_balance.model.variant_collection import CollectionVariants
 
-from .api import _MAX_SCORE_OPERATIONS, _prepare, diversify
+from .api import _MAX_HANDOFF_BYTES, _MAX_SCORE_OPERATIONS, _output_bound, _prepare, diversify
 
 
 def diversify_collection(
@@ -46,6 +46,7 @@ def diversify_collection(
     if not members or len(members) > 16:
         raise ValueError("collection diversification requires 1 through 16 delivered members")
     upper_operations = upper_records = 0
+    upper_bytes = 8 * len(report.model_dump_json(indent=2).encode())
     for rank, member in enumerate(members, 1):
         try:
             _, parent, positions, cost, upper, _ = _prepare(
@@ -61,6 +62,7 @@ def diversify_collection(
                 raise ValueError("saved parent does not match its rescored DNA")
             upper_operations += cost * upper
             upper_records += (max_variants + 3 * len(positions)) * len(parent.matches)
+            upper_bytes += _output_bound(report.ranking.spec, max_variants, len(positions))
         except ValueError as exc:
             raise ValueError(f"collection member {rank}: {exc}") from exc
     if upper_operations > max_total_score_operations:
@@ -71,6 +73,10 @@ def diversify_collection(
         )
     if upper_records > 50_000:
         raise ValueError("collection exceeds 50,000 output match records; reduce max_variants")
+    if upper_bytes > _MAX_HANDOFF_BYTES:
+        raise ValueError(
+            "collection exceeds bounded JSON output; reduce max_variants or the editable mask"
+        )
     return CollectionVariants(
         source=report,
         libraries=tuple(

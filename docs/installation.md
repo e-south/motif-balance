@@ -49,10 +49,13 @@ example inputs:
 
 ```bash
 uv run python examples/argr-cra/prepare_inputs.py
+# Continue where design.yaml and its prepared inputs live.
+cd examples/argr-cra
 ```
 
-Continue with the [ArgR/Cra tutorial](quickstart.md) or the
-[twelve-model example](../examples/twelve-motifs/README.md).
+Continue with the [ArgR/Cra tutorial](quickstart.md) in that directory.
+The separate [twelve-model example](../examples/twelve-motifs/README.md)
+runs from the repository root.
 
 For reproducible work, record the installed package version and preserve the project's
 `uv.lock`. A source checkout can contain changes beyond the latest release. Record

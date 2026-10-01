@@ -98,7 +98,9 @@ def write_media(view: PlaybackInspection, destination: Path, *, source_evaluatio
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description="Repeat the twelve-model example and export a recorded search animation."
+    )
     parser.add_argument("--out", required=True, type=Path, help="A new output directory")
     parser.add_argument("--media", action="store_true", help="Also export an MP4, GIF, and PNG")
     args = parser.parse_args()

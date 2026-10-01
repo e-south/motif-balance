@@ -69,17 +69,37 @@ These two arrangements have balances of approximately 0.855 and 0.801.
 collection is acceptable. See [collections](choose-alternatives.md) for the
 arrangement definition and reported shortfalls.
 
-## Vary a sequence within one selected arrangement
+## Expand a selected arrangement into a sequence list
 
-Now use the first representative as the parent. Diversification varies bases
-within its desired sites while retaining each selected site's coordinates and
-strand. Every motif's score is protected separately.
+Use the first representative as the parent, retaining its selected motif sites
+and requiring every sequence to have balance at least 0.8:
+
+```python
+from motif_balance.variants import expand, load_expansion
+
+parent = selected[0]
+expanded = expand(parent.sequence, spec, min_balance=0.8, max_variants=256)
+print(len(expanded.variants), expanded.minimum_balance, expanded.stop_reason)
+with Path("expansion.json").open("x") as output:
+    output.write(expanded.model_dump_json(indent=2))
+verified = load_expansion(Path("expansion.json").read_bytes())
+```
+
+This returns 256 sequences for the ArgR/Cra parent. The sequence cap includes
+the parent; other requests can return fewer. These explicit alternatives need
+not form a complete ambiguity template. See [expansion](expand-sequences.md)
+for FASTA exports, whole collections, and evaluation limits.
+
+## Construct a checked ambiguity template
+
+For degenerate synthesis, `diversify` instead requires every combination in an
+IUPAC template to pass. This example protects each motif's parental score
+separately while preserving its selected site.
 
 ```python
 from motif_balance.variants import diversify
 from motif_balance.formats.variants import variants_fasta, variants_tsv
 
-parent = selected[0]
 library = diversify(parent.sequence, spec, max_score_loss=0.02, max_variants=256)
 print(library.template, library.encoded_sequence_count)
 print(library.minimum_balance, library.maximum_component_loss)
