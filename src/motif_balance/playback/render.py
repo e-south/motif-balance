@@ -249,7 +249,7 @@ def _render_validated_playback_svg(view: PlaybackInspection, *, frame: int = -1)
         )
         + "</g>"
     )
-    if view.search_chain_id is not None:
+    if view.search_chain_id is not None and view.search_display == "both":
         for chain, candidate in enumerate(current.recorded_search_candidates):
             chain_id = chain if view.search_chain_id == "all" else view.search_chain_id
             seen = {}

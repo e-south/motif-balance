@@ -10,7 +10,9 @@ The seed-839 search uses 655,360 evaluations and produces the displayed candidat
 
 The blue curve follows the best balance encountered, and the orange point identifies the displayed DNA. Nineteen recorded best sequences lead to the final score at 121,534 evaluations, where the movie and axis end. The complete run still used 655,360 evaluations. The subtitle gives its measured full-run elapsed time, not the unknown wall time at each improvement.
 
-Transitions start slowly and accelerate, moving drawings between recorded endpoints without inventing evaluated sequences.
+Faint gray motif windows show the eight recorded search candidates behind the best DNA. Their scores are omitted from the chart. Transitions start slowly and accelerate between recorded placements.
+
+The inline GIF is 1,000 pixels wide; the MP4 is 1,800 pixels wide. The movie uses denser early observations from the recorded run. The recipe below repeats the search with evenly spaced snapshots, so its gray-state timing differs while the recovered sequence and score are checked.
 
 ## Reproduce
 
@@ -24,7 +26,7 @@ uv run motif-balance design examples/twelve-motifs/design.yaml --check
 uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo --media
 ```
 
-Open `playback.html` for play/pause and frame selection. Use a new output directory. The recipe requires Motif Balance 0.8.0 and checks the recovered sequence and balance against `expected.json`, which also records the original producing source and independently verified 0.7.0 replay.
+Open `playback.html` for play/pause and frame selection. Use a new output directory. The recipe requires Motif Balance 0.8.1 and checks the recovered sequence and balance against `expected.json`, which also records the original producing source and independently verified 0.7.0 replay.
 
 ## Inputs and interpretation
 

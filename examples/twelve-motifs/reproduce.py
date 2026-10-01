@@ -29,21 +29,7 @@ def best_progress(source: PlaybackInspection) -> PlaybackInspection:
     if source.chain_id is not None:
         raise ValueError("The example requires recorded best sequences, not one search chain")
     view = PlaybackInspection.model_validate(
-        source.model_copy(
-            update={
-                "search_chain_id": None,
-                "frames": tuple(
-                    frame.model_copy(
-                        update={
-                            "search_candidate": None,
-                            "search_candidates": (),
-                            "search_evaluations": None,
-                        }
-                    )
-                    for frame in source.frames
-                ),
-            }
-        ).model_dump(mode="python")
+        source.model_copy(update={"search_display": "molecule"}).model_dump(mode="python")
     )
     return view.until_last_improvement()
 
@@ -51,32 +37,47 @@ def best_progress(source: PlaybackInspection) -> PlaybackInspection:
 def write_media(view: PlaybackInspection, destination: Path, *, source_evaluations: int) -> None:
     """Render the shared selection and bind its media files to their recorded scores."""
     view = best_progress(view)
-    settings = {"fps": 20, "transition_frames": 30, "pacing": "accelerating"}
+    settings = {"pacing": "accelerating"}
     assets = {}
-    for name, format_name, width in (
-        ("playback.mp4", "mp4", 1800),
-        ("playback.gif", "gif", 720),
-        ("final-frame.png", "png", None),
+    # The GIF uses fewer transition frames to keep the higher-resolution preview bounded.
+    for name, format_name, width, fps, transitions in (
+        ("playback.mp4", "mp4", 1800, 20, 6),
+        ("playback.gif", "gif", 1000, 10, 2),
+        ("final-frame.png", "png", None, 1, 0),
     ):
         payload = render_playback_media(
-            view, format_name=format_name, width=width, **({} if format_name == "png" else settings)
+            view,
+            format_name=format_name,
+            width=width,
+            **(
+                {}
+                if format_name == "png"
+                else {**settings, "fps": fps, "transition_frames": transitions}
+            ),
         )
         (destination / name).write_bytes(payload)
-        assets[name] = {"sha256": hashlib.sha256(payload).hexdigest(), "bytes": len(payload)}
+        assets[name] = {
+            "sha256": hashlib.sha256(payload).hexdigest(),
+            "bytes": len(payload),
+            "width": width,
+            "fps": fps,
+            "transition_frames": transitions,
+        }
     metadata = {
         "source_record_sha256": view.observation_sha256,
         "source_evaluations": source_evaluations,
         "final_displayed_evaluations": view.frames[-1].evaluations,
         "recorded_checkpoints": len(view.frames),
         "distinct_best": len({frame.candidate.sequence for frame in view.frames}),
-        "displayed_chains": 0,
-        "search_chain_id": None,
+        "displayed_chains": max(len(f.recorded_search_candidates) for f in view.frames),
+        "search_chain_id": view.search_chain_id,
+        "search_display": view.search_display,
         "balance": view.frames[-1].best_balance,
         "full_run_elapsed_seconds": view.full_run_elapsed_seconds,
         "render_package_version": PACKAGE_VERSION,
         **settings,
         "meaning": (
-            "Only recorded best-so-far scores and their DNA are shown. "
+            "The curve shows the best score. Gray molecular layers show recorded search states. "
             "Motion connects saved placements without interpolating scores."
         ),
         "selection": (
@@ -116,8 +117,8 @@ def main() -> None:
     ):
         raise ValueError("Recorded example differs; check the declared software and environment")
     (args.out / "observation.json").write_text(observation.model_dump_json())
-    # Keep the full record and display its best DNA, without sparse chain overlays.
-    full_view = inspect_playback(observation).model_copy(
+    # Keep the best-score curve separate from the gray molecular search states.
+    full_view = inspect_playback(observation, search_chain_id="all").model_copy(
         update={"full_run_elapsed_seconds": elapsed}
     )
     (args.out / "inspected.json").write_text(full_view.model_dump_json())

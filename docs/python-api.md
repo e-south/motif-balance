@@ -5,6 +5,8 @@ Run these examples in that same uv project.
 The prepared [ArgR and Cra inputs](../examples/argr-cra/README.md) contain nucleotide
 probabilities prepared from Baumgart et al. (2021), Supplementary Data 2.
 Each row lists the probabilities of A, C, G and T at one motif position.
+See [a prepared profile](motif-models.md#inspect-a-prepared-profile) for a compact
+display of the Cra model.
 
 ```python
 # Load the real motif models and request four 25-base sequences.
@@ -17,6 +19,7 @@ from motif_balance.inspection.render import render_candidate_svg, render_text
 
 argr = read_motif("inputs/motifs/argR.json")
 cra = read_motif("inputs/motifs/cra.json")
+print(cra)                                               # Preview its probabilities
 spec = DesignSpec(
     specifications=(
         MotifSpecification(motif=argr, direction="seek"),  # Strengthen the ArgR match
@@ -118,7 +121,7 @@ defines their evaluation accounting and initialization.
 For a YAML request, replace the request construction with
 `spec = load_design_spec(Path("design.yaml"))`, importing `load_design_spec`
 from `motif_balance.formats.design`. Relative model paths resolve against that
-file's directory. The [input reference](design-spec.md) owns its exact fields.
+file's directory. The [input reference](design-spec.md) lists the fields.
 
 `design` returns the requested count or raises a typed error; it does not return
 a partial successful portfolio. `score` rejects wrong-length or ambiguous DNA

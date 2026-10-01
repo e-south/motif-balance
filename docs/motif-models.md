@@ -10,6 +10,37 @@ models, record how you prepared their probabilities and why you chose the
 scoring background. A shared representation makes the calculation consistent;
 it does not erase differences in the experiments used to estimate the models.
 
+## Inspect a prepared profile
+
+After the [ArgR/Cra setup](../README.md#1-install-and-prepare-the-profiles),
+print a model to see its width, background, and positional probabilities:
+
+```python
+from motif_balance.formats import read_motif
+
+cra = read_motif("inputs/motifs/cra.json")
+print(cra)
+```
+
+```text
+Cra (14 positions)
+Background (A C G T): 0.25 0.25 0.25 0.25
+Probabilities (3 significant digits)
+Position         A         C         G         T
+       1    0.0227    0.0227     0.932    0.0227
+       2    0.0227     0.932    0.0227    0.0227
+       3    0.0227    0.0227    0.0227     0.932
+... 9 positions omitted ...
+      13    0.0409     0.914    0.0227    0.0227
+      14     0.823    0.0227    0.0955    0.0591
+```
+
+Rows follow motif positions; columns follow A, C, G, T. At this first position,
+the prepared model favors G. Models up to eight positions show every row; wider
+models show the first three and last two. Display rounding leaves the model
+unchanged. Use `cra.model_dump_json(indent=2)` for all positions and provenance
+at full precision.
+
 ## Prepare a JASPAR count matrix
 
 Download one profile in JASPAR count format, preserving its accession and
@@ -55,7 +86,7 @@ positive probabilities explicitly and retain the conversion record rather than
 silently replacing zero values. Probability matrices have no known sample size;
 their smoothing parameters are distinct from count pseudocounts.
 
-## Author or inspect a canonical model
+## Write a motif model
 
 A YAML or JSON model declares its schema and stable ID. Each matrix row is one
 motif position; columns are always A, C, G, T:
@@ -93,5 +124,5 @@ traverse symlinks. The chosen DNA length must fit every motif. Both-strand
 scoring derives reverse complements from each model; do not supply a second
 model just to request reverse-strand scanning.
 
-The saved `motifs.json` retains validated model content and its digest, so
+The saved `motifs.json` retains each model and its digest, so
 later inspection uses the exact probabilities used during design.

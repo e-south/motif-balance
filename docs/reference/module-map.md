@@ -1,5 +1,8 @@
 # Module responsibilities
 
+Use this map to locate an operation before changing it. The
+[architecture overview](../../ARCHITECTURE.md) explains the dependency direction.
+
 ```text
 errors, constants, and model
   <- formats, compile, scoring, and assessment
@@ -10,141 +13,66 @@ errors, constants, and model
   <- cli
 ```
 
-- `model/` contains strict immutable public contracts and no higher-layer
-  imports. Its facade preserves public imports; `base` owns canonical identity
-  primitives, `motif` owns source models, `design` owns input contracts,
-  `evaluation` owns scored candidates, `search` owns bounded diagnostics,
-  `execution` owns runtime receipts, `manifest` owns run records, and `portfolio`
-  owns cross-record consistency. These are contract domains, not plugin layers.
-- `constants.py` contains only shared literal constants and imports no other
-  first-party layer.
-- `formats/` parses external representations into strict models; it does not
-  choose scientific policy.
-- `compile.py` normalizes a specification into evaluator-ready state.
-  Supplied-sequence scoring and pool ranking use `compile_scoring`, which checks motif widths and
-  normalization without requiring the original portfolio count to be attainable.
-  `compile_design` also checks that count before compiling matrices. Both routes
-  share the same compilation and problem identity; neither changes the saved
-  specification. This is an internal admission boundary, not another score formula.
-- `scoring.py` is the single matching and public-score authority.
-- `assessment/` exposes the explicit `assess_pair` and bounded `assess_motifs` submodule APIs for
-  pre-search shared-base conflict. `pair` owns the complete pair profile; `joint`
-  owns exact bounded placement of two to four models; `terms` is the single
-  information-weighted local-loss calculation. Assessment cannot import search,
-  selection, artifacts or study code. `model/assessment.py` owns its immutable records.
-  Its structural score is not a sequence score or an achieved-outcome prediction.
-- `search/` proposes sequences under explicit budgets. `engine` owns scheduling
-  and acceptance, `moves` owns fixed-length proposals, `policy` owns the fixed
-  annealing functions, and `recording` owns the search ledger and elite ranking.
-  `initialization` owns shared starting sequences; `greedy` owns the explicit
-  coordinate-improvement control; `uniform` owns whole-sequence random draws.
-  They reuse scoring and recording, not study-specific experiment machinery.
-  `observation` passively records bounded snapshots and exact target hits;
-  `retention` implements bounded hash-priority samples at caller-declared quality
-  thresholds. Neither draws randomness nor changes decisions. No search module
-  reinterprets scores.
-- `selection.py` chooses from already evaluated candidates and cannot mutate or
-  rescore them. Its bounded bottleneck traversal consumes an admitted constraint
-  graph and reports a full witness separately from finite-pool completion.
-- `alternatives/` owns the explicit supplied-pool architecture-ranking API.
-  `pool` admits and canonicalizes supplied sequences and records their counts.
-  `api` ranks unchanged evaluations after scoring each equivalence class once. It can also measure an explicit complete
-  representative order without rescoring. `geometry` measures separate pair distances;
-  `model/alternatives.py` owns strict records and selected-site equivalence.
-  It cannot invoke search, publish artifacts, or import caller-owned analyses.
-  Its ranked prefixes do not replace the distance-constrained portfolio selector.
-  `portfolio` supplies the current `select_portfolio` and replay boundary. It
-  reuses pool admission, canonical scoring, and prepared geometry, then delegates
-  unchanged evaluations to `selection`. `model/selection.py` owns its explicit
-  policy and result. Neither a class-pruned pool nor caller-supplied scores are
-  accepted as substitutes for the literal input pool. Selection never imports
-  the higher-level alternatives orchestration.
-- `variants/` owns deterministic post-design diversification. It reuses compilation
-  and complete-sequence scoring, and never calls search or arrangement selection.
-  `model/variants.py` owns immutable product-library and substitution records;
-  `formats/variants.py` supplies FASTA and score tables. `variants.load_library` uses
-  the bounded JSON parser and replays the complete construction before accepting
-  saved scores and effort counts. The data-only variant
-  renderer consumes these records directly. It cannot import the diversification
-  API or scoring. The CLI is a thin adapter to these owners.
-  `variants/expansion.py` owns bounded explicit-list traversal and replay;
-  `expansion_collection.py` admits and coordinates collections. Their immutable
-  contracts are `model/sequence_expansion.py` and `model/expanded_collection.py`.
-  These operations preserve every passing evaluation and do not construct IUPAC products.
-- `artifacts/` serializes canonical bundles and replays their identities and
-  scientific records. `encoding` owns canonical bytes and identities; `decoding`
-  reconstructs strict records; `snapshot` pins bounded reads to file descriptors;
-  `verification` replays scientific semantics; `publication` owns atomic
-  no-replace writes. The facade preserves callers' existing imports. None of
-  these modules owns downstream registration or presentation.
-- `api.py` owns `design`, `score`, and `Portfolio` publication for the top-level
-  scientific facade. Its explicitly imported observation helpers derive a
-  portfolio and bounded diagnostics from one search, or replay caller-owned
-  observations. They add no top-level scientific verbs or CLI journeys.
-- `receipt.py` defines the runtime receipt and execution-workspace identity
-  without changing canonical bundle identity.
-- `execution/` binds execution to a verified distribution. `release` verifies
-  wheel contents, RECORD entries and the running package; `workspace_io` reads
-  bounded descriptor snapshots and checks digests; `workspace` executes, publishes
-  and verifies the workspace. These operations use explicit paths.
-- `inspection/api.py` is the single advanced entry point for verifying and
-  projecting one explicit bundle or execution workspace.
-- `inspection/verify.py` carries the path-bound, already verified source into
-  review without exposing it to renderers.
-- `inspection/project.py` replays authoritative scores and projects candidates
-  and their scoring problem. Bundle review produces `ResultInspection`.
-- `inspection/supplied.py` exposes `inspect_candidate` for one explicit current
-  `Candidate` and `DesignSpec`. It reuses scoring admission and projection, not
-  search or bundle loading. Its path-free `CandidateInspection` is defined in
-  the data-only `inspection/candidate_model.py`; it preserves caller-assigned
-  rank without inventing a run, selected portfolio, or artifact trust state.
-  That data module also owns candidate-to-problem consistency checks, shared by
-  molecular rendering and every playback frame. These inspect projected records
-  without scanning sequences or importing a renderer.
-- `inspection/assessment/` computes a path-free pre-search column projection
-  from two explicit models through the assessment authority. It cannot render
-  or create a candidate. The projection retains model identity, relative
-  placement and local regret in one physical base frame.
-- `inspection/render/` turns these inspection projections into text, JSON, SVG, or one
-  self-contained HTML composition. It cannot read artifacts, search, rescore,
-  discover stores, compare cohorts, or accept evidence.
-  The candidate renderer keeps `render/candidate.py` as its stable facade and
-  separates verified candidate selection, deterministic layout, positional
-  support, and SVG-section composition into candidate-named internal modules.
-  The same candidate renderer accepts `ResultInspection` or `CandidateInspection`
-  and clearly labels the latter's caller-supplied rank and replay-only scope.
-  Renderers may import these data contracts, never the supplied-candidate replay
-  operation. There is no scene graph, renderer registry, or second score authority.
-  The pre-search renderer consumes only `inspection/assessment/model.py`, never
-  its calculation entrypoint. It shares information-height Arial glyphs with
-  the candidate renderer; it does not invent a sequence or observed bases.
-- `cli/` registers the public commands. `assessment`, `design`, `collection`,
-  `scoring`, and `inspection` are thin file/argument adapters to their owning
-  APIs. `preparation` holds the hidden motif/execution adapters; `errors` and
-  `output` share diagnostic and atomic no-replace publication behavior.
-  The package entrypoint remains `motif_balance.cli:app`; no command owns
-  scientific derivations or imports caller repositories.
-  CLI adapters may import immutable `model` types for annotations and handoffs.
-  `collection` verifies a saved bundle through `artifacts` and delegates its
-  retained sequences to `alternatives`; it performs no grouping or scoring itself.
+## Find the implementation
 
-`playback/` owns presentation of recorded searches. Its `api` verifies the source
-observation and projects saved states; `model` binds each displayed candidate to
-the scoring problem. `render` draws a saved state, `transition` moves drawings
-between saved states, and `media` validates once before bounded raster or movie
-export. Presentation never proposes DNA or invents intermediate scores. The
-interactive HTML player and exported video consume the same recorded states.
+| Operation | Modules |
+| --- | --- |
+| Define requests, models, scores, and result records | `model/`; shared literals in `constants.py` |
+| Read external formats | `formats/` |
+| Prepare log-odds matrices and evaluate DNA | `compile.py`, `scoring.py` |
+| Assess shared-base preferences before search | `assessment/pair.py`, `joint.py`, and shared loss calculation in `terms.py` |
+| Propose and accept sequence edits | `search/engine.py`, `moves.py`, `policy.py`, `initialization.py`, `greedy.py`, `uniform.py` |
+| Record search progress and retained candidates | `search/recording.py`, `observation.py`, `retention.py` |
+| Select a fixed-size sequence portfolio | `selection.py`; supplied-pool entry point in `alternatives/portfolio.py` |
+| Rank site arrangements | `alternatives/api.py`, `pool.py`, `geometry.py` |
+| Build checked degenerate products | `variants/api.py`, `bounds.py`, `collection.py` |
+| Expand explicit sequence lists | `variants/expansion.py`, `expansion_collection.py` |
+| Design, score, and save a portfolio | `api.py` |
+| Encode, verify, and publish result bundles | `artifacts/encoding.py`, `decoding.py`, `snapshot.py`, `verification.py`, `publication.py` |
+| Bind a run to its distribution and runtime | `receipt.py`, `execution/release.py`, `workspace_io.py`, `workspace.py` |
+| Inspect saved results or a supplied candidate | `inspection/api.py`, `verify.py`, `project.py`, `supplied.py` |
+| Draw candidates and pre-search preferences | `inspection/render/`, with projections from `inspection/candidate_model.py` and `inspection/assessment/` |
+| Animate recorded searches | `playback/api.py`, `model.py`, `render.py`, `transition.py`, `media.py` |
+| Adapt command-line arguments and files | `cli/` |
 
-`scripts/check_architecture.py` enforces this direction for absolute and
-relative imports and fails on unknown first-party modules. Add a new layer only
-with an explicit architecture update and tests.
+## Preserve the boundaries
 
+- **Models and formats.** Public records are immutable and reject unsupported
+  fields. Models and constants import no higher layer. Format readers parse
+  inputs without choosing scientific policy.
+- **Scoring and search.** `scoring.py` defines matching and public scores.
+  `compile_scoring` checks motif widths and normalization; `compile_design` also
+  checks requested count. Both use the same matrices and problem identity.
+  Search observations and retention neither draw randomness nor alter decisions.
+- **Selection.** `selection.py` chooses unchanged, already-scored candidates.
+  Arrangement ranking scores supplied sequence-equivalence classes once and
+  cannot invoke search or publish artifacts. Distance-constrained portfolio
+  selection uses the complete supplied pool, not class representatives or
+  caller-supplied scores.
+- **Expansion.** Both variant operations reuse complete-sequence scoring and
+  never call search or arrangement selection. Explicit expansion retains every
+  passing evaluation. A degenerate product must pass for every encoded member;
+  its preliminary fixed-site check can reject an addition but cannot accept it.
+  Collection coordinators check every parent and aggregate limits before work,
+  and keep each library separate. Saved-library loading replays construction.
+- **Files and execution.** Artifacts bind byte identities, read bounded descriptor
+  snapshots, replay scores, and publish atomically without replacement. Runtime
+  receipts remain separate from result identity. Execution verifies the wheel,
+  its installed files, and the workspace through explicit paths.
+- **Inspection and rendering.** Inspection verifies results and projects scores.
+  Supplied-candidate inspection preserves the caller's rank without inventing a
+  search record. Candidate-to-problem checks in `candidate_model.py` also govern
+  playback frames. Renderers consume these data records without reading result
+  directories, rescoring, searching, or calling projection operations.
+  Pre-search projections retain model identity, placement, and regret in one
+  physical base frame; their renderer draws preferences without inventing DNA.
+- **Playback and CLI.** Playback verifies observations, binds saved states to the
+  scoring problem, and interpolates drawings without inventing intermediate
+  scores. HTML and video use the same states. CLI modules adapt files and
+  arguments to these operations without owning scientific calculations.
 
-Return to the [architecture overview](../../ARCHITECTURE.md).
-
-`variants/api.py` owns bounded single-parent admission, construction, and declared-version replay.
-`variants/bounds.py` supplies the necessary fixed-site quality rejection check;
-it never accepts a library or replaces complete-sequence scoring.
-`variants/collection.py` validates every collection member and aggregate work before
-coordinating that same constructor. `model/variant_collection.py` binds each
-separate library to its source representative; it does not merge templates.
+`scripts/check_architecture.py` enforces imports, including relative imports,
+and rejects undeclared first-party modules. Update the map and matching checks
+when introducing a responsibility. [Design contracts](../../DESIGN.md),
+[reliability](../../RELIABILITY.md), and [security](../../SECURITY.md) define the
+scoring, verification, and input-handling requirements.
