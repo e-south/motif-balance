@@ -52,8 +52,6 @@ to a minimum sequence difference. To select distinct arrangements instead, use
 by order, orientation and interval relationships. These are different ways to
 choose candidates for experimental comparison.
 
-The scores quantify agreement with supplied models. Regulatory activity also
-depends on context and must be measured experimentally. A bounded search gives
-the best candidates found within its budget; only complete enumeration proves
-an optimum. Read [interpretation](interpreting-results.md) for result fields
-and the biological scope of the returned sequences.
+Scores describe model agreement, not measured regulatory activity. A bounded
+search does not prove an optimum. Read [interpretation](interpreting-results.md)
+for result fields and the biological scope of the scores.

@@ -1,9 +1,9 @@
 # Run a first design
 
-Fit two motif preferences into one short sequence, save the result, then inspect
-where each motif matches. Start with the [README installation and input preparation](../README.md#1-install-and-prepare-the-profiles).
-That step supplies both the prepared profiles and `design.yaml`.
-For Python inputs, use the [Python tutorial](python-api.md).
+Start with the [README installation and input preparation](../README.md#1-install-and-prepare-the-profiles)
+to obtain the ArgR/Cra profiles and `design.yaml`. Use that request to check
+inputs, export figures, and compare search methods. For Python, use the
+[Python tutorial](python-api.md).
 
 ## 1. Check the inputs and run the search
 
@@ -25,8 +25,7 @@ uv run motif-balance inspect /tmp/motif-balance-result
 ```
 
 The best balance is approximately **0.855**: the weaker of the two best motif
-matches, scored relative to its model's possible range. This is a bounded search
-through the 25-base sequence space.
+matches, scored relative to its model's possible range.
 
 Use a new output directory when rerunning. The saved directory contains the
 request, input motifs, sequences, match tables and search record.

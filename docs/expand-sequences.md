@@ -1,9 +1,8 @@
 # Expand a collection into sequence lists
 
-A selected motif arrangement may be represented by more than one DNA sequence.
-Expansion returns nucleotide alternatives that keep the selected sites and meet
-your minimum balance. This supplies sequences for experimental comparison;
-scores above the floor can still differ.
+Expansion supplies nucleotide alternatives for each selected motif-site layout.
+Every returned sequence retains the sites and meets your minimum balance.
+Scores above the floor can still differ.
 
 ```bash
 # Keep each arrangement separate and require every sequence to meet the same floor.
@@ -11,7 +10,7 @@ uv run motif-balance expand collection.json --all --min-balance 0.8 --out expand
 ```
 
 The directory contains a FASTA and per-motif score table for each arrangement,
-plus `collection.json` with the complete handoff. Omit `--all` to expand the first
+plus `collection.json` with the complete record. Omit `--all` to expand the first
 representative, or select `--candidate 2`. A single-parent directory contains
 `sequences.fasta`, `scores.tsv`, and `expansion.json`. A missing arrangement stays
 missing. If any supplied parent is below the floor, the collection is refused
@@ -50,10 +49,9 @@ Hamming distance. Its explicit lists need not form a complete ambiguity product.
 For example, AA, AC, and CA may qualify while CC fails. Returning those three
 sequences is valid; writing MM would wrongly include CC.
 
-Use the separate [degenerate-template operation](diversify-sequences.md) only
-when a completely checked IUPAC product is the desired synthesis format.
-Its stricter output requirement can omit individually qualifying sequences.
-Never combine per-position bases from an explicit list into an unchecked template.
+For a template whose every combination has been checked, use the separate
+[degenerate-library operation](diversify-sequences.md). That extra requirement
+can exclude individually qualifying sequences.
 
 ## Python and verification
 
