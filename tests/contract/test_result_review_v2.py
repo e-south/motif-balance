@@ -112,7 +112,7 @@ def test_projection_separates_delivery_search_and_integrity(
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
+    design(pairwise_spec, method="exhaustive").write(bundle)
 
     inspection = inspect_result(bundle, kind="bundle")
 
@@ -302,7 +302,7 @@ def test_one_html_compositor_uses_result_reading_order_and_scrolls_wide_figures(
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
+    design(pairwise_spec, method="exhaustive").write(bundle)
     inspection = inspect_result(bundle, kind="bundle")
 
     html = render_html(inspection).decode()
@@ -570,7 +570,7 @@ def test_text_and_json_are_rendered_from_the_same_projection(
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
+    design(pairwise_spec, method="exhaustive").write(bundle)
     inspection = inspect_result(bundle, kind="bundle")
 
     text = render_text(inspection)
@@ -588,7 +588,7 @@ def test_inspection_contracts_reject_internally_inconsistent_projection_rows(
     pairwise_spec: DesignSpec,
 ) -> None:
     bundle = tmp_path / "bundle"
-    design(pairwise_spec).write(bundle)
+    design(pairwise_spec, method="exhaustive").write(bundle)
     inspection = inspect_result(bundle, kind="bundle")
     motif = inspection.problem.motifs[0]
     match = inspection.portfolio.candidates[0].matches[0]
@@ -814,7 +814,7 @@ def test_portfolio_view_keeps_limiting_motifs_when_columns_are_bounded(
         seed=7,
     )
     bundle = tmp_path / "bundle"
-    design(spec).write(bundle)
+    design(spec, method="exhaustive").write(bundle)
 
     svg = render_portfolio_svg(inspect_result(bundle, kind="bundle"))
     candidate_svg = render_candidate_svg(inspect_result(bundle, kind="bundle"))

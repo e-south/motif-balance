@@ -5,7 +5,7 @@ intent: Render recorded sequence states alongside best observed scores.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-26
+last_verified: 2026-09-27
 doc_type: how-to
 ---
 
@@ -16,6 +16,12 @@ shows how the selected motif matches change. Playback joins these views using
 [search observations](search-observations.md) from one run. It replays the
 observation before rendering, so altered sequence or score records fail validation.
 
+The basic HTML, SVG, and media commands work with the released package. The
+all-chain overlay, last-improvement excerpt, accelerating pacing, and
+`playback-inspection/v2` projection described below require the current source
+checkout. They are not included in PyPI 0.7.0. Use the
+[source installation](../installation.md#install-from-source) for those options.
+
 ## Export an observation
 
 The [example](../biological-example.md) creates an observation file.
@@ -23,9 +29,9 @@ For a file saved from your own `design_observed` call:
 
 ```bash
 # Create an interactive player from the recorded search states.
-motif-balance animate observation.json --out playback.html
+uv run motif-balance animate observation.json --out playback.html
 # Export the final recorded state as a vector figure.
-motif-balance animate observation.json --format svg --out final-frame.svg
+uv run motif-balance animate observation.json --format svg --out final-frame.svg
 ```
 
 HTML provides local playback controls. SVG exports the final recorded frame;
@@ -52,6 +58,11 @@ view it is labeled *B* with subscript “best” and evaluation count *e*. Balan
 *B(s)* is the minimum normalized motif score *qᵢ(s)* for DNA sequence *s*. The
 best-so-far value is the largest balance encountered through *e* evaluations.
 Scores stay at recorded values during a display transition.
+An optional `full_run_elapsed_seconds` field on the inspected view supplies a
+positive, finite measurement for the complete source run. Cropping preserves it,
+and the subtitle explicitly labels it as full-search elapsed time. It does not
+create per-frame timestamps. Omit it when timing was not measured.
+
 The larger canvas retains the same dimensions across frames; the duplex moves
 vertically as the number of forward- and reverse-strand matches changes.
 
@@ -83,6 +94,12 @@ should bound reads before loading bytes; the CLI does this automatically.
 combined frame records. Chain views use only snapshots that actually recorded
 that chain, rather than substituting incumbent-only checkpoints.
 Render functions consume that data without rerunning optimization themselves.
+Every displayed candidate, including gray search states, must match the declared
+DNA length, motif identities, directions, and positional probability records.
+A mismatched projection is rejected before rendering or loading a media encoder.
+These consistency checks do not replace replay of the search observation.
+
+## Source-checkout playback controls
 
 To show ongoing exploration behind the best sequence, use `--search-chain all`
 with `animate`, or pass `search_chain_id="all"` to `inspect_playback` in Python.
@@ -94,7 +111,13 @@ keeps the preceding recorded gray state at its original evaluation coordinate.
 No state is shown before it was recorded. The gray curve is not every evaluated
 proposal, and its hard-minimum balance differs from the smooth acceptance score.
 
-The twelve-model example ends its movie at the first recorded final-best score,
+Recording cadence matters for this overlay. `incumbent_evaluations` saves the best
+candidate only; chain snapshots are spaced across the complete evaluation budget.
+Dense early best-score checkpoints can therefore advance the colored DNA while
+the gray chains retain their initial state. Increasing playback speed or adding
+transitions does not recover the chain changes missing from the recording.
+
+The twelve-model example omits the chain overlay and ends its movie at the first recorded final-best score,
 using `view.until_last_improvement()` or `--until-last-improvement`. This selects
 an unchanged prefix and rescales the evaluation axis to its endpoint. It does not
 identify the exact discovery time between observations or change the full run's
@@ -102,7 +125,7 @@ budget. The HTML overview selects eight best-sequence frames. Gray placements ca
 change while the best sequence remains fixed. A best-scoring proposal need not
 be adopted by a chain, and snapshots do not include every evaluated proposal.
 
-The current projection is `playback-inspection/v2`. Earlier saved projections
+The source checkout produces `playback-inspection/v2`; PyPI 0.7.0 produces v1. Earlier saved projections
 remain bound to their producing version. Recreate them from the unchanged search
 observation with `inspect_playback`; there is no automatic projection conversion.
 
@@ -114,18 +137,18 @@ the `visualization` extra:
 
 ```bash
 # Install the optional image and video export dependencies.
-python -m pip install 'motif-balance[visualization]'
+uv add 'motif-balance[visualization]'
 # Encode the recorded states as an MP4 video.
-motif-balance animate observation.json --format mp4 --out playback.mp4
+uv run motif-balance animate observation.json --format mp4 --out playback.mp4
 ```
 
 Use `--fps` to set 1–30 frames per second. PNG accepts `--frame`; GIF and MP4
 show the recorded frame sequence.
 
-For smooth movement between saved states:
+For smooth movement with the **source-checkout controls** above:
 
 ```bash
-motif-balance animate observation.json --format mp4 --out smooth.mp4 \
+uv run motif-balance animate observation.json --format mp4 --out smooth.mp4 \
   --search-chain all --until-last-improvement \
   --fps 30 --transition-frames 26 --pacing accelerating --width 1400
 ```

@@ -18,5 +18,26 @@
     "mntR"
   ],
   "producer": "working source based on 9147a98f9ad1273461b705d991fb04e36d6be78d with expanded single-result budget limits",
-  "replay_package_version": "0.7.0"
+  "replay_package_version": "0.7.0",
+  "showcase_evaluations": [
+    8,
+    9,
+    17,
+    55,
+    87,
+    119,
+    202,
+    278,
+    288,
+    303,
+    326,
+    343,
+    782,
+    1242,
+    7664,
+    7716,
+    7739,
+    26633,
+    121534
+  ]
 }

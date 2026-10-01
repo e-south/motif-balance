@@ -95,8 +95,8 @@ starts, or the available evaluator budget if smaller.
 All methods use the same passive quality retention and exact target-hit
 accounting. Replay selects the recorded engine and rejects unknown identities
 or a relabeled trajectory. There is no automatic method selection.
-Annealed and greedy calls enumerate when the budget covers the complete space;
-those calls record `exhaustive_v1`. Random calls always draw with replacement.
+Only explicit `method="exhaustive"` calls enumerate and record `exhaustive_v1`.
+Annealed, greedy, and random calls remain bounded at every legal sequence length.
 See [methods](../methods.md#explicit-comparison-methods) for the complete policy.
 
 ## What is recorded

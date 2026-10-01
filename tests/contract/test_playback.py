@@ -52,6 +52,88 @@ def test_playback_rejects_false_record_and_missing_chain(observation):
             inspect_playback(observation, chain_id=bad)
 
 
+@pytest.mark.parametrize("field", ["length", "direction", "probabilities", "width"])
+def test_playback_rejects_frames_bound_to_another_problem(observation, field):
+    view = inspect_playback(observation)
+    raw = view.model_dump(mode="json")
+    if field == "length":
+        raw["problem"]["length"] += 1
+    else:
+        motif = raw["problem"]["motifs"][0]
+        if field == "direction":
+            motif["direction"] = "avoid"
+        elif field == "probabilities":
+            motif["probabilities"] = [[0.4, 0.2, 0.2, 0.2]] * motif["width"]
+        else:
+            motif["width"] += 1
+            motif["probabilities"].append(motif["probabilities"][0])
+            motif["probability_consensus"] += "A"
+            motif["score_maximizing_sequence"] += "A"
+    with pytest.raises(ValueError, match="problem"):
+        type(view).model_validate(raw)
+
+
+@pytest.mark.parametrize("chain", [None, 0, "all"])
+def test_playback_checks_identity_of_best_and_gray_candidates(observation, chain):
+    view = inspect_playback(observation, search_chain_id=chain)
+    raw = view.model_dump(mode="json")
+    frame = raw["frames"][-1]
+    candidate = (
+        frame["candidate"]
+        if chain is None
+        else frame["search_candidates"][-1]
+        if chain == "all"
+        else frame["search_candidate"]
+    )
+    candidate["candidate_id"] = "candidate-0000000000000000"
+    with pytest.raises(ValueError, match="problem"):
+        type(view).model_validate(raw)
+
+
+def test_media_rejects_unbound_projection_before_loading_encoder(observation, monkeypatch):
+    from motif_balance.playback import media
+
+    view = inspect_playback(observation)
+    wrong = view.model_copy(update={"problem": view.problem.model_copy(update={"length": 8})})
+
+    def unexpected_dependency(_name):
+        pytest.fail("invalid projections must fail before loading media dependencies")
+
+    monkeypatch.setattr(media, "_dependency", unexpected_dependency)
+    with pytest.raises(ValueError, match="problem"):
+        media.render_playback_media(wrong, format_name="mp4")
+
+
+def test_movie_validates_once_and_preserves_every_saved_drawing(observation, monkeypatch):
+    renderer = pytest.importorskip("resvg_py")
+    pytest.importorskip("PIL.Image")
+    from motif_balance.playback import media, render
+
+    view = inspect_playback(observation)
+    expected = [render.render_playback_svg(view, frame=i) for i in range(len(view.frames))]
+    actual_validate = render.validate_view
+    actual_raster = renderer.svg_to_bytes
+    validations = []
+    drawings = []
+
+    def checked(value):
+        validations.append(value)
+        return actual_validate(value)
+
+    def raster(**kwargs):
+        drawings.append(kwargs["svg_string"].encode())
+        return actual_raster(**kwargs)
+
+    monkeypatch.setattr(render, "validate_view", checked)
+    monkeypatch.setattr(media, "validate_view", checked)
+    monkeypatch.setattr(renderer, "svg_to_bytes", raster)
+    payload = media.render_playback_media(view, format_name="gif", width=320)
+    assert payload.startswith(b"GIF")
+    assert drawings == expected
+    # Dense movies must not revalidate the entire record for each saved drawing.
+    assert len(validations) == 1
+
+
 def test_render_is_valid_duplex_svg_and_self_contained_player(observation):
     view = inspect_playback(observation)
     svg = render_playback_svg(view, frame=0)
@@ -528,3 +610,16 @@ def test_all_chain_projection_refuses_ambiguous_or_changing_membership(observati
             )
     with pytest.raises(ValueError, match="best-sequence"):
         inspect_playback(observation, chain_id=0).until_last_improvement()
+
+
+def test_full_run_timing_is_optional_positive_and_retained_by_excerpt(observation):
+    view = inspect_playback(observation)
+    raw = view.model_dump(mode="json")
+    for invalid in (True, 0, -1, float("nan"), float("inf"), "60"):
+        with pytest.raises(ValueError):
+            type(view).model_validate({**raw, "full_run_elapsed_seconds": invalid})
+    timed = type(view).model_validate({**raw, "full_run_elapsed_seconds": 120.0})
+    excerpt = timed.until_last_improvement()
+    assert excerpt.full_run_elapsed_seconds == 120.0
+    assert "Full search: 2.0 min elapsed" in render_playback_svg(excerpt).decode()
+    assert "Full search:" not in render_playback_svg(view).decode()

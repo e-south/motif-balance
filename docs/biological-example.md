@@ -5,7 +5,7 @@ intent: Prepare biological profiles, search at fixed length, and inspect recorde
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-26
+last_verified: 2026-09-27
 doc_type: tutorial
 ---
 
@@ -13,9 +13,12 @@ doc_type: tutorial
 
 A motif describes alternative bases at each position. When twelve models share a 60-base sequence, their preferred windows may overlap and compete for the same bases. This example searches for DNA whose weakest relative match is strong.
 
-https://github.com/user-attachments/assets/11f7d777-e4dd-43aa-854c-24d4552d198d
+![Recorded best DNA and its motif matches](../examples/twelve-motifs/playback.gif)
 
-The eight gray traces follow the candidate sequences maintained by the search, with their faint motif placements behind the colored best DNA. Blue shows the highest balance encountered. Each motif score *qᵢ* is its normalized best match. Balance *B(s)* is the weakest score for sequence *s*, and *B* with subscript “best” is the largest balance encountered so far. The final candidate has balance **0.733**. [Inspect the final sequence](../examples/twelve-motifs/final-frame.png) for its nucleotide sequence and motif windows.
+The left panel follows improvement in the weakest motif match. The right panel shows the corresponding best DNA and its selected motif sites. Each motif score *qᵢ* is its normalized best match. Balance *B(s)* is the weakest score for sequence *s*, and *B* with subscript “best” is the largest balance encountered so far. The final candidate has balance **0.733**. [Inspect the final sequence](../examples/twelve-motifs/final-frame.png) for its nucleotide sequence and motif windows.
+
+The movie uses playback controls from the current source checkout, beyond the
+PyPI 0.7.0 release. The commands below use that checkout and its locked environment.
 
 ## Prepare the models
 
@@ -41,8 +44,8 @@ The request uses 655,360 complete candidate evaluations. The recorded search too
 
 At one tenth of this allowance, the same models and seed recovered balance 0.724. The longer request recovered 0.733. It starts afresh with schedules spread across the larger budget; it does not resume the earlier trajectory. This is one computational example, not an estimate of the improvement expected for other requests.
 
-The video plays directly in this GitHub page. A [GIF preview](../examples/twelve-motifs/playback.gif) and the [MP4 file](../examples/twelve-motifs/playback.mp4) are also available. Open `playback.html` for an eight-frame overview of the best sequences. The movie uses 33 saved observations through 125,497 evaluations, the first record of the final best score, and ends its axis there. The complete observation history and full-run runtime remain separate from this excerpt.
+The inline GIF previews the same movie; open the [full-resolution MP4](../examples/twelve-motifs/playback.mp4) for readable DNA and motif labels. Open generated `playback.html` for an eight-frame overview. Nineteen best-sequence states end at 121,534 evaluations, the first recorded final-best score. The original full observation and its runtime remain separate from this excerpt.
 
-The horizontal axis counts candidate evaluations on a logarithmic scale. Transitions start slowly and accelerate at 30 frames per second. They move and crossfade recorded drawings without supplying intermediate scored DNA. The eight gray traces share one run's budget and show sampled current candidates, not every evaluated proposal. A proposal can improve the best record without being adopted as a current candidate, so even these eight traces need not meet the best-so-far point. Viewing time does not represent search time.
+The horizontal axis counts candidate evaluations on a logarithmic scale. The subtitle reports the full run's measured elapsed time. No per-improvement wall-clock measurements were recorded. Motion starts slowly and accelerates at a 20-frame-per-second display rate; it does not represent elapsed search time. Transitions move and crossfade endpoint drawings without supplying intermediate scored DNA. Maintained search chains are omitted from this showcase, so its motion consistently represents the best sequence found so far.
 
 The final sequence establishes that these model scores were attained. It does not establish a best possible sequence or biological activity. To ask a different question, copy the request and change its DNA length, supplied models or evaluation allowance. To request distinct arrangements, use [collections](choose-alternatives.md).

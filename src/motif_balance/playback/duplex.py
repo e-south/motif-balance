@@ -100,6 +100,7 @@ def render_duplex(
     """Keep coordinates literal; logo probabilities and observed bases share one strand frame."""
     validate_candidate_projection(problem, candidate)
     left = left_margin(problem)
+    name_font = 26 if len(problem.motifs) > 8 else FONT
     primary = 36 + top_lanes * LANE
     complement = primary + 30
     motif_order = {motif.motif_id: i for i, motif in enumerate(problem.motifs)}
@@ -160,8 +161,16 @@ def render_duplex(
                 )
             )
         name = match.motif_id + (" (avoid)" if match.spec_direction == "avoid" else "")
-        parts.append(label(x - 7, y + 16, name, anchor="end", color=color))
-        parts.append(label(x + width + 7, y + 16, f"q={match.normalized_score:.2f}", color=color))
+        parts.append(label(x - 9, y + 18, name, anchor="end", color=color, size=name_font))
+        parts.append(
+            label(
+                x + width + 9,
+                y + 18,
+                f"q = {match.normalized_score:.2f}",
+                color=color,
+                size=name_font,
+            ).replace("q =", '<tspan font-style="italic">q</tspan> =')
+        )
         # Large sets share the same logo scale; repeated axes obscure the placements.
         if len(problem.motifs) <= 8:
             axis_x = x - 8
