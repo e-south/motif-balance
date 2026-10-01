@@ -1,15 +1,3 @@
----
-doc_id: motif-balance-architecture
-title: Motif Balance architecture
-intent: Define module responsibilities and dependency direction.
-audience: [maintainers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-20
-doc_type: explanation
-journey: [maintain]
----
-
 # Motif Balance architecture
 
 The package separates interpreting motif models, scoring DNA, proposing edits,

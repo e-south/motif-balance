@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-playback
-title: Show a recorded search
-intent: Render recorded sequence states alongside best observed scores.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: how-to
----
-
 # Show a recorded search
 
 A score curve shows whether search improves, while the corresponding DNA view

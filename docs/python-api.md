@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-python-tutorial
-title: Design and inspect from Python
-intent: Design DNA with source-attributed ArgR and Cra motif profiles.
-audience: [new users, API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-26
-doc_type: tutorial
----
-
 # Design and inspect from Python
 
 Start with the [README installation and input preparation](../README.md#1-install-and-prepare-the-profiles).

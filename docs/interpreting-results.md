@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-interpreting-results
-title: Interpreting Motif Balance results
-intent: Explain result fields, diagnostics, and the boundary of product claims.
-audience: [users, bundle consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: explanation
----
-
 # Interpreting Motif Balance results
 
 Verify a bundle before reading it. Then use each file for one question:

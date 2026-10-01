@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-docs-index
-title: Motif Balance documentation
-intent: Find instructions for sequence design and package maintenance.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: index
----
-
 # Motif Balance documentation
 
 Supply motif models and a DNA length, search for candidates, then inspect their
@@ -45,9 +34,7 @@ For integration, use the [API and CLI reference](reference/public-contract.md),
 [search observations](reference/search-observations.md),
 [search playback](reference/playback.md),
 [constrained portfolio selection](reference/portfolio-selection.md), and
-[execution records](reference/execution-receipts.md). The optional
-[claim-language checker](reference/claim-language.md) provides limited wording
-checks for exported results.
+[execution records](reference/execution-receipts.md).
 
 ## Maintain the package
 

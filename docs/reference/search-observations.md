@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-search-observations
-title: Observing search recovery
-intent: Explain bounded, passive search diagnostics and their replay contract.
-audience: [integrators, maintainers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: reference
----
-
 # Observing search recovery
 
 Use observations when an experiment needs to distinguish best-so-far recovery

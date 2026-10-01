@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-design-spec
-title: Design specification reference
-intent: Define directional design inputs and their resource bounds.
-audience: [API consumers, CLI users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-20
-doc_type: reference
----
-
 # Design specification reference
 
 A design request specifies which motifs to seek or avoid, how much DNA is

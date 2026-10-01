@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-biological-example
-title: Follow twelve motif preferences in one DNA search
-intent: Prepare biological profiles, search at fixed length, and inspect recorded improvement.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: tutorial
----
-
 # Follow twelve motif preferences in one DNA search
 
 A motif describes alternative bases at each position. When twelve models share a 60-base sequence, their preferred windows may overlap and compete for the same bases. This example searches for DNA whose weakest relative match is strong.

@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-concepts
-title: How balanced motif design works
-intent: Explain the design objective before its algorithms and output records.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-20
-doc_type: explanation
----
-
 # How balanced motif design works
 
 A motif model describes base preferences along a short DNA site. Scanning finds

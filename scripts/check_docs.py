@@ -4,7 +4,7 @@
 motif-balance
 scripts/check_docs.py
 
-Check documentation metadata, local links, and fenced blocks.
+Check documentation links, fenced blocks, and accessible banner routing.
 
 Module Author(s): Eric J. South
 Dunlop Lab
@@ -15,12 +15,9 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
-from datetime import date, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote
-
-import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ROOT_DOCS = [
@@ -30,59 +27,13 @@ ROOT_DOCS = [
     REPO_ROOT / "RELIABILITY.md",
     REPO_ROOT / "SECURITY.md",
 ]
-REQUIRED_KEYS = {
-    "doc_id",
-    "title",
-    "intent",
-    "audience",
-    "owner",
-    "status",
-    "last_verified",
-    "doc_type",
-}
-DOC_TYPES = {"tutorial", "how-to", "reference", "explanation", "decision", "index"}
-STATUSES = {"active", "accepted"}
 LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
-KNOWN_JOURNEYS = {
-    "install",
-    "assess",
-    "design",
-    "score",
-    "verify",
-    "inspect",
-    "integrate",
-    "maintain",
-}
-REQUIRED_JOURNEY_DOCS = {
-    "docs/quickstart.md": ("tutorial", {"install", "design", "verify"}),
-    "docs/score-sequences.md": ("how-to", {"score"}),
-    "docs/pair-assessment.md": ("how-to", {"assess"}),
-    "docs/reference/result-inspection.md": ("reference", {"inspect"}),
-    "docs/reference/public-contract.md": ("reference", {"integrate"}),
-    "ARCHITECTURE.md": ("explanation", {"maintain"}),
-}
 BANNER_PATH = REPO_ROOT / "assets" / "motif-balance-banner.svg"
 REPOSITORY_FILE_URLS = (
     "https://github.com/e-south/motif-balance/blob/main/",
     "https://github.com/e-south/motif-balance/tree/main/",
     "https://raw.githubusercontent.com/e-south/motif-balance/main/",
 )
-
-
-def frontmatter(path: Path) -> tuple[dict[str, object], str]:
-    """Read one complete Markdown YAML frontmatter block."""
-    text = path.read_text(encoding="utf-8")
-    lines = text.splitlines()
-    if not lines or lines[0] != "---":
-        raise ValueError("missing opening frontmatter delimiter")
-    try:
-        closing = lines.index("---", 1)
-    except ValueError as exc:
-        raise ValueError("missing closing frontmatter delimiter") from exc
-    parsed = yaml.safe_load("\n".join(lines[1:closing]))
-    if not isinstance(parsed, dict) or not all(isinstance(key, str) for key in parsed):
-        raise ValueError("frontmatter must be a YAML mapping with string keys")
-    return parsed, text
 
 
 def heading_anchors(text: str) -> set[str]:
@@ -149,93 +100,22 @@ def link_errors(path: Path, text: str) -> list[str]:
 
 
 def main() -> int:
-    """Run repository knowledge-integrity checks."""
+    """Check readable documentation without requiring administrative metadata."""
     errors: list[str] = []
-    doc_ids: dict[str, Path] = {}
-    metadata_by_path: dict[str, dict[str, object]] = {}
-    oldest_allowed = date.today() - timedelta(days=180)
-    docs = ROOT_DOCS + sorted((REPO_ROOT / "docs").rglob("*.md"))
-
+    docs = sorted(
+        set(ROOT_DOCS)
+        | set(REPO_ROOT.glob("*.md"))
+        | set((REPO_ROOT / "docs").rglob("*.md"))
+        | set((REPO_ROOT / "examples").rglob("*.md"))
+    )
     for path in docs:
-        try:
-            metadata, text = frontmatter(path)
-        except ValueError as exc:
-            errors.append(f"{path.relative_to(REPO_ROOT)}: {exc}")
+        if not path.is_file():
+            errors.append(f"{path.relative_to(REPO_ROOT)}: missing document")
             continue
-        relative_path = path.relative_to(REPO_ROOT).as_posix()
-        metadata_by_path[relative_path] = metadata
-        missing = REQUIRED_KEYS - metadata.keys()
-        if missing:
-            errors.append(
-                f"{path.relative_to(REPO_ROOT)}: missing keys {', '.join(sorted(missing))}"
-            )
-        for scalar_key in ("title", "intent", "owner"):
-            value = metadata.get(scalar_key)
-            if not isinstance(value, str) or not value.strip():
-                errors.append(f"{path.relative_to(REPO_ROOT)}: invalid {scalar_key}")
-        audience = metadata.get("audience")
-        if (
-            not isinstance(audience, list)
-            or not audience
-            or not all(isinstance(item, str) and item.strip() for item in audience)
-        ):
-            errors.append(f"{path.relative_to(REPO_ROOT)}: invalid audience")
-        doc_id = metadata.get("doc_id")
-        if not isinstance(doc_id, str) or not doc_id.strip():
-            errors.append(f"{path.relative_to(REPO_ROOT)}: invalid doc_id")
-        elif doc_id in doc_ids:
-            errors.append(
-                f"{path.relative_to(REPO_ROOT)}: duplicate doc_id also in "
-                f"{doc_ids[doc_id].relative_to(REPO_ROOT)}"
-            )
-        else:
-            doc_ids[doc_id] = path
-        if metadata.get("status") not in STATUSES:
-            errors.append(f"{path.relative_to(REPO_ROOT)}: invalid status")
-        if metadata.get("doc_type") not in DOC_TYPES:
-            errors.append(f"{path.relative_to(REPO_ROOT)}: invalid doc_type")
-        journey = metadata.get("journey")
-        if journey is not None and (
-            not isinstance(journey, list)
-            or not journey
-            or not all(isinstance(item, str) and item in KNOWN_JOURNEYS for item in journey)
-            or len(journey) != len(set(journey))
-        ):
-            errors.append(f"{path.relative_to(REPO_ROOT)}: invalid journey")
-        verified = metadata.get("last_verified")
-        if isinstance(verified, date):
-            verified_date = verified
-        elif isinstance(verified, str):
-            try:
-                verified_date = date.fromisoformat(verified)
-            except ValueError:
-                verified_date = None
-        else:
-            verified_date = None
-        if verified_date is None or verified_date > date.today():
-            errors.append(f"{path.relative_to(REPO_ROOT)}: invalid last_verified date")
-        elif verified_date < oldest_allowed:
-            errors.append(f"{path.relative_to(REPO_ROOT)}: stale last_verified date")
+        text = path.read_text(encoding="utf-8")
         if text.count("```") % 2:
             errors.append(f"{path.relative_to(REPO_ROOT)}: unbalanced fenced code blocks")
         errors.extend(link_errors(path, text))
-
-    for path, (expected_type, expected_journeys) in REQUIRED_JOURNEY_DOCS.items():
-        metadata = metadata_by_path.get(path)
-        if metadata is None:
-            errors.append(f"{path}: missing required journey document")
-            continue
-        if metadata.get("doc_type") != expected_type:
-            errors.append(f"{path}: journey document must be {expected_type}")
-        actual = metadata.get("journey")
-        if not isinstance(actual, list) or set(actual) != expected_journeys:
-            errors.append(f"{path}: journey must be {', '.join(sorted(expected_journeys))}")
-
-    additional_docs = sorted(
-        (set(REPO_ROOT.glob("*.md")) | set((REPO_ROOT / "examples").rglob("*.md"))) - set(docs)
-    )
-    for path in additional_docs:
-        errors.extend(link_errors(path, path.read_text(encoding="utf-8")))
 
     try:
         banner = ET.parse(BANNER_PATH).getroot()
@@ -258,10 +138,7 @@ def main() -> int:
         for error in errors:
             print(f"- {error}")
         return 1
-    print(
-        f"Documentation integrity: ok ({len(docs)} metadata records; "
-        f"links in {len(docs) + len(additional_docs)} documents)"
-    )
+    print(f"Documentation integrity: ok (links and fenced blocks in {len(docs)} documents)")
     return 0
 
 

@@ -1,15 +1,3 @@
----
-doc_id: motif-balance-quickstart
-title: Run a first design
-intent: Design and inspect DNA using the ArgR and Cra transcription-factor profiles.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: tutorial
-journey: [install, design, verify]
----
-
 # Run a first design
 
 Fit two motif preferences into one short sequence, save the result, then inspect

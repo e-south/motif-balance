@@ -1,16 +1,3 @@
----
-doc_id: motif-balance-portfolio-selection
-title: Select a differentiated portfolio
-intent: Select and replay a full supplied-pool portfolio under explicit separation and architecture requirements.
-audience: [API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: reference
-journey: [integrate]
-
----
-
 # Select a differentiated portfolio
 
 Use `motif_balance.alternatives.select_portfolio(sequences, spec, policy)` when

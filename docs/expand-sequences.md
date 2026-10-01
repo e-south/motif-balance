@@ -1,15 +1,3 @@
----
-doc_id: motif-balance-expansion
-title: Expand a collection into qualifying sequence lists
-intent: Obtain nucleotide alternatives for each selected motif-site layout.
-audience: [users, API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: how-to
-journey: [design, score]
----
-
 # Expand a collection into sequence lists
 
 A selected motif arrangement may be represented by more than one DNA sequence.

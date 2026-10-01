@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-installation
-title: Install Motif Balance
-intent: Install the package without a research workspace.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: how-to
----
-
 # Install Motif Balance
 
 Motif Balance supports Python 3.12–3.14 on Linux and macOS. The package includes

@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-reliability
-title: Motif Balance reliability contract
-intent: Define determinism, bounded execution, artifact integrity, and degraded behavior.
-audience: [maintainers, bundle consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-20
-doc_type: reference
----
-
 # Motif Balance reliability contract
 
 ## Determinism

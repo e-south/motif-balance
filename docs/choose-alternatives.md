@@ -1,16 +1,3 @@
----
-doc_id: motif-balance-choose-alternatives
-title: Choose different motif arrangements
-intent: Select representatives with different motif-site arrangements from retained sequences.
-audience: [users, API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: how-to
-journey: [integrate]
-
----
-
 # Choose different motif arrangements
 
 A collection contains sequences whose selected motif matches have different

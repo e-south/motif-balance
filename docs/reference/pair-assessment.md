@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-assessment-reference
-title: Pair and joint assessment reference
-intent: Define the calculation, returned records and validation limits.
-audience: [API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: reference
----
-
 # Pair and joint assessment reference
 
 ## Read the returned profile

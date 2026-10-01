@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-information-architecture
-title: Information architecture
-intent: Locate the records that define inputs, evaluations and results.
-audience: [maintainers, API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-20
-doc_type: reference
----
-
 # Information architecture
 
 A design request defines the motif models and available DNA. An evaluation

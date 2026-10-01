@@ -1,16 +1,3 @@
----
-doc_id: motif-balance-production-pairwise-example
-title: Bounded pairwise search example
-intent: Exercise the bounded annealed engine through the public CLI and bundle contract.
-audience:
-  - users
-  - maintainers
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: tutorial
----
-
 # Bounded pairwise search example
 
 Search for eight distinct 12-base sequences satisfying two synthetic `seek`

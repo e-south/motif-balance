@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-architecture-ranking
-title: Architecture grouping and ranking
-intent: Define the calculation, returned records and validation limits.
-audience: [API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: reference
----
-
 # Architecture grouping and ranking
 
 ## Reuse the scoring context explicitly

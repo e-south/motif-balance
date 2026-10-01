@@ -1,15 +1,3 @@
----
-doc_id: motif-balance-release
-title: Prepare and publish a release
-intent: Verify installable distributions and publish the reviewed files.
-audience:
-  - maintainers
-owner: Eric J. South, Dunlop Lab
-status: active
-last_verified: 2026-09-21
-doc_type: how-to
----
-
 # Prepare and publish a release
 
 Build a wheel and source distribution for the same version, test their installed

@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-limitations
-title: Motif Balance limitations
-intent: Bound software claims and identify unsupported uses.
-audience: [users, integrators]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-20
-doc_type: explanation
----
-
 # Motif Balance limitations
 
 - Results are conditional on the supplied motif models, background,

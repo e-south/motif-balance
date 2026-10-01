@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-design-contracts
-title: Design contracts
-intent: State scientific invariants and change requirements.
-audience: [maintainers, API consumers]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-20
-doc_type: reference
----
-
 # Design contracts
 
 Scoring, search and selection have separate responsibilities. A user should be

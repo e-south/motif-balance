@@ -1,16 +1,3 @@
----
-doc_id: motif-balance-public-contract
-title: Motif Balance public contract
-intent: Define the supported scientific API, ordinary CLI, and artifact formats.
-audience: [API consumers, integrators]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-10-01
-doc_type: reference
-journey: [integrate]
-
----
-
 # Motif Balance public contract
 
 `motif_balance.variants.expand` and `expand_collection`, and the `expand` CLI,
@@ -104,9 +91,6 @@ input, replay, provenance and rendering boundaries.
 Renderers, conversion helpers, bundle readers, and execution attestation remain
 deliberate submodule or CLI surfaces. They are absent from the top-level
 scientific facade and may evolve with their versioned artifact schemas.
-
-The optional [claim-language check](claim-language.md) flags a bounded set of
-wording hazards. It does not assess evidence or decide whether a claim is valid.
 
 The explicit `motif_balance.assessment` module exports `assess_motifs`/`JointAssessment` for bounded two-to-four-model
 exact joint arrangements, alongside `assess_pair` and

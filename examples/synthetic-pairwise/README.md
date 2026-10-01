@@ -1,16 +1,3 @@
----
-doc_id: motif-balance-exhaustive-pairwise-example
-title: Exhaustive pairwise example
-intent: Exercise the exact-small-space path through the public CLI and bundle contract.
-audience:
-  - users
-  - maintainers
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: tutorial
----
-
 # Exhaustive pairwise example
 
 The current `design-spec/v3` request supplies two `seek` requirements. Change a

@@ -1,14 +1,3 @@
----
-doc_id: motif-balance-motif-models
-title: Supply motif models
-intent: Prepare explicit probability models from count or probability matrices.
-audience: [users]
-owner: Motif Balance maintainers
-status: active
-last_verified: 2026-09-21
-doc_type: how-to
----
-
 # Supply motif models
 
 Start with transcription-factor motif profiles or other DNA preference models
