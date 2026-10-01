@@ -3,8 +3,8 @@
 Supply motif models and a DNA length. Motif Balance searches for sequences that
 strengthen the weakest desired match while optionally limiting unwanted matches.
 Inspect the recovered sites, choose different arrangements, then expand each
-selected layout into nucleotide alternatives. Scores describe agreement with the supplied
-models, not measured binding.
+layout into nucleotide alternatives. Scores describe model agreement, not measured
+binding.
 
 [Documentation](https://github.com/e-south/motif-balance/blob/main/docs/README.md) ·
 [Supply motifs](https://github.com/e-south/motif-balance/blob/main/docs/motif-models.md) ·
@@ -63,9 +63,9 @@ is scanned on both strands.
 uv run motif-balance collect result --count 2 --out collection.json
 ```
 
-The representatives score about **0.855** and **0.801**. Collection selection uses
-the retained search pool and reports any shortfall. It does not run another search.
-The saved collection carries its sequences, motif models, and selected sites.
+The representatives score about **0.855** and **0.801**. Selection uses the retained
+search pool and reports any shortfall. The saved collection carries its sequences,
+motif models, and selected sites.
 [Arrangement definitions](https://github.com/e-south/motif-balance/blob/main/docs/choose-alternatives.md)
 explain which differences count.
 
@@ -87,23 +87,21 @@ yield fewer alternatives.
 explains the score floor and work limits. For synthesis as a checked ambiguity
 template, use the separate [degenerate-library operation](https://github.com/e-south/motif-balance/blob/main/docs/diversify-sequences.md).
 
-Use a new output name when repeating a step. For custom motifs, start with
-[motif inputs](https://github.com/e-south/motif-balance/blob/main/docs/motif-models.md).
-For notebooks and programmable workflows, use the
-[Python tutorial](https://github.com/e-south/motif-balance/blob/main/docs/python-api.md).
-[Installation](https://github.com/e-south/motif-balance/blob/main/docs/installation.md)
-also covers ordinary pip and optional video export.
+Use a new output name when repeating a step. The
+[Python tutorial](https://github.com/e-south/motif-balance/blob/main/docs/python-api.md)
+uses the same example in code. [Installation](https://github.com/e-south/motif-balance/blob/main/docs/installation.md)
+covers pip and optional video export.
 
 ## Inspect a larger design
 
 The [twelve-model example](https://github.com/e-south/motif-balance/blob/main/examples/twelve-motifs/README.md)
-shows a recorded search in 60-base DNA. Playback connects saved states with smooth
-motion; displayed scores remain those of recorded sequences. The best-so-far chart is on the left; the continuous duplex and
-its strand-aligned motif windows are on the right.
+shows improvements during a recorded search in 60-base DNA. The chart follows
+the best balance found; the duplex shows that sequence's motif matches. Smooth
+transitions connect recorded states without adding evaluated sequences.
 
 ![Recorded improvements in the twelve-model search](https://github.com/e-south/motif-balance/raw/refs/heads/main/examples/twelve-motifs/playback.gif)
 
 Python 3.12–3.14 · Linux and macOS · [MIT license](https://github.com/e-south/motif-balance/blob/main/LICENSE) · [Contributing](https://github.com/e-south/motif-balance/blob/main/CONTRIBUTING.md)
 
 For study data, reproduction, and citation, use the
-[Motif Balance Study](https://gitlab.com/dunloplab/motif-balance-study) in the Dunlop lab GitLab group.
+[Motif Balance Study](https://gitlab.com/dunloplab/motif-balance-study).

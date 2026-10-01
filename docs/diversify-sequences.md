@@ -1,21 +1,16 @@
 # Construct checked degenerate libraries
 
-For explicit lists that retain every qualifying sequence tested within a bounded
-expansion, use [expand](expand-sequences.md). This page describes the separate
-IUPAC-product operation. Its requirement that every combination pass can exclude
-individually qualifying sequences.
-
-After choosing a design, you can vary its nucleotides while retaining the selected
-motif sites. This complements [arrangement selection](choose-alternatives.md),
-which chooses different relative site arrangements from saved candidates.
+Use `diversify` to build an IUPAC template whose every encoded sequence meets
+your score requirement and retains the selected motif sites. Requiring all
+combinations to pass can exclude individually qualifying sequences. For an
+explicit sequence list, use [expansion](expand-sequences.md).
 
 ```bash
 # Expand every arrangement in the saved collection above one absolute quality floor.
 uv run motif-balance diversify collection.json --all --min-balance 0.8 --out variants
 ```
 
-Each arrangement receives its own checked nucleotide library. The new directory
-contains `collection.json` with the original selection and complete libraries,
+The output directory contains `collection.json` with the original selection and libraries,
 plus a FASTA, score table, and substitution map for each arrangement. Templates
 remain separate because merging their allowed bases could encode unchecked DNA.
 A missing arrangement remains missing. If a parent fails the requested quality
@@ -132,8 +127,6 @@ Preflight checks every parent before constructing any library or writing output.
 Conservative work estimates use all editable single options and the library cap;
 they are not elapsed time or the number of evaluations actually performed.
 These evaluations are separate from the original search allowance.
-Explicit rescanning is authoritative; no information-content heuristic substitutes for it.
-
 
 ## Verify a saved library
 
@@ -157,7 +150,6 @@ For an already parsed record, use `verify_library`. It checks the complete recor
 before replay, including nested summaries and integer effort counts. A copied
 Python object is not assumed to remain valid. Producer-version and build-lock
 fields remain recorded declarations, not cryptographically authenticated history.
-
 
 The current format is `variant-library/v3`, with exactly one quality rule and an
 explicit construction order. Version 1 libraries require their producing

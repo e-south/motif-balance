@@ -1,10 +1,8 @@
 # Motif Balance documentation
 
-Supply motif models and a DNA length, search for candidates, then inspect their
-motif matches. Select different arrangements and obtain nucleotide alternatives
-within each layout. Start with the [ArgR/Cra walkthrough](../README.md#try-a-design)
-for commands that carry saved results between steps. Use the task guides to
-change inputs, choose outputs, or interpret the returned scores.
+Start with the [ArgR/Cra walkthrough](../README.md#try-a-design) to design DNA,
+select arrangements, and expand their sequences. Use the guides below to change
+inputs, choose outputs, or interpret scores.
 
 ## Design and inspect DNA
 
@@ -27,7 +25,7 @@ change inputs, choose outputs, or interpret the returned scores.
 [Concepts](concepts.md) explains the balanced objective.
 [Methods](methods.md) defines scoring and search.
 [Pair assessment](pair-assessment.md) examines shared-base preferences before
-sequence search. [Interpretation](interpreting-results.md) explains the scores and their biological scope.
+sequence search.
 
 For integration, use the [API and CLI reference](reference/public-contract.md),
 [search observations](reference/search-observations.md),

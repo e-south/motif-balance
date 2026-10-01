@@ -3,7 +3,7 @@
 Design 25-base DNA with matches to the *Escherichia coli* transcription factors
 ArgR and Cra. Their profiles span 25 and 14 positions, so matches must overlap
 within this length. The [top-level example](../../README.md#try-a-design)
-follows design, inspection, collection selection, and diversification at the
+follows design, inspection, collection selection, and sequence expansion at the
 command line. The [Python tutorial](../../docs/python-api.md) uses the same models
 and request.
 
@@ -34,7 +34,7 @@ uv run motif-balance design examples/argr-cra/design.yaml --check
 uv run motif-balance design examples/argr-cra/design.yaml --out /tmp/argr-cra-result
 ```
 
-The repository distributes the preparation recipe and source identifiers.
-Source and prepared matrices stay in the ignored `inputs/` directory because
-we have not established redistribution terms for the publisher's dataset.
+Source and prepared matrices stay in the ignored `inputs/` directory. The
+repository distributes the recipe and source identifiers because the dataset's
+redistribution terms have not been established.
 Use a new `--out` directory when rerunning preparation.
