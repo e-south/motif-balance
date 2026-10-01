@@ -6,7 +6,6 @@ examples/argr-cra/prepare_inputs.py
 Download and verify the publisher's ArgR/Cra records, then prepare local models.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ tests/contract/test_consolidation_contract.py
 Verify consolidation contract behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

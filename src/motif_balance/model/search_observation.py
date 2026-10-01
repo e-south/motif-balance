@@ -6,7 +6,6 @@ src/motif_balance/model/search_observation.py
 Bounded, opt-in observations of an unchanged directional search.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

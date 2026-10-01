@@ -7,7 +7,6 @@ scripts/check_docs.py
 Check documentation links, fenced blocks, and accessible banner routing.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -7,7 +7,6 @@ scripts/release_attestation.py
 Create and verify immutable Motif Balance prerelease attestations.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

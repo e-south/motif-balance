@@ -6,7 +6,6 @@ src/motif_balance/alternatives/portfolio.py
 Score a supplied pool and select an explicitly constrained full portfolio.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

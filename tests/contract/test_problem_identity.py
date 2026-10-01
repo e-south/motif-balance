@@ -6,7 +6,6 @@ tests/contract/test_problem_identity.py
 Verify problem identity behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

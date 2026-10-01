@@ -6,7 +6,6 @@ src/motif_balance/compile.py
 Validate scoring requests and compile motif log odds and attainable score ranges.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

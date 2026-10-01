@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/variants.py
 Render supplied diversification records without scoring or modifying sequences.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

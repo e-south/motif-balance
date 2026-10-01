@@ -6,7 +6,6 @@ src/motif_balance/model/__init__.py
 Stable model imports; implementations are grouped by contract responsibility.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

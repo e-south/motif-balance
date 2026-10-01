@@ -6,7 +6,6 @@ src/motif_balance/search/policy.py
 Define smooth-minimum guidance, cooling, and edit probabilities for annealed search.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

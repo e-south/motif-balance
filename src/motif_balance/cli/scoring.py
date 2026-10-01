@@ -6,7 +6,6 @@ src/motif_balance/cli/scoring.py
 Score one supplied DNA sequence against an explicit design specification.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ tests/contract/test_release_workflow.py
 Static contracts for the public-repository prerelease workflow.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

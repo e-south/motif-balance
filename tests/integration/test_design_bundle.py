@@ -6,7 +6,6 @@ tests/integration/test_design_bundle.py
 Verify design bundle behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

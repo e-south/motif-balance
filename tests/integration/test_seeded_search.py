@@ -6,7 +6,6 @@ tests/integration/test_seeded_search.py
 Verify seeded search behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

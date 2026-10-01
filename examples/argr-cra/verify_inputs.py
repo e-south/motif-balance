@@ -6,7 +6,6 @@ examples/argr-cra/verify_inputs.py
 Verify the ArgR and Cra models against their attributed numerical source data.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/model/execution.py
 Release-bound execution receipts and workspace resources.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

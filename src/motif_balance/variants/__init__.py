@@ -6,7 +6,6 @@ src/motif_balance/variants/__init__.py
 Post-design, per-motif score-constrained sequence alternatives.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

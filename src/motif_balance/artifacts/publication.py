@@ -6,7 +6,6 @@ src/motif_balance/artifacts/publication.py
 Atomic no-replace bundle publication with post-publication replay.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

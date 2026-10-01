@@ -6,7 +6,6 @@ src/motif_balance/playback/duplex.py
 Draw compact strand-aligned DNA and information logos from inspected matches.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

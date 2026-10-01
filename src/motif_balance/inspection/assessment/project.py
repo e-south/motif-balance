@@ -6,7 +6,6 @@ src/motif_balance/inspection/assessment/project.py
 Bind the existing assessment calculation to inspectable physical-coordinate terms.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -1,4 +1,13 @@
-"""Download the pinned probability records and prepare the twelve example models."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+examples/twelve-motifs/prepare_inputs.py
+
+Download the pinned probability records and prepare the twelve example models.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 import argparse
 import hashlib

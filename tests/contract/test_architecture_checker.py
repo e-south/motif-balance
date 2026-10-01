@@ -6,7 +6,6 @@ tests/contract/test_architecture_checker.py
 Verify architecture checker behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

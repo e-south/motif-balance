@@ -1,4 +1,13 @@
-"""The arrangement guide continues from the real ArgR/Cra saved design."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_architecture_selection_example.py
+
+The arrangement guide continues from the real ArgR/Cra saved design.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 import re
 import subprocess

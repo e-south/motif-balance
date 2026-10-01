@@ -6,7 +6,6 @@ src/motif_balance/cli/output.py
 Write review outputs without overwriting existing files or result bundles.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

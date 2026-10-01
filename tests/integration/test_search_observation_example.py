@@ -6,7 +6,6 @@ tests/integration/test_search_observation_example.py
 The observation guide is a file-free public caller journey.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/svg_primitives.py
 Provide escaped SVG text, stable identifiers, and shared visual primitives.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

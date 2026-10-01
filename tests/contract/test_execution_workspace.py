@@ -6,7 +6,6 @@ tests/contract/test_execution_workspace.py
 Verify execution workspace behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

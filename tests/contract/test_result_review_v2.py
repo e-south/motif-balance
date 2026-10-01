@@ -6,7 +6,6 @@ tests/contract/test_result_review_v2.py
 Verify result review v2 behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

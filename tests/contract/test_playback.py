@@ -6,7 +6,6 @@ tests/contract/test_playback.py
 Playback preserves verified recorded states and refuses misleading inputs.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

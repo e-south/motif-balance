@@ -6,7 +6,6 @@ src/motif_balance/variants/expansion.py
 Bounded expansion that retains every qualifying sequence it evaluates.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

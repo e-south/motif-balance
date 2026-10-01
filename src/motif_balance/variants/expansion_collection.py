@@ -6,7 +6,6 @@ src/motif_balance/variants/expansion_collection.py
 Admit the whole collection before sequentially expanding its members.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

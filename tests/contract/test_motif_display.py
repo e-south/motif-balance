@@ -6,7 +6,6 @@ tests/contract/test_motif_display.py
 Check the compact motif display without changing scientific records.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

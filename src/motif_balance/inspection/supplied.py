@@ -6,7 +6,6 @@ src/motif_balance/inspection/supplied.py
 Replay one caller-owned candidate through the existing score and projection authorities.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

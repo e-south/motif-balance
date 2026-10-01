@@ -6,7 +6,6 @@ src/motif_balance/variants/collection.py
 Validate a whole selected collection before expanding any member.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

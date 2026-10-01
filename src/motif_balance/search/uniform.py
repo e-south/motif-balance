@@ -6,7 +6,6 @@ src/motif_balance/search/uniform.py
 Independent whole-sequence sampling under the shared scoring and retention contract.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -1,4 +1,13 @@
-"""Single-output searches retain exact winners without keeping every match record."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_single_output_retention.py
+
+Single-output searches retain exact winners without keeping every match record.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 import pytest
 from pydantic import ValidationError

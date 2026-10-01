@@ -6,7 +6,6 @@ src/motif_balance/assessment/pair.py
 Bounded pair profiles with deterministic placement equivalence.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

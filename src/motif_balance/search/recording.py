@@ -6,7 +6,6 @@ src/motif_balance/search/recording.py
 Count evaluations and retain deterministic best candidates and search checkpoints.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

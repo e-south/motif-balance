@@ -6,7 +6,6 @@ tests/contract/test_variants.py
 Diversification must verify the full Cartesian library and preserve selected sites.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

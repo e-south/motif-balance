@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/assessment.py
 Display one inspected arrangement without rescoring models or drawing a candidate.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

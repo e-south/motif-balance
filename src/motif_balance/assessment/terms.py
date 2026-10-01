@@ -6,7 +6,6 @@ src/motif_balance/assessment/terms.py
 Shared column-regret calculation for pair and joint assessments.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/execution/workspace_io.py
 Resource reads detect path substitution and verify the recorded digest.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

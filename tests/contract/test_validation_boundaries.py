@@ -6,7 +6,6 @@ tests/contract/test_validation_boundaries.py
 Verify validation boundaries behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -1,4 +1,13 @@
-"""Smooth display motion between saved states, without interpolating scientific values."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+src/motif_balance/playback/transition.py
+
+Smooth display motion between saved states, without interpolating scientific values.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 import math
 from copy import deepcopy

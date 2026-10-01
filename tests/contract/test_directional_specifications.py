@@ -6,7 +6,6 @@ tests/contract/test_directional_specifications.py
 Verify directional specifications behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

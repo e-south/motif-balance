@@ -6,7 +6,6 @@ src/motif_balance/search/retention.py
 Bounded hash-priority retention; no RNG or alternate scoring authority.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/model/selection.py
 Define immutable policies and results for constrained selection from supplied DNA.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -1,4 +1,13 @@
-"""Preserve verified products while separating limits from score and site failures."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_variant_precheck.py
+
+Preserve verified products while separating limits from score and site failures.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 from pathlib import Path
 

@@ -6,7 +6,6 @@ src/motif_balance/playback/player.py
 Provide local, accessible controls for recorded SVG search frames.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

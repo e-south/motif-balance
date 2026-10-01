@@ -6,7 +6,6 @@ src/motif_balance/formats/motif.py
 Read motif probabilities and convert JASPAR counts with recorded preparation rules.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

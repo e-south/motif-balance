@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/text.py
 Summarize verified design results and provenance in readable terminal text.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

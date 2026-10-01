@@ -6,7 +6,6 @@ tests/contract/test_assessment_inspection.py
 Pre-search diagrams explain local conflict without inventing candidate sequences.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/logo_shapes.py
 Shared information-height Arial glyphs for candidate and pre-search views.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

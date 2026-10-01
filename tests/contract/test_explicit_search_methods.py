@@ -1,4 +1,13 @@
-"""Requested methods remain explicit even when the budget covers a tiny space."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/contract/test_explicit_search_methods.py
+
+Requested methods remain explicit even when the budget covers a tiny space.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 from __future__ import annotations
 

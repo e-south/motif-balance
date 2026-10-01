@@ -6,7 +6,6 @@ tests/contract/test_bottleneck_selection.py
 Finite-pool selection is checked against literal exhaustive subsets.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

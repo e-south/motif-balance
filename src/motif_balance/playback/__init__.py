@@ -6,7 +6,6 @@ src/motif_balance/playback/__init__.py
 Replay bounded search observations as compact molecular views and animation.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

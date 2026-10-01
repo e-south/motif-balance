@@ -6,7 +6,6 @@ src/motif_balance/formats/collection.py
 Read and serialize the inputs and selected members of a saved collection.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

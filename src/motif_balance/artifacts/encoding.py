@@ -6,7 +6,6 @@ src/motif_balance/artifacts/encoding.py
 Canonical artifact bytes and content identities.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

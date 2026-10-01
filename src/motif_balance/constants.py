@@ -6,7 +6,6 @@ src/motif_balance/constants.py
 Define shared schema identities, search versions, and bounded resource limits.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

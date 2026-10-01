@@ -6,7 +6,6 @@ src/motif_balance/inspection/assessment/model.py
 Path-free column evidence for one pre-search arrangement; never a candidate.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

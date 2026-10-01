@@ -6,7 +6,6 @@ src/motif_balance/model/search.py
 Compact checkpoints and search diagnostics, without proposal history.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

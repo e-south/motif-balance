@@ -6,7 +6,6 @@ src/motif_balance/cli/assessment.py
 Read supplied motifs and report pair or bounded joint base conflicts.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/inspection/render/candidate.py
 Render one inspected DNA candidate using its selected motif matches.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/assessment/__init__.py
 Assess shared-base preferences before sequence search.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

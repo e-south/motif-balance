@@ -6,7 +6,6 @@ tests/contract/test_receipt.py
 Verify receipt behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/receipt.py
 Build and validate runtime receipts that bind a design to its inputs and software.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

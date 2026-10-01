@@ -6,7 +6,6 @@ tests/contract/test_formats.py
 Verify formats behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

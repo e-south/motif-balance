@@ -6,7 +6,6 @@ src/motif_balance/assessment/joint.py
 Exact local-regret assessment for two to four desired motifs.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

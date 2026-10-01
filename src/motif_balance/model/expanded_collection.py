@@ -6,7 +6,6 @@ src/motif_balance/model/expanded_collection.py
 Bind each explicit sequence expansion to its selected collection member.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

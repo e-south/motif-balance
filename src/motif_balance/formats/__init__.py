@@ -6,7 +6,6 @@ src/motif_balance/formats/__init__.py
 Load design specifications and convert motif files into validated models.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

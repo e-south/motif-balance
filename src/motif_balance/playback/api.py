@@ -6,7 +6,6 @@ src/motif_balance/playback/api.py
 Replay recorded searches and project their actual DNA states for playback.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

@@ -6,7 +6,6 @@ src/motif_balance/formats/variants.py
 Concrete sequence and score exports for a checked variant library.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

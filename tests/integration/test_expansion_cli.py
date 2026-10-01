@@ -1,4 +1,13 @@
-"""The expansion handoff exports all passing tests without an ambiguity template."""
+"""
+--------------------------------------------------------------------------------
+motif-balance
+tests/integration/test_expansion_cli.py
+
+The expansion handoff exports all passing tests without an ambiguity template.
+
+Module Author(s): Eric J. South
+--------------------------------------------------------------------------------
+"""
 
 import json
 

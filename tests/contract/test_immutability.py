@@ -6,7 +6,6 @@ tests/contract/test_immutability.py
 Verify immutability behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

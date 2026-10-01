@@ -6,7 +6,6 @@ tests/contract/test_candidate_projection_render.py
 Verify candidate projection render behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

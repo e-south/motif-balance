@@ -6,7 +6,6 @@ tests/contract/test_spec_loading.py
 Verify spec loading behavior.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

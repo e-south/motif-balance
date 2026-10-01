@@ -6,7 +6,6 @@ src/motif_balance/playback/model.py
 Describe bounded, verified search frames for presentation.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

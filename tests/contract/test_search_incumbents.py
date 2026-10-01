@@ -6,7 +6,6 @@ tests/contract/test_search_incumbents.py
 Exact incumbent receipts observe evaluator calls, not invented chain states.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 

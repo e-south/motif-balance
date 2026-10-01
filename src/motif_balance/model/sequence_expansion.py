@@ -6,7 +6,6 @@ src/motif_balance/model/sequence_expansion.py
 Explicit sequence lists and compact, replayable expansion decisions.
 
 Module Author(s): Eric J. South
-Dunlop Lab
 --------------------------------------------------------------------------------
 """
 
