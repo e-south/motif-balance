@@ -103,8 +103,7 @@ its strand-aligned motif windows are on the right.
 
 ![Recorded improvements in the twelve-model search](https://github.com/e-south/motif-balance/raw/refs/heads/main/examples/twelve-motifs/playback.gif)
 
-Motif Balance supports Python 3.12–3.14 on Linux and macOS.
-See [Contributing](https://github.com/e-south/motif-balance/blob/main/CONTRIBUTING.md)
-for development and [LICENSE](https://github.com/e-south/motif-balance/blob/main/LICENSE)
-for software reuse. [Cite Motif Balance](https://github.com/e-south/motif-balance/blob/main/CITATION.cff)
-with the version used in your analysis.
+Python 3.12–3.14 · Linux and macOS · [MIT license](https://github.com/e-south/motif-balance/blob/main/LICENSE) · [Contributing](https://github.com/e-south/motif-balance/blob/main/CONTRIBUTING.md)
+
+For study data, reproduction, and citation, use the
+[Dunlop lab study companion](https://gitlab.com/dunloplab/motif-balance-companion).
