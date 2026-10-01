@@ -1,103 +1,79 @@
-"""
---------------------------------------------------------------------------------
-motif-balance
-tests/integration/test_architecture_selection_example.py
-
-Selection works with a supplied pool and a verified, locally generated bundle.
-
-Module Author(s): Eric J. South
-Dunlop Lab
---------------------------------------------------------------------------------
-"""
+"""The arrangement guide continues from the real ArgR/Cra saved design."""
 
 import re
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from motif_balance import design
+from motif_balance.formats.design import load_design_spec
+
+
+@pytest.fixture
+def saved_example(tmp_path, argr_cra_example):
+    design(load_design_spec(argr_cra_example / "design.yaml")).write(tmp_path / "result")
+    return tmp_path
+
 
 def _guide_blocks():
     root = Path(__file__).resolve().parents[2]
     guide = (root / "docs/choose-alternatives.md").read_text()
-    return re.findall(r"```python\n(.*?)```", guide, flags=re.DOTALL)
+    assert "## Continue from a saved design" in guide
+    blocks = re.findall(r"```python\n(.*?)```", guide, flags=re.DOTALL)
+    assert len(blocks) == 2, "one saved-design example and one optional inspection"
+    return blocks
 
 
-def test_architecture_selection_guide_from_an_empty_directory(tmp_path):
+def test_arrangement_guide_uses_the_saved_real_search_pool(saved_example):
     blocks = _guide_blocks()
-    completed = subprocess.run(
-        [sys.executable, "-c", blocks[0]], cwd=tmp_path, capture_output=True, text=True
-    )
-    assert completed.returncode == 0, completed.stderr
-    assert completed.stdout.splitlines() == [
-        "1 architecture(s): minimum balance 1.000",
-        "2 architecture(s): minimum balance 1.000",
-        "3 architecture(s): minimum balance 0.500",
-        "Selected: AACC, CCAA",
-        "Sequence evaluations: 6; search evaluations: 0",
-    ]
-    assert not list(tmp_path.iterdir())
-
-
-def test_verified_design_to_architecture_selection_guide(tmp_path):
-    blocks = _guide_blocks()
-    assert len(blocks) == 3, "the guide needs saved-design and supplied-candidate handoffs"
     checks = """
-assert assessment.structural_score == 1.0
-assert assessment.sequence_evaluations == 0
-assert saved.manifest.completion_status == "exhaustive"
-assert saved.manifest.evaluation_count == 256
-assert len(saved.candidates) == 1
-assert len(saved.manifest.elites) == 256
-assert recovered.spec == saved.spec
-assert recovered.scoring_evaluations == 256
-assert recovered.search_evaluations == 0
-assert [item.sequence for item in recovered.select(2)] == ["AACC", "CCAA"]
-assert [item.balance_score for item in recovered.select(2)] == [1.0, 1.0]
-assert review.run.bundle_id == saved.manifest.bundle_id
+assert saved.spec.length == 25
+assert [s.motif.motif_id for s in saved.spec.specifications] == ["ArgR", "Cra"]
+assert saved.manifest.evaluation_count == 4096
+assert pool == tuple(item.sequence for item in saved.manifest.elites)
+assert ranking.grouping == "interval_topology"
+assert ranking.spec == saved.spec
+assert ranking.search_evaluations == 0
+assert collection.requested_count == collection.delivered_count == 2
+assert [round(m.evaluation.balance_score, 3) for m in collection.members] == [0.855, 0.801]
 """
-    completed = subprocess.run(
-        [sys.executable, "-c", "\n".join([*blocks, checks])],
-        cwd=tmp_path,
+    run = subprocess.run(
+        [sys.executable, "-c", "\n".join([blocks[0], checks])],
+        cwd=saved_example,
         capture_output=True,
         text=True,
     )
-    assert completed.returncode == 0, completed.stderr
-    assert "Recovered alternatives: AACC, CCAA" in completed.stdout
-    assert "Search calls: 256; ranking calls: 256" in completed.stdout
-    assert {path.name for path in tmp_path.iterdir()} == {"architecture-result"}
+    assert run.returncode == 0, run.stderr
+    assert run.stdout.splitlines() == [
+        "Returned 2 of 2 arrangements",
+        "Arrangement 1: balance 0.855",
+        "Arrangement 2: balance 0.801",
+    ]
+    assert {p.name for p in saved_example.iterdir()} == {"result"}
 
 
-def test_supplied_architecture_review_guide_needs_no_bundle_or_new_search(tmp_path):
+def test_optional_inspection_shows_the_second_real_arrangement(saved_example):
     blocks = _guide_blocks()
-    assert len(blocks) == 3, "document how to inspect an actual alternative, not a run winner"
     checks = """
 from xml.etree import ElementTree as ET
 from motif_balance.inspection import CandidateInspection
-
 assert candidate.rank == 2
-assert candidate.sequence == "CCAA"
 assert candidate.matches == representative.evaluation.matches
-assert candidate_review.candidate.balance_score == 1.0
-assert candidate_review.candidate.nearest_neighbor_distance is None
+assert round(candidate_review.candidate.balance_score, 3) == 0.801
 assert candidate_review.rank_scope == "caller_supplied_order"
-assert candidate_review.problem.motifs[0].model_digest == left.model_digest
-assert candidate_review.problem.motifs[1].model_digest == right.model_digest
+assert candidate_review.candidate.nearest_neighbor_distance is None
 assert CandidateInspection.model_validate_json(review_json) == candidate_review
-assert "bundle_id" not in review_json
-assert "portfolio" not in review_json
-ns = "{http://www.w3.org/2000/svg}"
+assert {m.motif_id for m in candidate_review.candidate.matches} == {"ArgR", "Cra"}
 root = ET.fromstring(svg)
-assert "Caller-supplied rank 2" in root.find(ns + "desc").text
 assert root.get("data-visual-contract") == "motif-balance.candidate-duplex/v2"
-assert [(m.motif_id, m.start, m.end) for m in candidate_review.candidate.matches] == [
-    ("left", 2, 4), ("right", 0, 2)
-]
 """
-    completed = subprocess.run(
-        [sys.executable, "-c", "\n".join([blocks[0], blocks[2], checks])],
-        cwd=tmp_path,
+    run = subprocess.run(
+        [sys.executable, "-c", "\n".join([*blocks, checks])],
+        cwd=saved_example,
         capture_output=True,
         text=True,
     )
-    assert completed.returncode == 0, completed.stderr
-    assert not list(tmp_path.iterdir()), "supplied candidate review must not invent a bundle"
+    assert run.returncode == 0, run.stderr
+    assert {p.name for p in saved_example.iterdir()} == {"result"}
