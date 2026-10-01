@@ -12,16 +12,27 @@ Dunlop Lab
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from itertools import product
 from typing import Any, Literal, cast
 
-from motif_balance.compile import compile_scoring
+from motif_balance.compile import CompiledProblem, compile_scoring
 from motif_balance.constants import BUILD_LOCK_SHA256, PACKAGE_VERSION, RUNTIME_CONTRACT
 from motif_balance.formats.structured import load_json_unique
 from motif_balance.model import DesignSpec, Evaluation
-from motif_balance.model.variants import IUPAC, Substitution, VariantLibrary, VariantVerification
+from motif_balance.model.variants import (
+    IUPAC,
+    ExpansionRejections,
+    Substitution,
+    VariantLibrary,
+    VariantVerification,
+    quality_status,
+)
 from motif_balance.scoring import evaluate
+
+from .bounds import fixed_site_quality_failure
 
 # Admission bounds account for all attempted product expansions, separately from search.
 _MAX_SCORE_OPERATIONS = 1_000_000_000
@@ -43,38 +54,31 @@ def _changes(parent: Evaluation, variant: Evaluation) -> tuple[tuple[float, ...]
     return changes, moved
 
 
-def _status(
-    changes: tuple[float, ...], moved: tuple[str, ...], loss: float
-) -> Literal["passes_alone", "site_changed", "score_loss"]:
-    if moved:
-        return "site_changed"
-    return "score_loss" if min(changes) < -loss - 1e-12 else "passes_alone"
-
-
-def diversify(
+def _prepare(
     sequence: str,
     spec: DesignSpec,
     *,
-    max_score_loss: float = 0.02,
-    max_variants: int = 256,
-    editable_mask: tuple[bool, ...] | None = None,
-) -> VariantLibrary:
-    """Return a deterministic Cartesian library, checking every encoded sequence.
-
-    Desired sites must retain their selected coordinates and strand. Each desired
-    score may fall by at most ``max_score_loss``; each unwanted model's strongest
-    score may rise by at most that amount. Comparisons allow 1e-12 roundoff.
-    The parent counts toward the cap. The default editable mask covers desired
-    selected sites; an explicit boolean tuple can include other positions.
-    """
-    if type(max_variants) is not int or not 1 <= max_variants <= 256:
-        raise ValueError("max_variants must be an integer from 1 through 256")
-    if (
-        isinstance(max_score_loss, bool)
-        or not isinstance(max_score_loss, (int, float))
-        or not (math.isfinite(max_score_loss) and 0 <= max_score_loss <= 1)
-    ):
-        raise ValueError("max_score_loss must be finite and between zero and one")
+    max_score_loss: float | None,
+    min_balance: float | None,
+    max_variants: int,
+    editable_mask: tuple[bool, ...] | None,
+    construction_order: str,
+) -> tuple[CompiledProblem, Evaluation, tuple[int, ...], int, int, float | None]:
+    if type(max_variants) is not int or not 1 <= max_variants <= 1024:
+        raise ValueError("max_variants must be an integer from 1 through 1024")
+    if max_score_loss is not None and min_balance is not None:
+        raise ValueError("specify either max_score_loss or min_balance, not both")
+    if max_score_loss is None and min_balance is None:
+        max_score_loss = 0.02
+    for name, value in (("max_score_loss", max_score_loss), ("min_balance", min_balance)):
+        if value is not None and (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not (math.isfinite(value) and 0 <= value <= 1)
+        ):
+            raise ValueError(f"{name} must be finite and between zero and one")
+    if construction_order not in ("least_loss", "greatest_loss", "hashed"):
+        raise ValueError("construction_order must be least_loss, greatest_loss, or hashed")
     if editable_mask is not None and (
         not isinstance(editable_mask, tuple)
         or len(editable_mask) != spec.length
@@ -85,6 +89,10 @@ def diversify(
     if not any(direction == "seek" for direction in spec.specification_directions):
         raise ValueError("diversification requires at least one desired motif")
     parent = evaluate(sequence, problem)
+    if min_balance is not None and parent.balance_score < min_balance - 1e-12:
+        raise ValueError(
+            f"parent balance {parent.balance_score:.6g} is below floor {min_balance:g}"
+        )
     sequence = parent.sequence
     positions = tuple(
         i
@@ -107,10 +115,77 @@ def diversify(
             "diversification exceeds bounded work or record limits; reduce "
             "max_variants or the editable mask"
         )
+    return problem, parent, positions, operation_cost, upper_evaluations, max_score_loss
+
+
+def diversify(
+    sequence: str,
+    spec: DesignSpec,
+    *,
+    max_score_loss: float | None = None,
+    min_balance: float | None = None,
+    construction_order: Literal["least_loss", "greatest_loss", "hashed"] = "least_loss",
+    max_variants: int = 256,
+    editable_mask: tuple[bool, ...] | None = None,
+) -> VariantLibrary:
+    """Return a deterministic Cartesian library, checking every encoded sequence.
+
+    Desired sites must retain their selected coordinates and strand. Each desired
+    score may fall by at most ``max_score_loss`` (default 0.02); each unwanted model's strongest
+    score may rise by at most that amount. Comparisons allow 1e-12 roundoff.
+    Alternatively, ``min_balance`` requires an absolute objective floor, without
+    a parental-loss restriction. These controls are mutually exclusive. The
+    construction order affects the greedy product and does not guarantee its maximum size.
+    The parent counts toward the cap. The default editable mask covers desired
+    selected sites; an explicit boolean tuple can include other positions.
+    """
+    return _construct(
+        sequence,
+        spec,
+        max_score_loss=max_score_loss,
+        min_balance=min_balance,
+        construction_order=construction_order,
+        max_variants=max_variants,
+        editable_mask=editable_mask,
+    )
+
+
+def _construct(
+    sequence: str,
+    spec: DesignSpec,
+    *,
+    max_score_loss: float | None = None,
+    min_balance: float | None = None,
+    construction_order: Literal["least_loss", "greatest_loss", "hashed"] = "least_loss",
+    max_variants: int = 256,
+    editable_mask: tuple[bool, ...] | None = None,
+    _use_precheck: bool = True,
+) -> VariantLibrary:
+    """Return a deterministic Cartesian library, checking every encoded sequence.
+
+    Desired sites must retain their selected coordinates and strand. Each desired
+    score may fall by at most ``max_score_loss`` (default 0.02); each unwanted model's strongest
+    score may rise by at most that amount. Comparisons allow 1e-12 roundoff.
+    Alternatively, ``min_balance`` requires an absolute objective floor, without
+    a parental-loss restriction. These controls are mutually exclusive. The
+    construction order affects the greedy product and does not guarantee its maximum size.
+    The parent counts toward the cap. The default editable mask covers desired
+    selected sites; an explicit boolean tuple can include other positions.
+    """
+    problem, parent, positions, operation_cost, _, max_score_loss = _prepare(
+        sequence,
+        spec,
+        max_score_loss=max_score_loss,
+        min_balance=min_balance,
+        max_variants=max_variants,
+        editable_mask=editable_mask,
+        construction_order=construction_order,
+    )
+    sequence = parent.sequence
     substitutions = []
     # Retain full records only for diagnostics and the small accepted library.
     # Rejected combination results need only a boolean for subsequent cache hits.
-    passing = {sequence: True}
+    passing = {sequence: "passes_alone"}
     evaluations_used = 1
     for position in positions:
         for base in "ACGT":
@@ -120,8 +195,10 @@ def diversify(
             evaluation = evaluate(changed, problem)
             evaluations_used += 1
             changes, moved = _changes(parent, evaluation)
-            status = _status(changes, moved, float(max_score_loss))
-            passing[changed] = status == "passes_alone"
+            status = quality_status(
+                changes, moved, evaluation.balance_score, max_score_loss, min_balance
+            )
+            passing[changed] = status
             substitutions.append(
                 Substitution(
                     position=position,
@@ -137,10 +214,37 @@ def diversify(
         (s for s in substitutions if s.status == "passes_alone"),
         key=lambda s: (max(0.0, -min(s.component_changes)), s.position, s.base),
     )
+    if construction_order == "greatest_loss":
+        candidates.reverse()
+    elif construction_order == "hashed":
+        common = {
+            "policy": "motif-expansion-order/v1",
+            "sequence": sequence,
+            "models": [
+                (hashlib.sha256(s.motif.model_dump_json().encode()).hexdigest(), s.direction)
+                for s in spec.specifications
+            ],
+            "strands": spec.strands,
+            "editable_positions": positions,
+        }
+        candidates.sort(
+            key=lambda s: (
+                hashlib.sha256(
+                    json.dumps(
+                        {**common, "position": s.position, "base": s.base},
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode()
+                ).hexdigest(),
+                s.position,
+                s.base,
+            )
+        )
     diagnostic_records = {s.evaluation.sequence: s.evaluation for s in substitutions}
     accepted = {sequence: parent}
     allowed = list(sequence)
     size_rejected = score_rejected = 0
+    quality_rejected = site_rejected = prechecked = 0
     for substitution in candidates:
         position, base = substitution.position, substitution.base
         new_size = len(accepted) // len(allowed[position]) * (len(allowed[position]) + 1)
@@ -149,18 +253,27 @@ def diversify(
             continue
         choices = list(allowed)
         choices[position] = base  # Only newly introduced combinations need checking.
+        if _use_precheck and fixed_site_quality_failure(
+            choices, parent, problem, max_score_loss, min_balance
+        ):
+            score_rejected += 1
+            quality_rejected += 1
+            prechecked += 1
+            continue
         introduced: dict[str, Evaluation] = {}
         for bases in product(*choices):
             variant = "".join(bases)
-            if variant in passing and not passing[variant]:
+            if variant in passing and passing[variant] != "passes_alone":
                 break
             record = diagnostic_records.get(variant)
             if record is None:
                 record = evaluate(variant, problem)
                 evaluations_used += 1
                 changes, moved = _changes(parent, record)
-                passing[variant] = _status(changes, moved, float(max_score_loss)) == "passes_alone"
-            if not passing[variant]:
+                passing[variant] = quality_status(
+                    changes, moved, record.balance_score, max_score_loss, min_balance
+                )
+            if passing[variant] != "passes_alone":
                 break
             introduced[variant] = record
         else:
@@ -168,15 +281,31 @@ def diversify(
             allowed[position] = "".join(sorted(allowed[position] + base))
             continue
         score_rejected += 1
+        if passing[variant] == "site_changed":
+            site_rejected += 1
+        else:
+            quality_rejected += 1
     variants = (parent, *(accepted[s] for s in sorted(accepted) if s != sequence))
     return VariantLibrary(
+        schema_version="variant-library/v3" if _use_precheck else "variant-library/v2",
+        algorithm="greedy_product_checked_v3" if _use_precheck else "greedy_product_checked_v2",
+        rejections=ExpansionRejections(
+            size_limit=size_rejected,
+            quality=quality_rejected,
+            selected_site=site_rejected,
+            quality_precheck=prechecked,
+        )
+        if _use_precheck
+        else None,
         package_version=PACKAGE_VERSION,
         runtime_contract=RUNTIME_CONTRACT,
         build_lock_sha256=BUILD_LOCK_SHA256,
         problem_id=problem.problem_id,
         spec=problem.spec,
         parent=parent,
-        max_score_loss=float(max_score_loss),
+        max_score_loss=None if max_score_loss is None else float(max_score_loss),
+        min_balance=None if min_balance is None else float(min_balance),
+        construction_order=construction_order,
         max_variants=max_variants,
         editable_positions=positions,
         allowed_bases=tuple(allowed),
@@ -226,10 +355,15 @@ def verify_library(library: VariantLibrary) -> VariantLibrary:
     fields and all counters must match exactly. Replay has the same admission
     bounds as construction and does not rerun the original design search.
     """
-    replay = diversify(
+    # Parsed models can be copied without validation; admit the full record before replay.
+    library = VariantLibrary.model_validate(library.model_dump(mode="python", warnings=False))
+    replay = _construct(
         library.parent.sequence,
         library.spec,
+        _use_precheck=library.algorithm == "greedy_product_checked_v3",
         max_score_loss=library.max_score_loss,
+        min_balance=library.min_balance,
+        construction_order=library.construction_order,
         max_variants=library.max_variants,
         editable_mask=tuple(i in library.editable_positions for i in range(library.spec.length)),
     )

@@ -14,6 +14,7 @@ from typing import Annotated, Any, Literal, Self
 
 from pydantic import Field, model_validator
 
+from motif_balance.inspection.candidate_model import validate_candidate_binding
 from motif_balance.inspection.model import InspectionCandidate, InspectionProblem
 from motif_balance.model.base import FrozenModel
 
@@ -41,6 +42,10 @@ class PlaybackInspection(FrozenModel):
     chain_id: Annotated[int, Field(strict=True, ge=0, lt=8)] | None = None
     search_chain_id: Annotated[int, Field(strict=True, ge=0, lt=8)] | Literal["all"] | None = None
     frames: Annotated[tuple[PlaybackFrame, ...], Field(min_length=1, max_length=256)]
+    # Caller-supplied measurement for the complete source run, never a frame clock.
+    full_run_elapsed_seconds: (
+        Annotated[float, Field(strict=True, gt=0, allow_inf_nan=False)] | None
+    ) = None
 
     @model_validator(mode="after")
     def ordered_frames(self) -> Self:
@@ -53,6 +58,8 @@ class PlaybackInspection(FrozenModel):
         previous_search_count = 0
         previous_search_candidates: tuple[InspectionCandidate, ...] = ()
         for frame in self.frames:
+            for candidate in (frame.candidate, *frame.recorded_search_candidates):
+                validate_candidate_binding(self.problem, candidate)
             if frame.search_candidates and self.search_chain_id != "all":
                 raise ValueError("multiple search candidates require the all-chain view")
             if self.search_chain_id == "all" and frame.search_candidate is not None:

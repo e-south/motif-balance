@@ -146,7 +146,7 @@ def test_cli_scores_one_sequence_and_exports_one_candidate_svg(tmp_path: Path) -
     assert "balance_score=" in scored.stdout
     assert designed.exit_code == 0
     assert "Returned 2 of 2 candidates" in designed.stdout
-    assert "Search completed after exhausting all 16 sequences" in designed.stdout
+    assert "Search stopped after exhausting 16 evaluator calls" in designed.stdout
     assert "Result written to" in designed.stdout
     assert rendered.exit_code == 0
     assert b'id="candidate-realization-view"' in candidate_svg.read_bytes()
@@ -382,7 +382,7 @@ def test_cli_check_compiles_without_search_or_output(tmp_path: Path) -> None:
     assert "length=2" in result.stdout
     assert "count=2" in result.stdout
     assert "evaluations=16" in result.stdout
-    assert "search=exhaustive" in result.stdout
+    assert "search=annealed" in result.stdout
     assert {path.name for path in tmp_path.iterdir()} == {"design.yaml"}
 
 
@@ -422,9 +422,7 @@ def test_cli_method_matches_public_api_and_replays(
     assert manifest["bundle_id"] == expected.manifest.bundle_id
     assert f"Requested method: {method}; engine: {manifest['search_engine']}" in result.stdout
     assert runner.invoke(app, ["inspect", str(bundle)]).exit_code == 0
-    assert manifest["completion_status"] == (
-        "exhaustive" if length == 2 and method != "random" else "budget_exhausted"
-    )
+    assert manifest["completion_status"] == "budget_exhausted"
 
 
 def test_cli_omitted_method_preserves_default_bundle(tmp_path: Path) -> None:
@@ -449,7 +447,7 @@ def test_cli_method_check_reports_executed_policy_without_search(
     spec.write_text(_DESIGN.replace("length: 2", f"length: {length}"))
     result = runner.invoke(app, ["design", str(spec), "--method", method, "--check"])
     assert result.exit_code == 0, result.output
-    actual = "exhaustive" if length == 2 and method != "random" else method
+    actual = method
     assert f"method={method}" in result.stdout
     assert f"search={actual}" in result.stdout
     assert {p.name for p in tmp_path.iterdir()} == {"design.yaml"}
@@ -537,7 +535,7 @@ def test_cli_inspection_verifies_and_exports_one_html_composition(tmp_path: Path
     )
 
     assert inspected.exit_code == 0
-    assert "Status: delivery complete · search exhaustive · integrity self consistent" in (
+    assert "Status: delivery complete · search budget exhausted · integrity self consistent" in (
         inspected.stdout
     )
     assert rendered.exit_code == 0
@@ -564,7 +562,7 @@ def test_cli_inspects_one_explicit_bundle_reference(tmp_path: Path) -> None:
         ],
     )
     assert inspected.exit_code == 0
-    assert "Status: delivery complete · search exhaustive · integrity self consistent" in (
+    assert "Status: delivery complete · search budget exhausted · integrity self consistent" in (
         inspected.stdout
     )
     assert rendered.exit_code == 0

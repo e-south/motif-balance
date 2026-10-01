@@ -1,0 +1,302 @@
+{
+  "schema_version": "variant-library/v2",
+  "algorithm": "greedy_product_checked_v2",
+  "package_version": "0.7.0",
+  "runtime_contract": "python>=3.12,<3.15",
+  "build_lock_sha256": "19ba9bb2eac6c4ce9e5bee9155a72b1cfe4504962589211af05b2bf5b3dd4f0e",
+  "problem_id": "problem-477acf86c103c20aafee517a",
+  "spec": {
+    "schema_version": "design-spec/v3",
+    "specifications": [
+      {
+        "motif": {
+          "schema_version": "motif-model/v2",
+          "motif_id": "wanted",
+          "alphabet": [
+            "A",
+            "C",
+            "G",
+            "T"
+          ],
+          "probabilities": [
+            [
+              0.4,
+              0.35,
+              0.2,
+              0.05
+            ],
+            [
+              0.4,
+              0.35,
+              0.2,
+              0.05
+            ]
+          ],
+          "background": [
+            0.25,
+            0.25,
+            0.25,
+            0.25
+          ],
+          "source_digest": null,
+          "source_name": null,
+          "canonical_file_digest": null,
+          "canonical_file_name": null,
+          "conversion": null
+        },
+        "direction": "seek"
+      }
+    ],
+    "length": 2,
+    "count": 1,
+    "strands": "forward",
+    "evaluations": 1,
+    "seed": 7,
+    "min_distance": null,
+    "scoring_semantics": "relative_pwm_attainment_v2",
+    "objective_semantics": "weakest_directional_satisfaction_v1",
+    "tie_break_semantics": "leftmost_plus_first_v1"
+  },
+  "parent": {
+    "sequence": "AA",
+    "balance_score": 1.0,
+    "matches": [
+      {
+        "motif_id": "wanted",
+        "start": 0,
+        "end": 2,
+        "strand": "+",
+        "matched_sequence": "AA",
+        "raw_score": 1.3561438102252754,
+        "normalized_score": 1.0,
+        "spec_direction": "seek",
+        "spec_satisfaction": 1.0
+      }
+    ]
+  },
+  "max_score_loss": null,
+  "min_balance": 0.96,
+  "construction_order": "least_loss",
+  "max_variants": 256,
+  "editable_positions": [
+    0,
+    1
+  ],
+  "allowed_bases": [
+    "AC",
+    "A"
+  ],
+  "template": "MA",
+  "variants": [
+    {
+      "sequence": "AA",
+      "balance_score": 1.0,
+      "matches": [
+        {
+          "motif_id": "wanted",
+          "start": 0,
+          "end": 2,
+          "strand": "+",
+          "matched_sequence": "AA",
+          "raw_score": 1.3561438102252754,
+          "normalized_score": 1.0,
+          "spec_direction": "seek",
+          "spec_satisfaction": 1.0
+        }
+      ]
+    },
+    {
+      "sequence": "CA",
+      "balance_score": 0.9678924870096006,
+      "matches": [
+        {
+          "motif_id": "wanted",
+          "start": 0,
+          "end": 2,
+          "strand": "+",
+          "matched_sequence": "CA",
+          "raw_score": 1.1634987322828794,
+          "normalized_score": 0.9678924870096006,
+          "spec_direction": "seek",
+          "spec_satisfaction": 0.9678924870096006
+        }
+      ]
+    }
+  ],
+  "substitutions": [
+    {
+      "position": 0,
+      "parent_base": "A",
+      "base": "C",
+      "evaluation": {
+        "sequence": "CA",
+        "balance_score": 0.9678924870096006,
+        "matches": [
+          {
+            "motif_id": "wanted",
+            "start": 0,
+            "end": 2,
+            "strand": "+",
+            "matched_sequence": "CA",
+            "raw_score": 1.1634987322828794,
+            "normalized_score": 0.9678924870096006,
+            "spec_direction": "seek",
+            "spec_satisfaction": 0.9678924870096006
+          }
+        ]
+      },
+      "component_changes": [
+        -0.03210751299039938
+      ],
+      "changed_desired_sites": [],
+      "status": "passes_alone"
+    },
+    {
+      "position": 0,
+      "parent_base": "A",
+      "base": "G",
+      "evaluation": {
+        "sequence": "GA",
+        "balance_score": 0.8333333333333334,
+        "matches": [
+          {
+            "motif_id": "wanted",
+            "start": 0,
+            "end": 2,
+            "strand": "+",
+            "matched_sequence": "GA",
+            "raw_score": 0.3561438102252754,
+            "normalized_score": 0.8333333333333334,
+            "spec_direction": "seek",
+            "spec_satisfaction": 0.8333333333333334
+          }
+        ]
+      },
+      "component_changes": [
+        -0.16666666666666663
+      ],
+      "changed_desired_sites": [],
+      "status": "below_floor"
+    },
+    {
+      "position": 0,
+      "parent_base": "A",
+      "base": "T",
+      "evaluation": {
+        "sequence": "TA",
+        "balance_score": 0.5,
+        "matches": [
+          {
+            "motif_id": "wanted",
+            "start": 0,
+            "end": 2,
+            "strand": "+",
+            "matched_sequence": "TA",
+            "raw_score": -1.6438561897747244,
+            "normalized_score": 0.5,
+            "spec_direction": "seek",
+            "spec_satisfaction": 0.5
+          }
+        ]
+      },
+      "component_changes": [
+        -0.5
+      ],
+      "changed_desired_sites": [],
+      "status": "below_floor"
+    },
+    {
+      "position": 1,
+      "parent_base": "A",
+      "base": "C",
+      "evaluation": {
+        "sequence": "AC",
+        "balance_score": 0.9678924870096006,
+        "matches": [
+          {
+            "motif_id": "wanted",
+            "start": 0,
+            "end": 2,
+            "strand": "+",
+            "matched_sequence": "AC",
+            "raw_score": 1.1634987322828794,
+            "normalized_score": 0.9678924870096006,
+            "spec_direction": "seek",
+            "spec_satisfaction": 0.9678924870096006
+          }
+        ]
+      },
+      "component_changes": [
+        -0.03210751299039938
+      ],
+      "changed_desired_sites": [],
+      "status": "passes_alone"
+    },
+    {
+      "position": 1,
+      "parent_base": "A",
+      "base": "G",
+      "evaluation": {
+        "sequence": "AG",
+        "balance_score": 0.8333333333333334,
+        "matches": [
+          {
+            "motif_id": "wanted",
+            "start": 0,
+            "end": 2,
+            "strand": "+",
+            "matched_sequence": "AG",
+            "raw_score": 0.3561438102252754,
+            "normalized_score": 0.8333333333333334,
+            "spec_direction": "seek",
+            "spec_satisfaction": 0.8333333333333334
+          }
+        ]
+      },
+      "component_changes": [
+        -0.16666666666666663
+      ],
+      "changed_desired_sites": [],
+      "status": "below_floor"
+    },
+    {
+      "position": 1,
+      "parent_base": "A",
+      "base": "T",
+      "evaluation": {
+        "sequence": "AT",
+        "balance_score": 0.5,
+        "matches": [
+          {
+            "motif_id": "wanted",
+            "start": 0,
+            "end": 2,
+            "strand": "+",
+            "matched_sequence": "AT",
+            "raw_score": -1.6438561897747244,
+            "normalized_score": 0.5,
+            "spec_direction": "seek",
+            "spec_satisfaction": 0.5
+          }
+        ]
+      },
+      "component_changes": [
+        -0.5
+      ],
+      "changed_desired_sites": [],
+      "status": "below_floor"
+    }
+  ],
+  "verification": {
+    "encoded_sequence_count": 2,
+    "maximum_component_loss": 0.03210751299039938,
+    "minimum_balance": 0.9678924870096006,
+    "desired_sites": "preserved",
+    "outcome": "diversified"
+  },
+  "evaluations_used": 8,
+  "score_operations": 16,
+  "size_rejected_expansions": 0,
+  "score_rejected_expansions": 1,
+  "stop_reason": "no_further_passing_expansion"
+}

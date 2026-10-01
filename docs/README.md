@@ -5,17 +5,17 @@ intent: Find instructions for sequence design and package maintenance.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-26
+last_verified: 2026-10-01
 doc_type: index
 ---
 
 # Motif Balance documentation
 
-Supply motif models and an available DNA length, search for candidates, then
-inspect the strongest match to each model. The main workflow is **design → inspect
-→ collect → diversify**. Start with the [ArgR/Cra walkthrough](../README.md#try-a-design)
-for commands that carry saved results between steps. Use the references when you
-need to change an input or interpret a result.
+Supply motif models and a DNA length, search for candidates, then inspect their
+motif matches. Select different arrangements and obtain nucleotide alternatives
+within each layout. Start with the [ArgR/Cra walkthrough](../README.md#try-a-design)
+for commands that carry saved results between steps. Use the task guides to
+change inputs, choose outputs, or interpret the returned scores.
 
 ## Design and inspect DNA
 
@@ -29,7 +29,8 @@ need to change an input or interpret a result.
 | Design from Python | [Python tutorial](python-api.md) |
 | Evaluate DNA you already have | [Sequence scoring](score-sequences.md) |
 | Select different motif arrangements | [Choose alternatives](choose-alternatives.md) |
-| Vary a sequence within its selected arrangement | [Diversify a sequence](diversify-sequences.md) |
+| Obtain qualifying sequence lists within selected layouts | [Expand sequences](expand-sequences.md) |
+| Construct a completely checked ambiguity template | [Degenerate libraries](diversify-sequences.md) |
 | Understand scores and saved results | [Interpretation](interpreting-results.md) and [visual inspection](reference/result-inspection.md) |
 
 ## Understand and extend the method

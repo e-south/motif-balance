@@ -104,6 +104,7 @@ def test_exact_control_marks_unreached_call_instead_of_repeating_final_sequence(
     _, observed = design_observed(
         _request(length=2, evaluations=32),
         ObservationSpec(incumbent_evaluations=(1, 16, 17, 32)),
+        method="exhaustive",
     )
     assert observed.evaluation_count == 16
     assert observed.incumbents[1].incumbent == observed.snapshots[-1].incumbent
@@ -135,6 +136,7 @@ def test_exact_incumbent_structure_is_validated(corruption) -> None:
     _, observed = design_observed(
         _request(length=2, evaluations=32),
         ObservationSpec(incumbent_evaluations=(1, 16, 32)),
+        method="exhaustive",
     )
     payload = observed.model_dump(mode="python")
     if corruption == "missing":

@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from motif_balance.compile import CompiledProblem, sequence_space_at_most
+from motif_balance.compile import CompiledProblem
 from motif_balance.constants import (
     DEFAULT_ELITE_CAPACITY,
     GREEDY_INDEPENDENT_SEARCH_ENGINE,
@@ -27,7 +27,6 @@ from motif_balance.model import ProposalSummary, SearchDiagnostics
 from motif_balance.model.search import SearchInitialization
 from motif_balance.scoring import evaluate
 
-from .engine import ExhaustiveSearchEngine
 from .initialization import initial_states
 from .observation import SearchRecorder
 from .policy import _sequence
@@ -60,8 +59,6 @@ class GreedySearchEngine:
                 field="method",
                 hint="Use explicit seek/avoid specifications for this search method.",
             )
-        if sequence_space_at_most(problem.spec.length, problem.spec.evaluations) is not None:
-            return ExhaustiveSearchEngine(observer=self.observer).search(problem)
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
         ledger = _SearchLedger(
             budget=problem.spec.evaluations,

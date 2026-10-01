@@ -20,9 +20,9 @@ MAX_JOINT_ASSESSMENT_ARRANGEMENTS: Final = 100_000
 MAX_JOINT_ASSESSMENT_BASE_OPERATIONS: Final = 20_000_000
 
 
-PACKAGE_VERSION: Final = "0.7.0"
+PACKAGE_VERSION: Final = "0.8.0"
 RUNTIME_CONTRACT: Final = "python>=3.12,<3.15"
-BUILD_LOCK_SHA256: Final = "19ba9bb2eac6c4ce9e5bee9155a72b1cfe4504962589211af05b2bf5b3dd4f0e"
+BUILD_LOCK_SHA256: Final = "fbc47a17c07eb3ed3d00b79a071feb2d643def3696e7bc4eeb4e13b18d5be342"
 MAX_INPUT_BYTES: Final = 1_000_000
 MAX_RUN_MANIFEST_BYTES: Final = 64 * 1024 * 1024
 MAX_SEARCH_OBSERVATION_BYTES: Final = 64 * 1024 * 1024
@@ -54,7 +54,7 @@ INDEPENDENT_SEARCH_ENGINE: Final = "annealed_independent_starts_v1"
 GREEDY_SEARCH_ENGINE: Final = "greedy_multistart_v1"
 GREEDY_INDEPENDENT_SEARCH_ENGINE: Final = "greedy_independent_starts_v1"
 RANDOM_SEARCH_ENGINE: Final = "uniform_random_v1"
-SEARCH_ENGINE_VERSION = "1"
+SEARCH_ENGINE_VERSION = "2"
 RNG_NAME = "PCG64"
 DNA_ALPHABET: Final[tuple[Literal["A", "C", "G", "T"], ...]] = ("A", "C", "G", "T")
 DNA_COMPLEMENT = str.maketrans("ACGT", "TGCA")

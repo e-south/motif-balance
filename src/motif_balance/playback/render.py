@@ -35,9 +35,9 @@ def _layout(view: PlaybackInspection) -> dict[str, float]:
     molecule_width = left_margin(view.problem) + view.problem.length * CELL + 100
     molecule_height = 110 + (forward + reverse) * LANE
     if len(view.problem.motifs) > 8:
-        chart_size = 1000
-        recovery_x = LEFT + 110
-        molecule_x = recovery_x + chart_size + 150
+        chart_size = 1120
+        recovery_x = LEFT + 135
+        molecule_x = recovery_x + chart_size + 120
         width = molecule_x + molecule_width + 40
         molecule_height = 110 + len(view.problem.motifs) * LANE
         recovery_y = 170 + (molecule_height - chart_size) / 2
@@ -90,7 +90,11 @@ def validate_view(view: PlaybackInspection) -> PlaybackInspection:
 
 def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
     """Draw a saved state; the curve connects observations, not every proposal."""
-    view = validate_view(view)
+    return _render_validated_playback_svg(validate_view(view), frame=frame)
+
+
+def _render_validated_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
+    """Draw after boundary validation, shared by single frames and movie export."""
     if type(frame) is not int or not -len(view.frames) <= frame < len(view.frames):
         raise ArtifactError("frame is outside the recorded playback")
     index = frame % len(view.frames)
@@ -99,12 +103,12 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
     geometry = _layout(view)
     expanded = len(view.problem.motifs) > 8
     panel = geometry["chart_size"]
-    font = 54 if expanded else 18
-    tick_font = 44 if expanded else 18
+    font = 62 if expanded else 18
+    tick_font = 54 if expanded else 18
     canvas_width, canvas_height = geometry["width"], geometry["height"]
     molecule_x, molecule_y, zoom = geometry["molecule_x"], geometry["molecule_y"], geometry["zoom"]
     recovery_x, recovery_y = geometry["recovery_x"], geometry["recovery_y"]
-    scope = "Best DNA found"
+    scope = "Motif matches in the best DNA"
     if view.chain_id is not None:
         scope = "Search explores alternative sequences"
     parts = [
@@ -125,35 +129,41 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         label(
             recovery_x + panel / 2,
             66 if expanded else recovery_y - 31,
-            "Search progress" if view.search_chain_id is not None else "Best balance so far",
+            "Search improves the weakest match",
             anchor="middle",
-            size=72 if expanded else font,
+            size=64 if expanded else font,
         ),
         label(
             molecule_x + geometry["molecule_width"] / 2 if expanded else RIGHT + PANEL / 2,
             66 if expanded else 35,
             scope,
             anchor="middle",
-            size=72 if expanded else font,
+            size=64 if expanded else font,
         ),
     ]
-    if expanded:
-        # Definitions use distinct mathematical objects, as in the manuscript.
+    if view.full_run_elapsed_seconds is not None:
         parts.append(
-            f'<text x="{recovery_x + panel / 2:g}" y="128" font-family="Arial,sans-serif" '
-            'font-size="46" text-anchor="middle" fill="#454C4B">'
-            '<tspan font-style="italic">B</tspan>(<tspan font-style="italic">s</tspan>) = min'
-            '<tspan baseline-shift="sub" font-size="30" font-style="italic">i</tspan> '
-            '<tspan font-style="italic">q</tspan>'
-            '<tspan baseline-shift="sub" font-size="30" font-style="italic">i</tspan>'
-            '(<tspan font-style="italic">s</tspan>)</text>'
+            label(
+                recovery_x + panel / 2,
+                128 if expanded else recovery_y - 8,
+                f"Full search: {view.full_run_elapsed_seconds / 60:.1f} min elapsed",
+                anchor="middle",
+                size=48 if expanded else 15,
+                color="#454C4B",
+            )
         )
+    if expanded:
         parts.append(
-            f'<text x="{molecule_x + geometry["molecule_width"] / 2:g}" y="128" '
-            'font-family="Arial,sans-serif" font-size="40" text-anchor="middle" fill="#454C4B">'
-            '<tspan font-style="italic">q</tspan>'
-            '<tspan baseline-shift="sub" font-size="26" font-style="italic">i</tspan>'
-            ' = normalized best match for motif <tspan font-style="italic">i</tspan></text>'
+            label(
+                molecule_x + geometry["molecule_width"] / 2,
+                128,
+                "Twelve models in 60 bases"
+                if len(view.problem.motifs) == 12 and view.problem.length == 60
+                else f"{len(view.problem.motifs)} models in {view.problem.length} bases",
+                anchor="middle",
+                size=48,
+                color="#454C4B",
+            )
         )
     panels: list[tuple[str, float, float, float, float]] = [
         ("recovery", recovery_x, recovery_y, panel, panel)
@@ -223,13 +233,13 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
         ).replace(", e</text>", ', <tspan font-style="italic">e</tspan></text>')
     )
     if expanded:
-        parts.append(label((x0 + x1) / 2, y1 + 164, "Logarithmic scale", anchor="middle", size=40))
+        parts.append(label((x0 + x1) / 2, y1 + 164, "Logarithmic scale", anchor="middle", size=48))
     parts.append(
-        f'<g transform="translate({x0 - (128 if expanded else 50):g} {(y0 + y1) / 2}) rotate(-90)">'
+        f'<g transform="translate({x0 - (165 if expanded else 50):g} {(y0 + y1) / 2}) rotate(-90)">'
         + label(
             0,
             0,
-            ("Weakest motif score, B(s)" if expanded else "Best balance recovered")
+            ("Weakest motif match, B(s)" if expanded else "Best balance recovered")
             if view.chain_id is None
             else "Balance",
             anchor="middle",
@@ -300,7 +310,7 @@ def render_playback_svg(view: PlaybackInspection, *, frame: int = -1) -> bytes:
     parts.append(
         f'<text data-current-score="{current.candidate.balance_score}" '
         f'x="{x:.3f}" y="{y - (36 if expanded else 22):.3f}" '
-        f'font-family="Arial,sans-serif" font-size="{64 if expanded else 24}" '
+        f'font-family="Arial,sans-serif" font-size="{72 if expanded else 24}" '
         f'font-weight="600" text-anchor="{score_anchor}" fill="#252525">'
         '<tspan font-style="italic">B</tspan>'
         + (

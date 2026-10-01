@@ -1,17 +1,17 @@
 ---
 doc_id: motif-balance-choose-alternatives
-title: Choose alternative motif architectures
-intent: Rank supplied sequences by distinct selected-match architecture and inspect every supported collection size.
+title: Choose different motif arrangements
+intent: Select representatives with different motif-site arrangements from retained sequences.
 audience: [users, API consumers]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-26
+last_verified: 2026-10-01
 doc_type: how-to
 journey: [integrate]
 
 ---
 
-# Choose alternative motif architectures
+# Choose different motif arrangements
 
 A collection contains sequences whose selected motif matches have different
 arrangements. `rank_architectures` keeps the best sequence for each arrangement
@@ -143,7 +143,7 @@ print(f"Pre-search structural score: {assessment.structural_score:.3f}")
 # Allow all 256 four-base sequences to be evaluated.
 search_spec = DesignSpec.model_validate({**spec.model_dump(mode="python"), "evaluations": 256})
 # Generate sequences with that expanded budget.
-portfolio = design(search_spec)
+portfolio = design(search_spec, method="exhaustive")
 # Choose a new directory for the saved search.
 destination = Path("architecture-result")
 # Save the result and its inputs together.
@@ -233,20 +233,36 @@ for validation and rendering limits.
 
 </details>
 
-## Diversify a selected representative
+## Obtain sequence alternatives within each arrangement
 
-Once you have chosen an arrangement, [diversify its sequence](diversify-sequences.md)
-to obtain nucleotide alternatives with the same selected desired sites. Pass a
-representative's sequence and the same request to Python's `diversify`; set the permitted
-per-motif score loss and the library-size cap. The [complete Python workflow](python-api.md#vary-a-sequence-within-one-selected-arrangement)
-continues from design through collection selection to a checked FASTA and score
-table. Selecting arrangements and varying a sequence answer different questions.
+Collection selection changes which site arrangements are represented. Sequence
+expansion instead changes nucleotides while preserving each parent's selected
+site coordinates and strands. Choose the output needed for your experiment:
 
-At the terminal, continue directly from the saved collection:
+| Output | Operation |
+| --- | --- |
+| Explicit sequences meeting a common balance floor | [Expand sequences](expand-sequences.md) |
+| An ambiguity template whose every combination passes | [Construct a degenerate library](diversify-sequences.md) |
+
+Continue from the saved collection:
 
 ```bash
-# Keep the first arrangement and vary its sequence within the score tolerance.
-uv run motif-balance diversify collection.json --candidate 1 --out variants
+# Keep the layouts separate and return sequences meeting the same score floor.
+uv run motif-balance expand collection.json --all --min-balance 0.8 --out expanded
+```
+
+Every parent must meet the floor before expansion starts. A missing arrangement
+cannot be supplied by expanding another one. The result includes a FASTA and
+score table for each layout, along with the complete verified-input record.
+[Expansion limits and verification](expand-sequences.md) describe the bounded
+search and its output.
+
+To construct a complete ambiguity template for one representative instead:
+
+```bash
+# Keep the first layout while limiting every desired motif's score loss to 0.02.
+uv run motif-balance diversify collection.json --candidate 1 \
+  --max-score-loss 0.02 --out variants
 ```
 
 ## Calculation and reference

@@ -86,7 +86,10 @@ def test_directional_search_outcomes_survive_contract_cleanup(
         evaluations=budget,
         seed=7,
     )
-    portfolio = design(spec, method=method)
+    # These short-space golden records were produced by enumeration. Keep
+    # checking that algorithm explicitly, not the former automatic dispatcher.
+    selected = "exhaustive" if length == 2 and method != "random" else method
+    portfolio = design(spec, method=selected)
     manifest = portfolio.manifest
     diagnostics = manifest.search_diagnostics
     payload = {

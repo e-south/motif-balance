@@ -49,8 +49,8 @@ Every new candidate is rescanned, so the strongest matches can change their
 positions, strands and overlap. The matching boxes are annotations of the
 sequence, not independent objects moved by the optimizer.
 
-The default search enumerates all sequences if the evaluation budget permits.
-Otherwise it explores several starting sequences using annealed local search.
+The default search explores several starting sequences using annealed local
+search. Enumerating every sequence requires an explicit exhaustive request.
 A candidate evaluation scans the entire sequence for every motif; a four-base
 trial at one coordinate consumes four evaluations. The running best records
 every evaluated candidate, including proposals not adopted for further search.

@@ -41,7 +41,11 @@ def render_variant_map(library: VariantLibrary) -> str:
         20,
         49,
         f"Encoded sequence count {library.encoded_sequence_count} · "
-        f"per-model loss limit {library.max_score_loss:g}",
+        + (
+            f"balance floor {library.min_balance:g}"
+            if library.min_balance is not None
+            else f"per-model loss limit {library.max_score_loss:g}"
+        ),
         13,
     )
     for i, m in enumerate(desired):

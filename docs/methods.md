@@ -54,9 +54,8 @@ candidates.
 
 ## Default search
 
-When `4^length` fits within the requested evaluation budget, the default policy
-visits every sequence and records `exhaustive_v1`. Otherwise it runs a bounded
-multi-start annealed local search. An evaluation means scoring one complete
+The default policy runs a bounded multi-start annealed local search, including
+when the budget could cover the entire sequence space. An evaluation means scoring one complete
 candidate against every requirement; initialization and repeated candidates
 also consume this budget.
 
@@ -85,7 +84,7 @@ recovery, not the complete history of accepted moves.
 ## Explicit comparison methods
 
 Python `design(spec, method=...)` and `design_observed` accept `"annealed"`,
-`"greedy"` or `"random"`. They share scoring, evaluation accounting, retention
+`"greedy"`, `"random"`, or `"exhaustive"`. They share scoring, evaluation accounting, retention
 and selection. The CLI exposes the same choices through `design --method`,
 with `annealed` as the unchanged default. `--check` reports both the requested
 method and planned search kind; completed output names the actual recorded engine.
@@ -103,9 +102,11 @@ uniformly with NumPy PCG64. Sampling allows repeats. It has no search states,
 so omit `initialization`. Its engine is `uniform_random_v1` and it always
 samples, even when the budget could enumerate the space.
 
-Annealed and greedy requests both enumerate when the full space fits. Inspect
-the recorded engine when comparing methods, since an exhaustive run did not
-execute either heuristic. Equal evaluation counts match the number of complete
+Explicit `method="exhaustive"` visits every sequence in alphabetical order and
+records `exhaustive_v1`. It requires a budget covering all `4^length` sequences,
+stops after that complete enumeration, and has no chain initialization. It is
+useful for exact controls on small problems. Greedy and annealed requests never
+substitute this operation. Equal evaluation counts match the number of complete
 candidate scores, not elapsed time: score cost also depends on length, motif
 widths, motif count and strand policy.
 

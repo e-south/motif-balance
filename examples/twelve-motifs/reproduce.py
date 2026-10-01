@@ -18,8 +18,8 @@ from motif_balance.playback import (
 
 
 def verify_replay_version(expected: dict) -> None:
-    if expected.get("replay_package_version") != PACKAGE_VERSION:
-        raise ValueError("Example replay package differs from the declared version")
+    if expected.get("recipe_package_version") != PACKAGE_VERSION:
+        raise ValueError("Example recipe package differs from the declared version")
 
 
 def main() -> None:
@@ -37,9 +37,9 @@ def main() -> None:
         raise ValueError("Example models differ from the declared preparation")
     args.out.mkdir(parents=True, exist_ok=False)
     started = time.perf_counter()
-    # Record early improvement at doubling counts and additional late-search observations.
-    # Recording does not change the proposal sequence, acceptance, or search budget.
-    checkpoints = tuple(sorted({*(2**power for power in range(3, 20)), 49_152, 196_608, 655_360}))
+    # Observe the improvement counts verified in this example's original run.
+    # These retrospective display choices do not guide proposals or acceptance.
+    checkpoints = tuple(expected["showcase_evaluations"])
     portfolio, observation = design_observed(
         spec, ObservationSpec(max_snapshots=96, incumbent_evaluations=checkpoints)
     )
@@ -51,11 +51,13 @@ def main() -> None:
     ):
         raise ValueError("Recorded example differs; check the declared software and environment")
     (args.out / "observation.json").write_text(observation.model_dump_json())
-    # Keep the full record; show all eight chains through the first recorded final best.
-    full_view = inspect_playback(observation, search_chain_id="all")
+    # Keep the full record and display its best DNA, without sparse chain overlays.
+    full_view = inspect_playback(observation).model_copy(
+        update={"full_run_elapsed_seconds": elapsed}
+    )
     (args.out / "inspected.json").write_text(full_view.model_dump_json())
     view = full_view.until_last_improvement()
-    # The HTML overview shows eight best states; the movie also shows all search chains.
+    # Keep the interactive overview small; the movie retains recorded improvements.
     indices = sorted({round(i * (len(view.frames) - 1) / 7) for i in range(8)})
     overview = view.model_copy(
         update={
@@ -79,8 +81,8 @@ def main() -> None:
             render_playback_media(
                 view,
                 format_name="mp4",
-                fps=30,
-                transition_frames=26,
+                fps=20,
+                transition_frames=30,
                 pacing="accelerating",
                 width=1800,
             )
@@ -89,10 +91,10 @@ def main() -> None:
             render_playback_media(
                 view,
                 format_name="gif",
-                fps=30,
-                transition_frames=26,
+                fps=20,
+                transition_frames=30,
                 pacing="accelerating",
-                width=480,
+                width=720,
             )
         )
         (args.out / "final-frame.png").write_bytes(render_playback_media(view, format_name="png"))

@@ -27,6 +27,15 @@ def _checker() -> ModuleType:
     return module
 
 
+def test_cli_may_name_immutable_handoff_types_without_owning_scientific_logic():
+    assert (
+        _checker().violations_for_source(
+            Path("cli/variants.py"), "from motif_balance.model import DesignSpec\n"
+        )
+        == []
+    )
+
+
 def test_renderer_cannot_import_scoring_or_verified_source_layers() -> None:
     checker = _checker()
 

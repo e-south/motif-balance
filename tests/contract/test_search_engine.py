@@ -75,7 +75,7 @@ def test_production_engine_uses_the_exact_public_evaluation_budget() -> None:
     result = AnnealedSearchEngine().search(_problem(evaluations=127))
 
     assert result.engine == "annealed_multistart_v1"
-    assert result.engine_version == "1"
+    assert result.engine_version == "2"
     assert result.evaluations_used == 127
     assert result.unique_evaluations == len({item.sequence for item in result.evaluations})
     assert result.completion_status == "budget_exhausted"
@@ -154,12 +154,12 @@ def test_search_diagnostics_reject_false_progress_and_duplicate_move_records() -
             diagnostic_type.model_validate(payload)
 
 
-def test_default_search_uses_exhaustive_only_when_the_budget_covers_the_space() -> None:
+def test_default_search_remains_annealed_when_the_budget_covers_the_space() -> None:
     problem = _problem(evaluations=16)
     tiny = replace(
         problem,
         spec=problem.spec.model_copy(update={"length": 2, "evaluations": 16}),
     )
 
-    assert search(tiny).engine == "exhaustive_v1"
+    assert search(tiny).engine == "annealed_multistart_v1"
     assert search(problem).engine == "annealed_multistart_v1"

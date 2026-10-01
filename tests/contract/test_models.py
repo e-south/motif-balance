@@ -720,5 +720,8 @@ def test_model_facade_routes_to_bounded_semantic_contract_modules() -> None:
         "portfolio",
         "selection",
         "variants",
+        "variant_collection",
+        "sequence_expansion",
+        "expanded_collection",
     }
     assert all(len(p.read_text().splitlines()) < 400 for p in facade.parent.glob("*.py"))

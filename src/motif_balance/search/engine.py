@@ -107,8 +107,6 @@ class AnnealedSearchEngine(SearchMoves):
             raise ValueError("initialization must be related or independent")
 
     def search(self, problem: CompiledProblem) -> SearchResult:
-        if sequence_space_at_most(problem.spec.length, problem.spec.evaluations) is not None:
-            return ExhaustiveSearchEngine(observer=self.observer).search(problem)
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
         ledger = _SearchLedger(
             budget=problem.spec.evaluations,
@@ -236,11 +234,5 @@ class AnnealedSearchEngine(SearchMoves):
 
 
 def search(problem: CompiledProblem, *, engine: SearchEngine | None = None) -> SearchResult:
-    selected = engine
-    if selected is None:
-        selected = (
-            ExhaustiveSearchEngine()
-            if sequence_space_at_most(problem.spec.length, problem.spec.evaluations) is not None
-            else AnnealedSearchEngine()
-        )
+    selected = AnnealedSearchEngine() if engine is None else engine
     return selected.search(problem)

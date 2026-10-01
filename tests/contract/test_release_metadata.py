@@ -16,6 +16,8 @@ import hashlib
 import tomllib
 from pathlib import Path
 
+import yaml
+
 from motif_balance.constants import BUILD_LOCK_SHA256, PACKAGE_VERSION, RUNTIME_CONTRACT
 
 
@@ -23,7 +25,7 @@ def test_directional_only_contract_has_a_distinct_release_identity() -> None:
     root = Path(__file__).resolve().parents[2]
     project = tomllib.loads((root / "pyproject.toml").read_text())["project"]
 
-    assert PACKAGE_VERSION == project["version"] == "0.7.0"
+    assert PACKAGE_VERSION == project["version"] == "0.8.0"
 
 
 def test_runtime_and_build_lock_contracts_match_repository() -> None:
@@ -31,3 +33,14 @@ def test_runtime_and_build_lock_contracts_match_repository() -> None:
 
     assert RUNTIME_CONTRACT == "python>=3.12,<3.15"
     assert hashlib.sha256((root / "uv.lock").read_bytes()).hexdigest() == BUILD_LOCK_SHA256
+
+
+def test_software_citation_identifies_the_same_release() -> None:
+    root = Path(__file__).resolve().parents[2]
+    citation = yaml.safe_load((root / "CITATION.cff").read_text())
+
+    assert citation["type"] == "software"
+    assert citation["version"] == PACKAGE_VERSION
+    assert citation["license"] == "MIT"
+    assert citation["repository-code"] == "https://github.com/e-south/motif-balance"
+    assert citation["authors"] == [{"family-names": "South", "given-names": "Eric J."}]

@@ -2,7 +2,7 @@
 
 The recorded search asks one 60-base sequence to agree with twelve supplied *E. coli* motif models. Every candidate is scanned on both strands. Its balance is the weakest of the twelve normalized best matches.
 
-https://github.com/user-attachments/assets/11f7d777-e4dd-43aa-854c-24d4552d198d
+![Recorded best DNA and its motif matches](playback.gif)
 
 [MP4](playback.mp4) · [GIF](playback.gif) · [Inspect the final frame](final-frame.png) · [Step-by-step guide](../../docs/biological-example.md)
 
@@ -10,9 +10,9 @@ The seed-839 search uses 655,360 evaluations and produces the displayed candidat
 
 This is a fresh search with ten times the earlier evaluation allowance. The same models and seed previously recovered balance 0.724 at 65,536 evaluations. The larger allowance stretches the proposal and acceptance schedules, so the new run is not a continuation of that trajectory. This one comparison illustrates an achieved improvement; it does not establish a general compute-response curve.
 
-The eight gray traces follow the candidate sequences maintained by the search; blue records the best balance encountered. Their faint placements move behind the colored best DNA. All eight share one evaluation budget. These snapshots omit intermediate proposals, so their current scores need not meet the best-so-far point.
+The blue curve follows the best balance encountered, and the orange point identifies the displayed DNA. Nineteen recorded best sequences lead to the final score at 121,534 evaluations, where the movie and axis end. The complete run still used 655,360 evaluations. The subtitle gives its measured full-run elapsed time, not the unknown wall time at each improvement.
 
-The movie ends at 125,497 evaluations, the first saved observation containing the final best score. Its 33 observations include twelve distinct best sequences. The axis ends there too; the complete run still used 655,360 evaluations. Motion starts slowly and accelerates, while scores update only at recorded observations. Viewing time is not elapsed search time. The small HTML overview shows eight best-sequence frames.
+Each recorded improvement is connected to its motif matches. Transitions start slowly and accelerate, moving drawings between recorded endpoints without inventing evaluated sequences.
 
 ## Reproduce
 
@@ -26,7 +26,7 @@ uv run motif-balance design examples/twelve-motifs/design.yaml --check
 uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo --media
 ```
 
-Open the generated `playback.html` for play/pause and frame selection, or use the inline video above. Outputs must use a new directory. `expected.json` records the selected sequence, score, seed and software version; the reproduction script checks the declared replay package before search and the resulting sequence and balance afterward. Motif Balance 0.7.0 reproduced the complete recorded observation history exactly. The original run used Python 3.12.14 and working source based on revision `9147a98`, with the expanded single-result budget limits subsequently released in 0.7.0. `expected.json` distinguishes the producing source from the replay version.
+Open the generated `playback.html` for play/pause and frame selection, or view the inline animation above. Use a new output directory. The recipe requires Motif Balance 0.8.0 and checks the recovered sequence and balance against `expected.json`. That record preserves the original producing source and the independently verified 0.7.0 replay, separately from the current recipe requirement.
 
 ## Inputs and interpretation
 

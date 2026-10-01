@@ -22,7 +22,7 @@ from typing import Any, Literal
 from motif_balance.errors import ArtifactError
 
 from .model import PlaybackInspection
-from .render import frame_dimensions, render_playback_svg, validate_view
+from .render import _render_validated_playback_svg, frame_dimensions, validate_view
 from .transition import blend_svgs
 
 _MAX_PIXELS = 128_000_000
@@ -128,14 +128,14 @@ def render_playback_media(
     if format_name == "png":
         return bytes(
             renderer.svg_to_bytes(
-                svg_string=render_playback_svg(view, frame=frame).decode(), width=width
+                svg_string=_render_validated_playback_svg(view, frame=frame).decode(), width=width
             )
         )
 
     def frames() -> Iterator[Any]:
         previous = None
         for index, transitions in steps:
-            svg = render_playback_svg(view, frame=index)
+            svg = _render_validated_playback_svg(view, frame=index)
             if previous is not None:
                 for step in range(1, transitions + 1):
                     yield raster(blend_svgs(previous, svg, step / (transitions + 1)))

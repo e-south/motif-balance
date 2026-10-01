@@ -5,7 +5,7 @@ intent: Install the package without a research workspace.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-26
+last_verified: 2026-10-01
 doc_type: how-to
 ---
 
@@ -19,8 +19,8 @@ the Python library and command-line interface.
 With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed:
 
 ```bash
-uv init --python 3.12 motif-example
-cd motif-example
+uv init --python 3.12 my-project
+cd my-project
 uv add motif-balance
 uv run motif-balance --help
 ```
@@ -54,8 +54,9 @@ The optional media package is `motif-balance[visualization]`.
 
 ## Install from source
 
-A source checkout is for contributing or changing the bundled recipes. Follow [development setup](../CONTRIBUTING.md#development),
-then prepare the attributed example inputs:
+Use a source checkout to contribute or modify the bundled examples. Follow
+[development setup](../CONTRIBUTING.md#development), then prepare the attributed
+example inputs:
 
 ```bash
 uv run python examples/argr-cra/prepare_inputs.py
@@ -63,3 +64,7 @@ uv run python examples/argr-cra/prepare_inputs.py
 
 Continue with the [ArgR/Cra tutorial](quickstart.md) or the
 [twelve-model example](biological-example.md).
+
+For reproducible work, record the installed package version and preserve the project's
+`uv.lock`. A source checkout can contain changes beyond the latest release. Record
+its commit and any local changes rather than identifying it solely as that release.

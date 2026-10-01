@@ -46,13 +46,13 @@ for forbidden in '/tests/' '/scripts/' '/.github/' '/.agents/'; do
   fi
 done
 sdist_contents="$(tar -tzf "$sdist_path")"
-for forbidden in '/.git/' '/.venv/' '/.artifacts/' '/examples/argr-cra/inputs/'; do
+for forbidden in '/.git/' '/.venv/' '/.artifacts/' '/examples/argr-cra/inputs/' '/examples/twelve-motifs/inputs/'; do
   if grep -Fq "$forbidden" <<<"$sdist_contents"; then
     echo "source distribution contains local path: $forbidden" >&2
     exit 1
   fi
 done
-for required in LICENSE README.md IA.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md assets/motif-balance-banner.svg docs/README.md docs/quickstart.md docs/score-sequences.md docs/reference/execution-receipts.md docs/reference/result-inspection.md; do
+for required in LICENSE CITATION.cff README.md IA.md ARCHITECTURE.md DESIGN.md RELIABILITY.md SECURITY.md assets/motif-balance-banner.svg docs/README.md docs/quickstart.md docs/score-sequences.md docs/reference/execution-receipts.md docs/reference/result-inspection.md; do
   if ! grep -Fq "/$required" <<<"$sdist_contents"; then
     echo "source distribution omits routed content: $required" >&2
     exit 1
@@ -195,7 +195,7 @@ assert f"motif-balance/v{version}/examples/argr-cra" in readme.read_text(), "REA
 assert f"uv add 'motif-balance=={version}'" in readme.read_text(), "README must pin the package to the example release"
 blocks = re.findall(r"```bash\n(.*?)```", Path(sys.argv[1]).read_text(), flags=re.DOTALL)
 commands = [block for block in blocks if "uv run motif-balance " in block]
-assert len(commands) == 3, "README must exercise design/inspect, collect, and diversify"
+assert len(commands) == 3, "README must exercise design/inspect, collect, and expand"
 print("\n".join(commands).replace("uv run motif-balance ", '\"$MB_DOCS_CLI\" '))
 PYDOC
 )"
@@ -220,10 +220,12 @@ from pathlib import Path
 root = Path(sys.argv[1])
 collection = json.loads((root / "collection.json").read_text())["collection"]
 assert [round(row["evaluation"]["balance_score"], 3) for row in collection["members"]] == [0.855, 0.801]
-from motif_balance.model.variants import VariantLibrary
-library = VariantLibrary.model_validate_json((root / "variants/library.json").read_text())
-assert library.encoded_sequence_count == 16
-assert round(library.minimum_balance, 3) == 0.838
+from motif_balance.variants import load_expansion
+record = json.loads((root / "expanded/collection.json").read_text())
+libraries = [load_expansion(json.dumps(row)) for row in record["libraries"]]
+assert [len(library.variants) for library in libraries] == [256, 256]
+assert [library.evaluations_used for library in libraries] == [892, 1072]
+assert all(library.minimum_balance >= 0.8 for library in libraries)
 print("Installed README command workflow, stated biological results, and source parity: ok")
 PYDOC
 

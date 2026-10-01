@@ -52,8 +52,9 @@ def test_exact_quality_samples_include_all_qualifying_sequences_without_changing
     portfolio, observed = design_observed(
         spec,
         ObservationSpec(quality_thresholds=(0.0, 0.5, 1.0), max_sequences_per_threshold=32),
+        method="exhaustive",
     )
-    assert portfolio == design(spec)
+    assert portfolio == design(spec, method="exhaustive")
     assert observed.schema_version == "search-observation/v4"
     assert [row.threshold for row in observed.quality_samples] == [0.0, 0.5, 1.0]
     low, middle, high = observed.quality_samples
