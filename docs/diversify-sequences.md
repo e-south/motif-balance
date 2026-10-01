@@ -17,11 +17,6 @@ expansion, use [expand](expand-sequences.md). This page describes the separate
 IUPAC-product operation. Its requirement that every combination pass can exclude
 individually qualifying sequences.
 
-The absolute-floor and whole-collection additions below are available in the
-current source checkout. They are not included in the published 0.7.0 package.
-For the released single-parent workflow, follow the
-[README example](../README.md#4-construct-a-degenerate-library).
-
 After choosing a design, you can vary its nucleotides while retaining the selected
 motif sites. This complements [arrangement selection](choose-alternatives.md),
 which chooses different relative site arrangements from saved candidates.

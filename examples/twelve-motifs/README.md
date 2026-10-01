@@ -12,7 +12,7 @@ This is a fresh search with ten times the earlier evaluation allowance. The same
 
 The blue curve follows the best balance encountered, and the orange point identifies the displayed DNA. Nineteen recorded best sequences lead to the final score at 121,534 evaluations, where the movie and axis end. The complete run still used 655,360 evaluations. The subtitle gives its measured full-run elapsed time, not the unknown wall time at each improvement.
 
-The showcase omits the maintained-chain overlay. Sparse chain snapshots in the previous movie made the opening look inactive; even densely recorded chains begin from related sequences rather than independent random walks. The best-DNA view directly connects each recorded improvement to its motif matches. Transitions start slowly and accelerate. They move drawings between recorded endpoints, without inventing evaluated sequences.
+Each recorded improvement is connected to its motif matches. Transitions start slowly and accelerate, moving drawings between recorded endpoints without inventing evaluated sequences.
 
 ## Reproduce
 
@@ -26,7 +26,7 @@ uv run motif-balance design examples/twelve-motifs/design.yaml --check
 uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo --media
 ```
 
-Open the generated `playback.html` for play/pause and frame selection, or view the inline animation above. Outputs must use a new directory. `expected.json` records the selected sequence, score, seed, software version, and retrospectively selected improvement counts; the reproduction script checks the declared replay package before search and the resulting sequence and balance afterward. Motif Balance 0.7.0 reproduced the complete recorded observation history exactly. The original run used Python 3.12.14 and working source based on revision `9147a98`, with the expanded single-result budget limits subsequently released in 0.7.0. `expected.json` distinguishes the producing source from the replay version.
+Open the generated `playback.html` for play/pause and frame selection, or view the inline animation above. Use a new output directory. The recipe requires Motif Balance 0.8.0 and checks the recovered sequence and balance against `expected.json`. That record preserves the original producing source and the independently verified 0.7.0 replay, separately from the current recipe requirement.
 
 ## Inputs and interpretation
 

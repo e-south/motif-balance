@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "motif-balance"
-version = "0.7.0"
+version = "0.8.0"
 description = "Design compact DNA that balances supplied motif sequence preferences"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
@@ -69,6 +69,7 @@ packages = ["src/motif_balance"]
 [tool.hatch.build.targets.sdist]
 include = [
   "/LICENSE",
+  "/CITATION.cff",
   "/README.md",
   "/IA.md",
   "/ARCHITECTURE.md",

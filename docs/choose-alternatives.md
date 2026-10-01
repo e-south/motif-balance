@@ -244,7 +244,7 @@ site coordinates and strands. Choose the output needed for your experiment:
 | Explicit sequences meeting a common balance floor | [Expand sequences](expand-sequences.md) |
 | An ambiguity template whose every combination passes | [Construct a degenerate library](diversify-sequences.md) |
 
-With the source checkout, continue from the saved collection:
+Continue from the saved collection:
 
 ```bash
 # Keep the layouts separate and return sequences meeting the same score floor.
@@ -257,8 +257,7 @@ score table for each layout, along with the complete verified-input record.
 [Expansion limits and verification](expand-sequences.md) describe the bounded
 search and its output.
 
-Published version 0.7.0 provides the single-parent degenerate-library route used
-in the [README walkthrough](../README.md#4-construct-a-degenerate-library):
+To construct a complete ambiguity template for one representative instead:
 
 ```bash
 # Keep the first layout while limiting every desired motif's score loss to 0.02.

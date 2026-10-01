@@ -5,7 +5,7 @@ intent: Render recorded sequence states alongside best observed scores.
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-27
+last_verified: 2026-10-01
 doc_type: how-to
 ---
 
@@ -15,12 +15,6 @@ A score curve shows whether search improves, while the corresponding DNA view
 shows how the selected motif matches change. Playback joins these views using
 [search observations](search-observations.md) from one run. It replays the
 observation before rendering, so altered sequence or score records fail validation.
-
-The basic HTML, SVG, and media commands work with the released package. The
-all-chain overlay, last-improvement excerpt, accelerating pacing, and
-`playback-inspection/v2` projection described below require the current source
-checkout. They are not included in PyPI 0.7.0. Use the
-[source installation](../installation.md#install-from-source) for those options.
 
 ## Export an observation
 
@@ -125,9 +119,9 @@ budget. The HTML overview selects eight best-sequence frames. Gray placements ca
 change while the best sequence remains fixed. A best-scoring proposal need not
 be adopted by a chain, and snapshots do not include every evaluated proposal.
 
-The source checkout produces `playback-inspection/v2`; PyPI 0.7.0 produces v1. Earlier saved projections
-remain bound to their producing version. Recreate them from the unchanged search
-observation with `inspect_playback`; there is no automatic projection conversion.
+Playback produces `playback-inspection/v2`. Earlier saved projections and
+observations require their compatible producing version. There is no automatic
+conversion of search-engine records.
 
 
 ## Export media

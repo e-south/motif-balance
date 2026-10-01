@@ -5,7 +5,7 @@ intent: Define the supported scientific API, ordinary CLI, and artifact formats.
 audience: [API consumers, integrators]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-21
+last_verified: 2026-10-01
 doc_type: reference
 journey: [integrate]
 
@@ -13,10 +13,17 @@ journey: [integrate]
 
 # Motif Balance public contract
 
-The explicit `motif_balance.variants.diversify` operation and ordinary `diversify`
+`motif_balance.variants.expand` and `expand_collection`, and the `expand` CLI,
+return explicit lists retaining every qualifying evaluation under declared limits.
+See [sequence expansion](../expand-sequences.md). Their records use
+`sequence-expansion/v1` and `expanded-collection/v1`, with no implied IUPAC product.
+
+The separate `motif_balance.variants.diversify` operation and ordinary `diversify`
 command produce checked nucleotide libraries after selecting a sequence. See
 [diversification](../diversify-sequences.md) for controls, guarantees, and exports.
-The immutable result uses `variant-library/v1` and is separate from a run bundle.
+The immutable result uses `variant-library/v3` and is separate from a run bundle. `diversify_collection` and CLI `--all` expand
+every delivered collection member into separate libraries in `collection-variants/v1`.
+The explicit `min_balance` and `max_score_loss` controls are mutually exclusive.
 
 ## Python
 
@@ -54,9 +61,9 @@ eight independently initialized uniform DNA starts instead of the default
 `"related"` starts. `design_observed` accepts the same keyword. This Python
 method option does not change the scoring problem, moves, cooling schedule,
 selection, or evaluator budget. It changes the recorded search-engine identity
-and therefore the run identity. Unknown options and retired request schemas fail validation. Complete enumeration takes precedence for annealed
-and greedy methods and does not use either initialization policy. The ordinary
-CLI uses the default method.
+and therefore the run identity. Unknown options and retired request schemas fail validation.
+The ordinary CLI uses the default related initialization. Short sequence spaces
+do not change the requested method.
 
 `design(spec, method="greedy")` selects strict single-base improvement;
 `design(spec, method="random")` selects independent whole-sequence draws with
@@ -65,6 +72,13 @@ and retention. Random draws have no chain initialization and never substitute
 enumeration. `design_observed` accepts the same method option and replays the
 recorded engine. See [method contracts](../methods.md#explicit-comparison-methods)
 for ties, plateaus, partial trials, and exact-completion behavior.
+
+`design(spec, method="exhaustive")` explicitly enumerates a tractable sequence
+space. The budget must cover every possible sequence; initialization is omitted.
+The CLI and `design_observed` accept the same explicit choice. Bounded methods
+use search-engine version 2. Exact enumeration retains version 1. Older bounded
+records require their producing package for verification and replay; they are
+not silently reinterpreted under the new method-selection contract.
 
 Serialized numeric fields must be native YAML or JSON numbers; quoted numeric
 strings are rejected. Advanced review uses an explicit submodule:
@@ -143,7 +157,8 @@ The command line supports these tasks:
 design    search for DNA from a saved request
 inspect   review the sequences, sites, and scores in a saved design
 collect   choose different motif arrangements from retained sequences
-diversify vary one sequence while retaining its selected sites
+expand    retain qualifying nucleotide sequences at selected sites
+diversify construct a completely checked degenerate template
 score     score DNA you already have
 assess    compare motif preferences before sequence search
 motif     prepare a motif model from an explicit source

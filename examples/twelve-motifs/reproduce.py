@@ -18,8 +18,8 @@ from motif_balance.playback import (
 
 
 def verify_replay_version(expected: dict) -> None:
-    if expected.get("replay_package_version") != PACKAGE_VERSION:
-        raise ValueError("Example replay package differs from the declared version")
+    if expected.get("recipe_package_version") != PACKAGE_VERSION:
+        raise ValueError("Example recipe package differs from the declared version")
 
 
 def main() -> None:

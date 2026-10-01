@@ -5,7 +5,7 @@ intent: Prepare biological profiles, search at fixed length, and inspect recorde
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-27
+last_verified: 2026-10-01
 doc_type: tutorial
 ---
 
@@ -17,8 +17,8 @@ A motif describes alternative bases at each position. When twelve models share a
 
 The left panel follows improvement in the weakest motif match. The right panel shows the corresponding best DNA and its selected motif sites. Each motif score *qᵢ* is its normalized best match. Balance *B(s)* is the weakest score for sequence *s*, and *B* with subscript “best” is the largest balance encountered so far. The final candidate has balance **0.733**. [Inspect the final sequence](../examples/twelve-motifs/final-frame.png) for its nucleotide sequence and motif windows.
 
-The movie uses playback controls from the current source checkout, beyond the
-PyPI 0.7.0 release. The commands below use that checkout and its locked environment.
+The commands below use the source checkout and its locked environment to run
+the bundled preparation and playback recipe.
 
 ## Prepare the models
 

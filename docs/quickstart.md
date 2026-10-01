@@ -93,7 +93,6 @@ not imply equal elapsed time. See the
 [Python comparison](python-api.md#compare-search-methods) and
 [method definitions](methods.md#explicit-comparison-methods).
 
-In the source checkout, complete enumeration is a separate `--method exhaustive`
-request. Published version 0.7.0 instead switches guided methods to enumeration
-when the entire sequence space fits the allowance. The 25-base example here does
-not reach that condition.
+Complete enumeration is a separate `--method exhaustive` request whose budget
+must cover every possible sequence. The guided methods keep their named update
+rules even when the sequence space is small.

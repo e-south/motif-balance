@@ -12,10 +12,6 @@ journey: [design, score]
 
 # Expand a collection into sequence lists
 
-This workflow is available in the current source checkout, after
-[source installation](installation.md#install-from-source). It is not in the
-published 0.7.0 package.
-
 A selected motif arrangement may be represented by more than one DNA sequence.
 Expansion returns nucleotide alternatives that keep the selected sites and meet
 your minimum balance. This supplies sequences for experimental comparison;
