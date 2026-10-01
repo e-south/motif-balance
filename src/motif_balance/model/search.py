@@ -20,7 +20,7 @@ from pydantic import Field, model_validator
 from .base import FrozenModel
 
 SearchInitialization = Literal["related", "independent"]
-SearchMethod = Literal["annealed", "greedy", "random"]
+SearchMethod = Literal["annealed", "greedy", "random", "exhaustive"]
 
 
 class SearchCheckpoint(FrozenModel):

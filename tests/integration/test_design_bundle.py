@@ -32,7 +32,7 @@ def test_synthetic_pairwise_design_is_deterministic_and_writes_canonical_bundle(
     assert first == second
     assert len(first.candidates) == pairwise_spec.count
     assert all(len(candidate.sequence) == pairwise_spec.length for candidate in first.candidates)
-    assert first.manifest.completion_status == "exhaustive"
+    assert first.manifest.completion_status == "budget_exhausted"
     assert not hasattr(first.manifest, "python_version")
     assert not hasattr(first.manifest, "platform")
 

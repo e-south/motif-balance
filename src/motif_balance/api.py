@@ -50,6 +50,7 @@ from motif_balance.model.search_observation import ObservationSpec, SearchObserv
 from motif_balance.scoring import evaluate
 from motif_balance.search import (
     AnnealedSearchEngine,
+    ExhaustiveSearchEngine,
     GreedySearchEngine,
     SearchEngine,
     SearchResult,
@@ -177,8 +178,12 @@ def _search_engine(
     initialization: SearchInitialization,
     observer: SearchRecorder | None = None,
 ) -> SearchEngine:
-    if method not in ("annealed", "greedy", "random"):
-        raise ValueError("method must be annealed, greedy, or random")
+    if method not in ("annealed", "greedy", "random", "exhaustive"):
+        raise ValueError("method must be annealed, greedy, random, or exhaustive")
+    if method == "exhaustive":
+        if initialization != "related":
+            raise ValueError("exhaustive search has no chain initialization; omit initialization")
+        return ExhaustiveSearchEngine(observer=observer)
     if method == "random":
         if initialization != "related":
             raise ValueError("random search has no chain initialization; omit initialization")
@@ -232,7 +237,8 @@ def verify_search_observation(observation: SearchObservation) -> None:
     """Replay a bounded observation, including exact hit times and chain identities."""
 
     checked = SearchObservation.model_validate(observation.model_dump(mode="python"))
-    if checked.engine_version != SEARCH_ENGINE_VERSION or checked.engine not in (
+    version = "1" if checked.engine == "exhaustive_v1" else SEARCH_ENGINE_VERSION
+    if checked.engine_version != version or checked.engine not in (
         SEARCH_ENGINE,
         INDEPENDENT_SEARCH_ENGINE,
         GREEDY_SEARCH_ENGINE,
@@ -247,7 +253,9 @@ def verify_search_observation(observation: SearchObservation) -> None:
         else "related"
     )
     method: SearchMethod = (
-        "random"
+        "exhaustive"
+        if checked.engine == "exhaustive_v1"
+        else "random"
         if checked.engine == RANDOM_SEARCH_ENGINE
         else "greedy"
         if checked.engine in (GREEDY_SEARCH_ENGINE, GREEDY_INDEPENDENT_SEARCH_ENGINE)

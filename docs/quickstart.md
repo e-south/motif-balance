@@ -5,7 +5,7 @@ intent: Design and inspect DNA using the ArgR and Cra transcription-factor profi
 audience: [users]
 owner: Motif Balance maintainers
 status: active
-last_verified: 2026-09-26
+last_verified: 2026-10-01
 doc_type: tutorial
 journey: [install, design, verify]
 ---
@@ -86,9 +86,14 @@ for method in annealed greedy random; do
 done
 ```
 
-Use new output directories. Annealed is the default; greedy and annealed
-enumerate when the complete sequence space fits the allowance, while random
-always samples with replacement. The output reports the actual engine.
-Equal evaluation allowances do not imply equal elapsed time. See the
+Use new output directories. Annealed search is the default. Greedy accepts only
+improving single-base changes; random search samples whole sequences with
+replacement. The output records the engine used. Equal evaluation allowances do
+not imply equal elapsed time. See the
 [Python comparison](python-api.md#compare-search-methods) and
 [method definitions](methods.md#explicit-comparison-methods).
+
+In the source checkout, complete enumeration is a separate `--method exhaustive`
+request. Published version 0.7.0 instead switches guided methods to enumeration
+when the entire sequence space fits the allowance. The 25-base example here does
+not reach that condition.

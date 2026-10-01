@@ -33,7 +33,7 @@ def test_independent_starts_preserve_budget_and_have_distinct_replayable_identit
     assert actual.problem_id == baseline.problem_id
     assert actual.run_id != baseline.run_id
     assert actual.manifest.search_engine == independent.engine == "annealed_independent_starts_v1"
-    assert independent.engine_version == "1"
+    assert independent.engine_version == "2"
     assert independent.evaluation_count == related.evaluation_count == 127
     assert independent.snapshots[0].evaluations == related.snapshots[0].evaluations == 8
     assert len(independent.snapshots[0].states) == 8
@@ -45,12 +45,13 @@ def test_independent_starts_preserve_budget_and_have_distinct_replayable_identit
     assert read_verified_portfolio(tmp_path / "independent").model_dump() == actual.model_dump()
 
 
-def test_initialization_does_not_change_complete_enumeration():
+def test_short_space_keeps_requested_initialization():
     spec = _spec(length=2, evaluations=16)
     related, a = design_observed(spec, ObservationSpec())
     independent, b = design_observed(spec, ObservationSpec(), initialization="independent")
-    assert related == independent and a == b
-    assert independent.manifest.search_engine == "exhaustive_v1"
+    assert related.run_id != independent.run_id
+    assert a.snapshots[0].states != b.snapshots[0].states
+    assert independent.manifest.search_engine == "annealed_independent_starts_v1"
 
 
 @pytest.mark.parametrize("initialization", ["unknown", "", None, 1])
@@ -81,7 +82,7 @@ def test_independent_initialization_requires_directional_inputs():
 
 
 @pytest.mark.parametrize(
-    "engine,version", [("unknown", "1"), ("annealed_independent_starts_v1", "2")]
+    "engine,version", [("unknown", "2"), ("annealed_independent_starts_v1", "1")]
 )
 def test_unknown_recorded_method_is_rejected_before_replay(engine, version, monkeypatch):
     import motif_balance.api

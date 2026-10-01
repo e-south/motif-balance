@@ -76,7 +76,8 @@ def test_twelve_specification_full_elite_reservoir_round_trips(tmp_path: Path) -
             count=1,
             evaluations=256,
             seed=7,
-        )
+        ),
+        method="exhaustive",
     )
     assert len(result.manifest.elites) == 256
     output = tmp_path / "full-reservoir"
@@ -288,7 +289,7 @@ def test_directional_exact_run_records_completion_checkpoints_and_complete_small
         MotifSpecification(motif=_base_motif("avoid_a", "A"), direction="avoid"),
     )
 
-    manifest = design(spec).manifest
+    manifest = design(spec, method="exhaustive").manifest
 
     assert manifest.schema_version == "run-manifest/v7"
     assert manifest.exact_completion_status == "complete"
@@ -323,7 +324,8 @@ def test_directional_search_diagnostics_reject_incomplete_or_incoherent_traces()
         _directional_spec(
             MotifSpecification(motif=_base_motif("seek_a", "A"), direction="seek"),
             MotifSpecification(motif=_base_motif("avoid_a", "A"), direction="avoid"),
-        )
+        ),
+        method="exhaustive",
     ).manifest
     payload = manifest.search_diagnostics.model_dump(mode="python")
     first = payload["checkpoints"][0]
@@ -382,7 +384,8 @@ def test_directional_manifest_rejects_false_exactness_and_invalid_elites() -> No
         _directional_spec(
             MotifSpecification(motif=_base_motif("seek_a", "A"), direction="seek"),
             MotifSpecification(motif=_base_motif("avoid_a", "A"), direction="avoid"),
-        )
+        ),
+        method="exhaustive",
     ).manifest
     payload = manifest.model_dump(mode="python")
 
@@ -577,7 +580,8 @@ def test_directional_execution_spec_serialization_stays_canonical() -> None:
 
 def test_directional_scientific_replay_checks_every_retained_elite() -> None:
     portfolio = design(
-        _directional_spec(MotifSpecification(motif=_base_motif("seek_a", "A"), direction="seek"))
+        _directional_spec(MotifSpecification(motif=_base_motif("seek_a", "A"), direction="seek")),
+        method="exhaustive",
     )
     first = portfolio.manifest.elites[0]
     tampered = first.model_copy(update={"balance_score": first.balance_score / 2.0})

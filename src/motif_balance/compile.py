@@ -23,6 +23,7 @@ from pydantic import ValidationError
 from motif_balance.constants import OBJECTIVE_SEMANTICS, SCORING_SEMANTICS, TIE_BREAK_SEMANTICS
 from motif_balance.errors import IncompatibleDesign
 from motif_balance.model import DesignSpec, MotifModel
+from motif_balance.model.search import SearchMethod
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,14 +61,14 @@ def sequence_space_at_most(length: int, limit: int) -> int | None:
     return sequence_space
 
 
-def planned_search_kind(spec: DesignSpec) -> str:
-    """Return the bounded search classification used by preflight surfaces."""
+def planned_search_kind(spec: DesignSpec, method: SearchMethod = "annealed") -> SearchMethod:
+    """Validate the requested method without substituting another algorithm."""
 
-    return (
-        "exhaustive"
-        if sequence_space_at_most(spec.length, spec.evaluations) is not None
-        else "annealed"
-    )
+    if method not in ("annealed", "greedy", "random", "exhaustive"):
+        raise ValueError("method must be annealed, greedy, random, or exhaustive")
+    if method == "exhaustive" and sequence_space_at_most(spec.length, spec.evaluations) is None:
+        raise ValueError("exhaustive search requires a budget covering the sequence space")
+    return method
 
 
 def build_run_id(

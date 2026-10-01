@@ -36,10 +36,10 @@ def design_command(
         bool, typer.Option("--check", help="Compile and validate without search.")
     ] = False,
     method: Annotated[
-        Literal["annealed", "greedy", "random"],
+        Literal["annealed", "greedy", "random", "exhaustive"],
         typer.Option(
             "--method",
-            help="Annealed/greedy enumerate when the full space fits; random always samples.",
+            help="Run the named method. Exhaustive requires a budget covering every sequence.",
         ),
     ] = "annealed",
     debug: Annotated[bool, typer.Option("--debug", help="Show the underlying exception.")] = False,
@@ -50,9 +50,7 @@ def design_command(
         spec = load_design_spec(specification)
         problem_id = compile_design(spec).problem_id
         if check:
-            search_kind = planned_search_kind(spec)
-            if method == "random" or search_kind != "exhaustive":
-                search_kind = method
+            search_kind = planned_search_kind(spec, method)
             typer.echo(f"valid {problem_id}")
             specification_summary = " ".join(
                 (

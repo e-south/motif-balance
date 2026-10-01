@@ -61,12 +61,14 @@ def test_greedy_spends_the_exact_budget_including_partial_final_trials(budget):
     assert len(observation.snapshots[0].states) == min(budget, 8)
 
 
-def test_greedy_selection_does_not_replace_complete_enumeration():
+def test_greedy_does_not_substitute_complete_enumeration():
     spec = _spec(length=2, evaluations=16)
     ordinary, expected = design_observed(spec, ObservationSpec())
     alternative, actual = design_observed(spec, ObservationSpec(), method="greedy")
-    assert alternative == ordinary and actual == expected
-    assert actual.engine == "exhaustive_v1"
+    assert alternative.run_id != ordinary.run_id
+    assert actual.engine == "greedy_multistart_v1"
+    assert expected.engine == "annealed_multistart_v1"
+    assert actual.evaluation_count == expected.evaluation_count == 16
 
 
 @pytest.mark.parametrize("method", ["unknown", "", None, 1])
