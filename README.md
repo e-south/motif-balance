@@ -1,5 +1,10 @@
 # ![Motif Balance: model, scan, balance, select](assets/motif-balance-banner.svg)
 
+[![CI](https://github.com/e-south/motif-balance/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/e-south/motif-balance/actions/workflows/ci.yaml)
+[![PyPI](https://img.shields.io/pypi/v/motif-balance)](https://pypi.org/project/motif-balance/)
+[![Python](https://img.shields.io/pypi/pyversions/motif-balance)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Supply motif models and a DNA length. Motif Balance searches for sequences that
 strengthen the weakest desired match while optionally limiting unwanted matches.
 Inspect the motif sites, collect different arrangements, and expand each layout
