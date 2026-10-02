@@ -12,10 +12,14 @@ Both models were searched in 25-base DNA. At the terminal:
 ```bash
 # Keep up to two arrangements and save their sequences, scores, and motif models.
 uv run motif-balance collect result --count 2 --out collection.json
+# Draw both selected layouts from the saved collection.
+uv run motif-balance inspect collection.json --format png --out arrangements.png
 ```
 
 These representatives have balance **0.855** and **0.801**. If you already saved
 `collection.json` while following the README, use it or choose a new output name.
+Add `--candidate 2` to inspect one member. The collection includes the models
+needed to recheck each displayed sequence. PNG export uses the visualization extra.
 
 For the same selection in Python:
 

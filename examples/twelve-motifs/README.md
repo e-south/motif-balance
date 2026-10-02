@@ -14,7 +14,19 @@ Faint gray motif windows show the eight recorded search candidates behind the be
 
 The inline GIF is 1,000 pixels wide; the MP4 is 1,800 pixels wide. The movie uses denser early observations from the recorded run. The recipe below repeats the search with evenly spaced snapshots, so its gray-state timing differs while the recovered sequence and score are checked.
 
-## Reproduce
+## Design with your own request
+
+```bash
+uv run motif-balance example twelve-motifs --out twelve-motifs
+# Replace motif paths or change length and evaluations in design.yaml.
+uv run motif-balance design twelve-motifs/design.yaml --out twelve-result
+uv run motif-balance inspect twelve-result --format png --out twelve-dna.png
+```
+
+This uses the installed package and an editable request. PNG export requires
+the visualization extra. New requests are not compared against the recorded winner.
+
+## Replay the recorded search
 
 From the installed source checkout with the visualization extra:
 
@@ -30,7 +42,7 @@ Open `playback.html` for play/pause and frame selection. Use a new output direct
 
 ## Inputs and interpretation
 
-The models are numerical probability records from [Baumgart et al. (2021), Supplementary Data 2](https://doi.org/10.1038/s41592-021-01312-2), inferred from DAP-seq. [SOURCE.json](SOURCE.json) identifies the archive, records, checksums and preparation. The recipe normalizes each row, then mixes it with a uniform distribution using weight 1/11. The scoring background is 0.25 per base.
+The models are numerical probability records from [Baumgart et al. (2021), Supplementary Data 2](https://doi.org/10.1038/s41592-021-01312-2), inferred from DAP-seq. [source record](../../src/motif_balance/examples/data/twelve-motifs/SOURCE.json) identifies the archive, records, checksums and preparation. The recipe normalizes each row, then mixes it with a uniform distribution using weight 1/11. The scoring background is 0.25 per base.
 
 | Model | Width in bases |
 | --- | ---: |

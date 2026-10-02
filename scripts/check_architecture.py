@@ -45,6 +45,7 @@ KNOWN_LAYERS = {
     "constants",
     "errors",
     "execution",
+    "examples",
     "formats",
     "inspection",
     "model",
@@ -79,6 +80,7 @@ ALLOWED_IMPORTS = {
         "search",
         "selection",
     },
+    "examples": {"artifacts", "errors", "formats", "model"},
     "execution": {"api", "artifacts", "constants", "errors", "formats", "model", "receipt"},
     "playback": {"api", "errors", "inspection", "model"},
     "inspection": {
@@ -93,6 +95,7 @@ ALLOWED_IMPORTS = {
         "scoring",
     },
     "cli": {
+        "examples",
         "model",
         "variants",
         "alternatives",

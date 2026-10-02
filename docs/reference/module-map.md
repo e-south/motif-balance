@@ -33,6 +33,7 @@ errors, constants, and model
 | Inspect saved results or a supplied candidate | `inspection/api.py`, `verify.py`, `project.py`, `supplied.py` |
 | Draw candidates and pre-search preferences | `inspection/render/`, with projections from `inspection/candidate_model.py` and `inspection/assessment/` |
 | Animate recorded searches | `playback/api.py`, `model.py`, `render.py`, `transition.py`, `media.py` |
+| Prepare installed biological examples | `examples/preparation.py`, `download.py`, `profiles.py` |
 | Adapt command-line arguments and files | `cli/` |
 
 ## Preserve the boundaries

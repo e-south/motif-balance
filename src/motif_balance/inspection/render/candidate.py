@@ -17,12 +17,14 @@ from ..candidate_model import CandidateInspection
 from ..model import ResultInspection
 from .candidate_projection import select_candidate
 from .candidate_sections import render_candidate_projection_svg
+from .compact import render_compact_candidate_svg
 
 
 def render_candidate_svg(
     inspection: ResultInspection | CandidateInspection,
     *,
     candidate_rank: int | None = None,
+    compact: bool = False,
 ) -> bytes:
     """Render one inspected candidate without rescoring or inventing a source result."""
 
@@ -33,8 +35,12 @@ def render_candidate_svg(
             raise ArtifactError(
                 f"candidate rank {candidate_rank} is not present in this inspection"
             )
+        if compact:
+            return render_compact_candidate_svg(inspection.problem, inspection.candidate)
         return render_candidate_projection_svg(
             inspection.problem, inspection.candidate, rank_scope=inspection.rank_scope
         )
     candidate = select_candidate(inspection, 1 if candidate_rank is None else candidate_rank)
+    if compact:
+        return render_compact_candidate_svg(inspection.problem, candidate)
     return render_candidate_projection_svg(inspection.problem, candidate)

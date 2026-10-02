@@ -17,6 +17,7 @@ from pathlib import Path
 
 from motif_balance.api import design_observed
 from motif_balance.constants import PACKAGE_VERSION
+from motif_balance.examples.preparation import recipe
 from motif_balance.formats.design import load_design_spec
 from motif_balance.model.search_observation import ObservationSpec
 from motif_balance.playback import (
@@ -108,7 +109,7 @@ def main() -> None:
     expected = json.loads((root / "expected.json").read_text())
     verify_replay_version(expected)
     spec = load_design_spec(root / "design.yaml")
-    provenance = json.loads((root / "SOURCE.json").read_text())
+    provenance = recipe("twelve-motifs")[0]
     digests = {p["record"]: p["prepared_model_digest"] for p in provenance["profiles"]}
     if {item.motif.motif_id: item.motif.model_digest for item in spec.specifications} != digests:
         raise ValueError("Example models differ from the declared preparation")

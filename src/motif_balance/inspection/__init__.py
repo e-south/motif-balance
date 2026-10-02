@@ -15,3 +15,5 @@ from .model import ResultInspection
 from .supplied import inspect_candidate
 
 __all__ = ["CandidateInspection", "ResultInspection", "inspect_candidate", "inspect_result"]
+
+from .collection import inspect_collection as inspect_collection

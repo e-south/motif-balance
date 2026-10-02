@@ -43,7 +43,8 @@ The optional media package is `motif-balance[visualization]`.
 
 ## Install from source
 
-Use a source checkout to contribute or modify the bundled examples. Follow
+Use a source checkout to contribute. Installed examples can be prepared directly
+with `motif-balance example`; no checkout is needed to edit their requests. Follow
 [development setup](../CONTRIBUTING.md#development), then prepare the attributed
 example inputs:
 
