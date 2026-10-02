@@ -57,7 +57,7 @@ jobs:
           enable-cache: true
           prune-cache: true
       - name: Test package
-        run: uv run --locked --python ${{ matrix.python-version }} pytest -q --no-cov
+        run: uv run --locked --extra visualization --python ${{ matrix.python-version }} pytest -q --no-cov
 
   checks:
     name: Required checks
