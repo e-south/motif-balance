@@ -30,7 +30,8 @@ map and its matching checks.
 
 ## Integration boundary
 
-The package accepts explicit inputs and produces versioned results. Data
+The package accepts explicit inputs and produces versioned results. Its explicit
+`example` command downloads and checks two attributed teaching datasets. Broader data
 acquisition, study design, comparisons across runs, and manuscript composition
 belong to consuming projects. Exchange released software and result artifacts
 rather than importing another checkout.

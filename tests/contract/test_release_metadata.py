@@ -20,11 +20,11 @@ import yaml
 from motif_balance.constants import BUILD_LOCK_SHA256, PACKAGE_VERSION, RUNTIME_CONTRACT
 
 
-def test_directional_only_contract_has_a_distinct_release_identity() -> None:
+def test_package_and_project_identify_the_current_release() -> None:
     root = Path(__file__).resolve().parents[2]
     project = tomllib.loads((root / "pyproject.toml").read_text())["project"]
 
-    assert PACKAGE_VERSION == project["version"] == "0.8.1"
+    assert PACKAGE_VERSION == project["version"] == "0.9.0"
 
 
 def test_runtime_and_build_lock_contracts_match_repository() -> None:

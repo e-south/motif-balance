@@ -2,7 +2,7 @@
 
 `inspect` verifies one explicit result, replays every published match and
 score, and creates one immutable `motif-balance.result-inspection/v5`
-projection. Text, JSON, SVG, and HTML all render that same projection. They do
+projection. Text, JSON, SVG, PNG, and HTML all render that same projection. They do
 not enter the result bundle or change its identity. Verification uses a bounded snapshot of the input files, so later file changes
 cannot alter the values already checked.
 
@@ -14,6 +14,9 @@ motif-balance inspect result/
 
 # Export the verified scores and match geometry as JSON.
 motif-balance inspect result/ --format json
+
+# Save a compact molecular image (requires the visualization extra).
+motif-balance inspect result/ --format png --out candidate.png
 
 # Draw candidate 3 and save a record identifying the inputs used.
 motif-balance inspect result/ \
@@ -31,7 +34,7 @@ motif-balance inspect result/ \
 motif-balance inspect result/ --format html --out result-review.html
 ```
 
-HTML and SVG require a new output path outside the inspected result. They are
+HTML, SVG, and PNG require a new output path outside the inspected result. They are
 script-free, self-contained, and use no remote resource. All labels, sequence
 letters, and numeric text use Arial. Information-logo letters use outlined
 Arial Bold letterforms with exact information heights, independent of installed
@@ -48,13 +51,44 @@ renderer module bytes. Execution inspection also records the verified release
 identity. The sidecar is an export record; it does not enter or change the
 canonical result bundle.
 
+## Inspect a collection
+
+```bash
+# Draw the layouts returned by collect, or select one by its rank.
+motif-balance inspect collection.json --format png --out arrangements.png
+motif-balance inspect collection.json --candidate 2 --format svg --out second.svg
+```
+
+A collection file carries its models and selected sequences. Inspection rechecks
+all displayed scores and sites using those models. Text, JSON, HTML, SVG, and
+PNG outputs are available without the original search bundle. This check does
+not establish the origin or completeness of the search pool. Bundle identity
+and receipt options require a result directory.
+
+PNG uses the compact molecular view at 1,800 pixels wide. Set `--width` between
+400 and 4,096 pixels to adjust resolution. Images above 24 million pixels are
+refused; select one member or reduce the width. Collection drawings are also
+limited to 24 members and the shared SVG byte limit. A candidate SVG uses the full
+view by default; add `--compact` for the molecule and scores alone. Full HTML
+inspection retains the detailed score and search tables.
+
+Compact drawings align site windows with their DNA columns. Logos grow away
+from the corresponding strand, with each bit scale beside its motif. Names and
+scores identify the models independently of color. The rounded background has
+transparent corners, so the PNG can sit on light or dark pages.
+
+From Python, `inspect_collection(report)` returns one `CandidateInspection` per
+selected member. Use `candidate_rank=2` for one member, and
+`render_collection_svg(members)` from `motif_balance.inspection.render.collection`
+to draw them together.
+
 ## Inspect a supplied candidate
 
 An alternative selected from a retained pool need not be a run's winner or a
 member of its published portfolio. Use the explicit Python API
 `inspect_candidate(candidate: Candidate, spec: DesignSpec) -> CandidateInspection`
 from `motif_balance.inspection` to explain that candidate without inventing a
-result bundle. The [alternative-selection guide](../choose-alternatives.md#inspect-a-ranked-alternative)
+result bundle. The [alternative-selection guide](../choose-alternatives.md)
 contains a runnable example. This operation is available through Python.
 
 The operation revalidates both models, checks projection limits, compiles the
@@ -79,8 +113,7 @@ of those models, the candidate's original producer, the completeness of its
 pool, or the correctness of its rank. A `Candidate` does not carry an original
 model digest. Keep source receipts with the caller; JSON schema validation is
 not independent replay. This projection has no run, bundle, search or integrity
-state and cannot receive a bundle-custody SVG receipt. Text, portfolio, search
-and HTML result views still require `ResultInspection`.
+state and cannot receive a bundle-custody SVG receipt. Portfolio and search views still require `ResultInspection`.
 
 ## Reading order
 

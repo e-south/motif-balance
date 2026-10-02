@@ -16,6 +16,7 @@ import typer
 from .assessment import assess_command
 from .collection import collect_command
 from .design import design_command
+from .examples import example_command
 from .expansion import expand_command
 from .inspection import inspect_command
 from .playback import animate_command
@@ -38,6 +39,7 @@ def root() -> None:
 
 
 app.command("design")(design_command)
+app.command("example")(example_command)
 app.command("inspect")(inspect_command)
 app.command("collect")(collect_command)
 app.command("diversify")(diversify_command)

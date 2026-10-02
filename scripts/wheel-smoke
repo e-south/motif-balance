@@ -58,7 +58,7 @@ for required in LICENSE CITATION.cff README.md ARCHITECTURE.md DESIGN.md RELIABI
     exit 1
   fi
 done
-for required in examples/argr-cra/design.yaml examples/argr-cra/prepare_inputs.py examples/argr-cra/SOURCE.json examples/formats/synthetic.jaspar examples/synthetic-pairwise/design.yaml examples/synthetic-pairwise/candidate-review.svg examples/synthetic-multimotif/design.yaml examples/production-pairwise/design.yaml; do
+for required in examples/argr-cra/design.yaml examples/argr-cra/prepare_inputs.py src/motif_balance/examples/data/argr-cra/SOURCE.json examples/formats/synthetic.jaspar examples/synthetic-pairwise/design.yaml examples/synthetic-pairwise/candidate-review.svg examples/synthetic-multimotif/design.yaml examples/production-pairwise/design.yaml; do
   if ! grep -Fq "/$required" <<<"$sdist_contents"; then
     echo "source distribution omits reproducibility input: $required" >&2
     exit 1
@@ -181,28 +181,29 @@ assert ranking.grouping == "interval_topology"
 print("Installed collection API/CLI and source parity: ok")
 PY
 
-"$smoke_root/venv/bin/python" examples/argr-cra/prepare_inputs.py --out "$smoke_root/argr-cra-inputs"
+# Exercise installed preparation with the same recipe used by the README.
+"$smoke_root/venv/bin/motif-balance" example argr-cra --out "$smoke_root/installed-example"
+cp -R "$smoke_root/installed-example/inputs" "$smoke_root/argr-cra-inputs"
+"$smoke_root/venv/bin/motif-balance" example twelve-motifs --out "$smoke_root/installed-twelve"
+"$smoke_root/venv/bin/motif-balance" design "$smoke_root/installed-twelve/design.yaml" --check
+uv pip install --python "$smoke_root/venv/bin/python" "${wheel_path}[visualization]"
 source_python="$(uv run --locked python -c 'import sys; print(sys.executable)')"
 # Execute the README command blocks with both installations, outside the checkout.
 readme_program="$("$source_python" - "$repo_root/README.md" <<'PYDOC'
 import re
 import sys
-import tomllib
 from pathlib import Path
-readme = Path(sys.argv[1])
-version = tomllib.loads((readme.parent / "pyproject.toml").read_text())["project"]["version"]
-assert f"motif-balance/v{version}/examples/argr-cra" in readme.read_text(), "README example URL must match the release"
-assert f"uv add 'motif-balance=={version}'" in readme.read_text(), "README must pin the package to the example release"
-blocks = re.findall(r"```bash\n(.*?)```", Path(sys.argv[1]).read_text(), flags=re.DOTALL)
-commands = [block for block in blocks if "uv run motif-balance " in block]
-assert len(commands) == 3, "README must exercise design/inspect, collect, and expand"
+readme = Path(sys.argv[1]).read_text().split("## Design with more motifs")[0]
+blocks = re.findall(r"```bash\n(.*?)```", readme, flags=re.DOTALL)
+commands = [line for block in blocks for line in block.splitlines()
+            if line.startswith("uv run motif-balance ") or line == "cd argr-cra"]
+verbs = [line.split()[3] for line in commands if line.startswith("uv run motif-balance ")]
+assert verbs == ["example", "design", "inspect", "collect", "inspect", "expand"]
 print("\n".join(commands).replace("uv run motif-balance ", '\"$MB_DOCS_CLI\" '))
 PYDOC
 )"
 for install in source wheel; do
   mkdir "$smoke_root/$install-README"
-  cp -R "$smoke_root/argr-cra-inputs" "$smoke_root/$install-README/inputs"
-  cp examples/argr-cra/design.yaml "$smoke_root/$install-README/design.yaml"
   if [[ "$install" == source ]]; then
     docs_cli="${source_python%/*}/motif-balance"
   else
@@ -213,7 +214,24 @@ for install in source wheel; do
 done
 cmp "$smoke_root/source-README.stdout" "$smoke_root/wheel-README.stdout"
 diff -qr "$smoke_root/source-README" "$smoke_root/wheel-README"
-"$smoke_root/venv/bin/python" - "$smoke_root/wheel-README" <<'PYDOC'
+# Compare vector geometry to the published previews. PNG text depends on local fonts;
+# source/wheel PNG bytes are already compared in the same environment above.
+"$smoke_root/venv/bin/python" - "$smoke_root/wheel-README/argr-cra" <<'PYVECTOR'
+import sys
+from pathlib import Path
+from motif_balance.formats.collection import read_collection
+from motif_balance.inspection import inspect_collection, inspect_result
+from motif_balance.inspection.render import render_candidate_svg
+from motif_balance.inspection.render.collection import render_collection_svg
+root = Path(sys.argv[1])
+actual = {
+    "candidate.svg": render_candidate_svg(inspect_result(root / "result", kind="bundle"), compact=True),
+    "arrangements.svg": render_collection_svg(inspect_collection(read_collection(root / "collection.json"))),
+}
+for name, rendered in actual.items():
+    assert rendered == (Path("examples/argr-cra") / name).read_bytes(), name
+PYVECTOR
+"$smoke_root/venv/bin/python" - "$smoke_root/wheel-README/argr-cra" <<'PYDOC'
 import json
 import sys
 from pathlib import Path
@@ -257,8 +275,8 @@ PY
   fi
   if [[ "$guide" == "docs/choose-alternatives.md" || "$guide" == "docs/reference/portfolio-selection.md" ]]; then
     # Continue from the same real saved design already checked by the README smoke.
-    cp -R "$smoke_root/source-README/result" "$smoke_root/source-$guide_name/result"
-    cp -R "$smoke_root/wheel-README/result" "$smoke_root/wheel-$guide_name/result"
+    cp -R "$smoke_root/source-README/argr-cra/result" "$smoke_root/source-$guide_name/result"
+    cp -R "$smoke_root/wheel-README/argr-cra/result" "$smoke_root/wheel-$guide_name/result"
   fi
   source_guide="$(cd "$smoke_root/source-$guide_name" && "$source_python" -c "$guide_program")"
   wheel_guide="$(cd "$smoke_root/wheel-$guide_name" && "$smoke_root/venv/bin/python" -c "$guide_program")"

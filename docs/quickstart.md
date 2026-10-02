@@ -1,4 +1,4 @@
-# Run a first design
+# Check and adapt a design
 
 Start with the [README installation and input preparation](../README.md#1-install-and-prepare-the-profiles)
 to obtain the ArgR/Cra profiles and `design.yaml`. Use that request to check
@@ -7,10 +7,8 @@ inputs, export figures, and compare search methods. For Python, use the
 
 ## 1. Check the inputs and run the search
 
-The bundled request fits the ArgR and Cra motifs into 25 base pairs and asks
-for four sequences. The motifs span 25 and 14 positions, so their best matches
-must share some positions. Their [source and preparation](../examples/argr-cra/README.md)
-are recorded with the inputs.
+The ArgR/Cra request asks for four 25-base sequences. Its
+[source profiles and preparation](../examples/argr-cra/README.md) accompany the inputs.
 
 ```bash
 # Check the motif files, DNA length and search settings without running a search.

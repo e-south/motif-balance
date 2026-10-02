@@ -12,10 +12,14 @@ Both models were searched in 25-base DNA. At the terminal:
 ```bash
 # Keep up to two arrangements and save their sequences, scores, and motif models.
 uv run motif-balance collect result --count 2 --out collection.json
+# Draw both selected layouts from the saved collection.
+uv run motif-balance inspect collection.json --format png --out arrangements.png
 ```
 
 These representatives have balance **0.855** and **0.801**. If you already saved
 `collection.json` while following the README, use it or choose a new output name.
+Add `--candidate 2` to inspect one member. The collection includes the models
+needed to recheck each displayed sequence. PNG export uses the visualization extra.
 
 For the same selection in Python:
 
@@ -36,10 +40,9 @@ for rank, member in enumerate(collection.members, 1):
     print(f"Arrangement {rank}: balance {member.evaluation.balance_score:.3f}")
 ```
 
-The saved search retained 256 sequences. Ranking rescans that pool, groups its
-selected motif sites, and orders the representatives by balance. It performs no
-new sequence search. A shortfall describes the retained pool, not every sequence
-or arrangement possible at this DNA length.
+The saved search retained 256 sequences. Ranking groups their selected motif
+sites and orders the representatives by balance. A shortfall describes that pool,
+not every arrangement possible at this DNA length.
 
 ## Choose what counts as a different arrangement
 
@@ -59,10 +62,7 @@ explains ties, boundary relationships, and returned fields.
 <details>
 <summary>Inspect the second arrangement</summary>
 
-## Inspect a ranked alternative
-
-Append this to the Python example. The second representative scores 0.801.
-The same duplex and logo renderer used for design review shows its selected sites.
+Append this to the Python example to draw the second representative.
 
 ```python
 from motif_balance import Candidate

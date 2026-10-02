@@ -30,8 +30,9 @@ most probable nucleotide can differ from the highest log-odds nucleotide.
 ## Distinguish recovery from delivery
 
 Best-score checkpoints report computational progress at evaluation counts, not
-elapsed time or every improvement. A bounded search reports what it found; only
-complete enumeration establishes a whole-space optimum. The best observed
+elapsed time or every improvement. A bounded search reports what it found.
+A balance of one reaches the objective's upper bound; a lower recovered score
+does not by itself establish an optimum. The best observed
 sequence is recorded separately from the selected portfolio because separation
 constraints can exclude it.
 

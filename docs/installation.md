@@ -16,9 +16,8 @@ uv run motif-balance --help
 
 Continue with the ArgR/Cra [README example](../README.md#try-a-design).
 In an existing uv project, run only `uv add motif-balance`.
-`uv add` records the dependency and updates the project's lockfile; `uv run`
-keeps its environment in sync before running the command.
-This follows uv's [project workflow](https://docs.astral.sh/uv/concepts/projects/layout/).
+`uv add` records the dependency in your project and lockfile. `uv run` uses
+that project's environment.
 
 SVG figures and HTML inspection work with the base installation. For PNG,
 animated GIF, and MP4 exports, add the visualization extra:
@@ -43,7 +42,8 @@ The optional media package is `motif-balance[visualization]`.
 
 ## Install from source
 
-Use a source checkout to contribute or modify the bundled examples. Follow
+Use a source checkout to contribute. Installed examples can be prepared directly
+with `motif-balance example`; no checkout is needed to edit their requests. Follow
 [development setup](../CONTRIBUTING.md#development), then prepare the attributed
 example inputs:
 

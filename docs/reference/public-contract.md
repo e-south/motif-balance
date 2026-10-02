@@ -30,6 +30,8 @@ Advanced operations are explicit submodule imports:
 | `alternatives.select_portfolio`, `verify_portfolio_selection` | Count, separation, and optional arrangement constraints over a supplied pool. [Constrained selection](portfolio-selection.md) |
 | `assessment.assess_pair`, `assess_motifs` | Shared-base preference loss for two, or up to four, desired models without sequence search. [Assessment](../pair-assessment.md) |
 | `inspection.inspect_result` | Verifies a bundle or explicit execution workspace. [Inspection](result-inspection.md) |
+| `examples.prepare_example` | Download checked example inputs and write an editable request. [Preparation](../../examples/argr-cra/README.md) |
+| `inspection.inspect_collection` | Rescore the selected members of a saved collection. [Collection inspection](result-inspection.md#inspect-a-collection) |
 | `inspection.inspect_candidate` | Rescores a supplied candidate under explicit models, without asserting its origin or rank. [Candidate inspection](result-inspection.md#inspect-a-supplied-candidate) |
 | `api.design_observed`, `playback.inspect_playback` | Records and replays bounded search observations. [Observations](search-observations.md) and [playback](playback.md) |
 

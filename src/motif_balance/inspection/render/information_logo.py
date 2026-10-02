@@ -58,6 +58,7 @@ def render_coordinate_aligned_information_logo(
     left: int,
     cell: int,
     limiting: bool,
+    compact: bool = False,
 ) -> str:
     """Render a model logo from an already projected representative match.
 
@@ -77,7 +78,8 @@ def render_coordinate_aligned_information_logo(
     color = motif_color(motif.motif_id)
     score_label = "attainment"
     role = match.spec_direction
-    logo_bottom = top + 96
+    downward = compact and match.strand == "-"
+    logo_bottom = top if downward else top + 96
     match_left = left + match.start * cell
     match_width = (match.end - match.start) * cell
     parts = [
@@ -93,25 +95,53 @@ def render_coordinate_aligned_information_logo(
         )
         + f'data-model-digest="{motif.model_digest}" data-match-start="{match.start}" '
         f'data-match-end="{match.end}" data-match-strand="{match.strand}"' + ">",
-        text(20, top + 17, model_name, size=12, weight=650),
-        text(20, top + 37, f"{motif.width} nt · {match.strand} · {role}", fill=MUTED),
-        text(
-            20,
-            top + 57,
-            f"{score_label} {match.normalized_score:.4g}",
-            size=12,
-            fill=MUTED,
-        ),
-        text(20, top + 77, f"LLR {match.raw_score:.4g}", fill=MUTED),
-        '<g class="information-axis">',
-        f'<path d="M {left - 10} {logo_bottom - 72} h -4 v 72 h 4" fill="none" stroke="{INK}"/>',
-        text(left - 18, logo_bottom + 4, "0", anchor="end", fill=MUTED),
-        text(left - 18, logo_bottom - 68, "2 bits", anchor="end", fill=MUTED),
-        "</g>",
-        f'<line class="information-logo-baseline" x1="{match_left:.3f}" y1="{logo_bottom}" '
-        f'x2="{match_left + match_width:.3f}" y2="{logo_bottom}" '
-        f'stroke="{INK}" stroke-width="1"/>',
     ]
+    if not compact:
+        parts.extend(
+            [
+                text(20, top + 17, model_name, size=12, weight=650),
+                text(20, top + 37, f"{motif.width} nt · {match.strand} · {role}", fill=MUTED),
+                text(
+                    20,
+                    top + 57,
+                    f"{score_label} {match.normalized_score:.4g}",
+                    size=12,
+                    fill=MUTED,
+                ),
+                text(20, top + 77, f"LLR {match.raw_score:.4g}", fill=MUTED),
+            ]
+        )
+    axis_x = match_left + match_width + 10 if compact else left - 10
+    axis_direction = 1 if downward else -1
+    axis_path = (
+        f"M {axis_x} {logo_bottom} h 4 v {axis_direction * 72} h -4"
+        if compact
+        else f"M {left - 10} {logo_bottom - 72} h -4 v 72 h 4"
+    )
+    parts.extend(
+        [
+            '<g class="information-axis">',
+            f'<path d="{axis_path}" fill="none" stroke="{INK}"/>',
+            text(
+                axis_x + 10 if compact else left - 18,
+                logo_bottom + 4,
+                "0",
+                anchor="start" if compact else "end",
+                fill=MUTED,
+            ),
+            text(
+                axis_x + 10 if compact else left - 18,
+                logo_bottom + axis_direction * 72 + 4,
+                "2 bits",
+                anchor="start" if compact else "end",
+                fill=MUTED,
+            ),
+            "</g>",
+            f'<line class="information-logo-baseline" x1="{match_left:.3f}" y1="{logo_bottom}" '
+            f'x2="{match_left + match_width:.3f}" y2="{logo_bottom}" '
+            f'stroke="{INK}" stroke-width="1"/>',
+        ]
+    )
     for support in match.position_support:
         row = motif.probabilities[support.motif_position]
         information_bits = column_information(row)
@@ -135,14 +165,18 @@ def render_coordinate_aligned_information_logo(
                     observed_base=support.observed_base,
                     color=color,
                     center_x=center_x,
-                    bottom_y=column_bottom,
+                    bottom_y=column_bottom + probability * information_bits * PIXELS_PER_BIT
+                    if downward
+                    else column_bottom,
                     width=cell * 0.8,
                     glyph_id=f"logo-{model_name}-{support.motif_position}-{base}",
                 )
             )
-            column_bottom -= probability * information_bits * PIXELS_PER_BIT
+            column_bottom += (
+                (1 if downward else -1) * probability * information_bits * PIXELS_PER_BIT
+            )
         parts.append("</g>")
-    if limiting:
+    if limiting and not compact:
         marker_y = top + 2
         parts.extend(
             [
@@ -159,7 +193,7 @@ def render_coordinate_aligned_information_logo(
                 ),
             ]
         )
-    if match.spec_direction == "avoid":
+    if match.spec_direction == "avoid" and not compact:
         parts.append(text(20, top + 97, f"satisfaction {match.spec_satisfaction:.4g}", fill=MUTED))
     parts.append("</g>")
     return "".join(parts)

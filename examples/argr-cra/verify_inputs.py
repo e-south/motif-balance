@@ -13,12 +13,13 @@ import hashlib
 import json
 from pathlib import Path
 
+from motif_balance.examples.preparation import recipe
 from motif_balance.formats.motif import read_motif
 
 
 def main() -> None:
     root = Path(__file__).resolve().parent
-    source_record = json.loads((root / "SOURCE.json").read_text())
+    source_record = recipe("argr-cra")[0]
     for profile in source_record["profiles"]:
         source = root / "inputs" / "source" / f"{profile['record']}.json"
         assert hashlib.sha256(source.read_bytes()).hexdigest() == profile["numeric_extract_sha256"]

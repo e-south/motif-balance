@@ -3,12 +3,11 @@
 Start with transcription-factor motif profiles or other DNA preference models
 appropriate to your question. Motif Balance accepts position probabilities
 and an explicit background distribution. It converts these to log-odds weights
-when scoring; it does not fetch a database or choose profiles for you.
+when scoring. Choose the source profiles for your question.
 
 Keep the source identifier and version with each profile. If you compare
 models, record how you prepared their probabilities and why you chose the
-scoring background. A shared representation makes the calculation consistent;
-it does not erase differences in the experiments used to estimate the models.
+scoring background.
 
 ## Inspect a prepared profile
 
@@ -68,7 +67,6 @@ Use the MEME record identifier explicitly when reading a file that contains
 more than one motif:
 
 ```python
-# Import the models and operations used in this example.
 from pathlib import Path
 from motif_balance.formats import read_motif
 

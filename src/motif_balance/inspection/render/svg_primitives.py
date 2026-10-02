@@ -32,15 +32,15 @@ SHARED = "#F3D9A6"
 _DOMAIN_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
 _CANDIDATE_ID = re.compile(r"^candidate-[0-9a-f]{16}$")
 _MOTIF_PALETTE = (
-    "#4477AA",
+    "#332288",
     "#A63D57",
     "#216B39",
     "#75631A",
     "#007589",
     "#882255",
-    "#A64B12",
+    "#007B63",
     "#006B60",
-    "#AA3322",
+    "#4477AA",
 )
 
 

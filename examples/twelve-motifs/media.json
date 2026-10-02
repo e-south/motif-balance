@@ -9,42 +9,42 @@
   "search_display": "molecule",
   "balance": 0.7333263307305261,
   "full_run_elapsed_seconds": 1635.9920086245984,
-  "render_package_version": "0.8.0",
+  "displayed_elapsed_seconds": null,
+  "render_package_version": "0.8.1",
   "pacing": "accelerating",
   "meaning": "The curve shows the best score. Gray molecular layers show recorded search states. Motion connects saved placements without interpolating scores.",
   "selection": "The displayed record ends at the first recorded occurrence of the final best score.",
   "assets": {
     "playback.mp4": {
-      "sha256": "1df9d33bd071934ee5af3c34fa20609a95d74223551e1c581fe0a80fab6f8fa8",
-      "bytes": 2887610,
+      "sha256": "e4fcedb0a3e48db1f61ea679f8a9f2d2edca0a86c39143ffce9dadb25e4b4bf4",
+      "bytes": 2878440,
       "width": 1800,
       "fps": 20,
       "transition_frames": 6
     },
     "playback.gif": {
-      "sha256": "1d78b06ea50dd50d2d86cd428a7f1864b464bcd8854ede8dab58b2e984ce61ec",
-      "bytes": 18887699,
+      "sha256": "3941c21d5476e08ca174387b921c17d5f2a2b88bfbfcf69ec39f1f181bdacc88",
+      "bytes": 18701226,
       "width": 1000,
       "fps": 10,
       "transition_frames": 2
     },
     "final-frame.png": {
-      "sha256": "fc4a707a4e4fe53c7abf294793804cda02d3f3b0d2bbd86c9a0aa7cb8332f748",
-      "bytes": 1088412,
+      "sha256": "9e22bf419379fadfac7e015e969fb0b27d2dbb8da8dd3a7c84f25d6c9c74b9d6",
+      "bytes": 1077865,
       "width": null,
       "fps": 1,
       "transition_frames": 0
     }
   },
   "renderer_sources": {
-    "src/motif_balance/playback/__init__.py": "b7b3f09d0a0756499329599f5e53ee397cbf459ac46b104b5c2167a161b48368",
-    "src/motif_balance/playback/api.py": "dc4b5d769e1de933c41ffe8ecca5f9128cf5ae631943998c9df9f9727c75e975",
-    "src/motif_balance/playback/duplex.py": "b13e65071540bbe956fcd4d19ba7033680edaf1676c69cd1e2bb1ea87fe12024",
-    "src/motif_balance/playback/media.py": "a5176e80c71da784ed4b7a9d0997a95f8006a4d4e7246862ac9462389fd99750",
-    "src/motif_balance/playback/model.py": "03ea6bda81ab3c7e673b315063f030919ac080b52dcb0615799f8629881a04ab",
-    "src/motif_balance/playback/player.py": "c705fe24fdcea03462efb4f78a20b40345195da14c74f5e4b8a671d5432512e5",
-    "src/motif_balance/playback/render.py": "8883252b814917ad1a0b6f20ff7e4f365746c168d48ad87e98d699b6958c3500",
-    "src/motif_balance/playback/transition.py": "d9b2089755348fb3c19d30d1597e215496bd72a6ec5b2c3fb3f846b4121c3c4f"
-  },
-  "gif_encoding": "Opaque frames retain unchanged pixels; all 237 decoded frames match the unoptimized export."
+    "src/motif_balance/playback/__init__.py": "39bcc9c801611009fc04e61d6ff73aaf546ab789a62f219786d310271286ba65",
+    "src/motif_balance/playback/api.py": "3f48d8ec8971234b5b3307299735f06a85b75129bfc69c733b76a95db916e9fd",
+    "src/motif_balance/playback/duplex.py": "6f3ba7d9fa1964c7fef0c0bc69e31126ee0bb1a1e41258efa05c1def9814a1ee",
+    "src/motif_balance/playback/media.py": "0943b39f85dcd6a90409d7b041724c5fcc6535e0b32634526c9c0a1d2d18ec53",
+    "src/motif_balance/playback/model.py": "9ebae34cbaefd1540cbb5b164d99c05893db77635f2d031f89d46519acfba2f2",
+    "src/motif_balance/playback/player.py": "17a8fe5c3398864a6c0783bfb93f962e33251b1b25dda94502a5d16696a9b604",
+    "src/motif_balance/playback/render.py": "147377ae7f9f3c32a905eb20079e6c36eca629ca9754eb4910ac32f721e52fa2",
+    "src/motif_balance/playback/transition.py": "71dbcddf8c79e7e378cfbc81b2cbe6776ab4a56c470738fbcc22c336e328a91f"
+  }
 }

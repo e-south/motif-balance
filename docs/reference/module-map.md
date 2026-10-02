@@ -33,43 +33,37 @@ errors, constants, and model
 | Inspect saved results or a supplied candidate | `inspection/api.py`, `verify.py`, `project.py`, `supplied.py` |
 | Draw candidates and pre-search preferences | `inspection/render/`, with projections from `inspection/candidate_model.py` and `inspection/assessment/` |
 | Animate recorded searches | `playback/api.py`, `model.py`, `render.py`, `transition.py`, `media.py` |
+| Prepare installed biological examples | `examples/preparation.py`, `download.py`, `profiles.py` |
 | Adapt command-line arguments and files | `cli/` |
 
 ## Preserve the boundaries
 
-- **Models and formats.** Public records are immutable and reject unsupported
-  fields. Models and constants import no higher layer. Format readers parse
-  inputs without choosing scientific policy.
+- **Models and formats.** Immutable records reject unsupported fields. Models
+  and constants import no higher layer. Readers parse inputs without choosing
+  scoring or search rules.
 - **Scoring and search.** `scoring.py` defines matching and public scores.
   `compile_scoring` checks motif widths and normalization; `compile_design` also
   checks requested count. Both use the same matrices and problem identity.
-  Search observations and retention neither draw randomness nor alter decisions.
+  Recording and retention do not alter search decisions or random draws.
 - **Selection.** `selection.py` chooses unchanged, already-scored candidates.
-  Arrangement ranking scores supplied sequence-equivalence classes once and
-  cannot invoke search or publish artifacts. Distance-constrained portfolio
-  selection uses the complete supplied pool, not class representatives or
-  caller-supplied scores.
+  Arrangement ranking and distance-constrained selection operate on the supplied
+  pool without starting a search. Each has its own selection rule.
 - **Expansion.** Both variant operations reuse complete-sequence scoring and
   never call search or arrangement selection. Explicit expansion retains every
   passing evaluation. A degenerate product must pass for every encoded member;
   its preliminary fixed-site check can reject an addition but cannot accept it.
-  Collection coordinators check every parent and aggregate limits before work,
-  and keep each library separate. Saved-library loading replays construction.
-- **Files and execution.** Artifacts bind byte identities, read bounded descriptor
-  snapshots, replay scores, and publish atomically without replacement. Runtime
-  receipts remain separate from result identity. Execution verifies the wheel,
-  its installed files, and the workspace through explicit paths.
+  Collection operations check parents and aggregate limits before work and keep
+  each library separate. Loading a library replays its construction.
+- **Files and execution.** Saved results retain inputs and checksums and are
+  written atomically without replacing existing outputs. Runtime records identify
+  the installed software separately from the scientific result.
 - **Inspection and rendering.** Inspection verifies results and projects scores.
-  Supplied-candidate inspection preserves the caller's rank without inventing a
-  search record. Candidate-to-problem checks in `candidate_model.py` also govern
-  playback frames. Renderers consume these data records without reading result
-  directories, rescoring, searching, or calling projection operations.
-  Pre-search projections retain model identity, placement, and regret in one
-  physical base frame; their renderer draws preferences without inventing DNA.
+  Renderers draw those checked records without rescoring or searching. Inspection
+  of supplied DNA does not imply a search was performed. Pre-search views show
+  model preferences and placement losses, not a designed sequence.
 - **Playback and CLI.** Playback verifies observations, binds saved states to the
-  scoring problem, and interpolates drawings without inventing intermediate
-  scores. HTML and video use the same states. CLI modules adapt files and
-  arguments to these operations without owning scientific calculations.
+  scoring problem, and interpolates drawings without inventing scores. CLI modules
+  translate files and arguments into calls to these operations.
 
 `scripts/check_architecture.py` enforces imports, including relative imports,
 and rejects undeclared first-party modules. Update the map and matching checks

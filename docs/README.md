@@ -9,16 +9,15 @@ inputs, choose outputs, or interpret scores.
 | Task | Guide |
 | --- | --- |
 | Start a uv project | [Installation](installation.md) |
-| Run, inspect and export a first design | [Quickstart](quickstart.md) |
-| Work with transcription-factor profiles | [Twelve-model recorded search](../examples/twelve-motifs/README.md) |
+| Check a request and compare search methods | [Quickstart](quickstart.md) |
 | Prepare count or probability matrices | [Motif inputs](motif-models.md) |
 | Write a design request | [Design specification](design-spec.md) |
 | Design from Python | [Python tutorial](python-api.md) |
 | Evaluate DNA you already have | [Sequence scoring](score-sequences.md) |
 | Select different motif arrangements | [Choose alternatives](choose-alternatives.md) |
-| Obtain qualifying sequence lists within selected layouts | [Expand sequences](expand-sequences.md) |
-| Construct a completely checked ambiguity template | [Degenerate libraries](diversify-sequences.md) |
-| Understand scores and saved results | [Interpretation](interpreting-results.md) and [visual inspection](reference/result-inspection.md) |
+| Vary DNA within selected layouts | [Expand sequences](expand-sequences.md) |
+| Encode a checked library with ambiguity letters | [Degenerate libraries](diversify-sequences.md) |
+| Read scores and saved results | [Interpretation](interpreting-results.md) and [visual inspection](reference/result-inspection.md) |
 
 ## Scoring, search, and saved results
 
@@ -28,6 +27,7 @@ inputs, choose outputs, or interpret scores.
 - [Record search states](reference/search-observations.md) and [animate them](reference/playback.md).
 - [Select a fixed-size set with sequence-separation requirements](reference/portfolio-selection.md).
 - [Record the software and runtime used for a search](reference/execution-receipts.md).
+- [Run or replay the twelve-model design](../examples/twelve-motifs/README.md).
 
 ## Maintain the package
 
