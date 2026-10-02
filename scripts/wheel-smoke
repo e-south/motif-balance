@@ -214,8 +214,23 @@ for install in source wheel; do
 done
 cmp "$smoke_root/source-README.stdout" "$smoke_root/wheel-README.stdout"
 diff -qr "$smoke_root/source-README" "$smoke_root/wheel-README"
-cmp "$smoke_root/wheel-README/argr-cra/candidate.png" examples/argr-cra/candidate.png
-cmp "$smoke_root/wheel-README/argr-cra/arrangements.png" examples/argr-cra/arrangements.png
+# Compare vector geometry to the published previews. PNG text depends on local fonts;
+# source/wheel PNG bytes are already compared in the same environment above.
+"$smoke_root/venv/bin/python" - "$smoke_root/wheel-README/argr-cra" <<'PYVECTOR'
+import sys
+from pathlib import Path
+from motif_balance.formats.collection import read_collection
+from motif_balance.inspection import inspect_collection, inspect_result
+from motif_balance.inspection.render import render_candidate_svg
+from motif_balance.inspection.render.collection import render_collection_svg
+root = Path(sys.argv[1])
+actual = {
+    "candidate.svg": render_candidate_svg(inspect_result(root / "result", kind="bundle"), compact=True),
+    "arrangements.svg": render_collection_svg(inspect_collection(read_collection(root / "collection.json"))),
+}
+for name, rendered in actual.items():
+    assert rendered == (Path("examples/argr-cra") / name).read_bytes(), name
+PYVECTOR
 "$smoke_root/venv/bin/python" - "$smoke_root/wheel-README/argr-cra" <<'PYDOC'
 import json
 import sys
