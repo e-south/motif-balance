@@ -43,6 +43,8 @@ def test_published_example_media_keep_gray_activity_in_molecule_and_bind_assets(
     assert media["assets"]["playback.gif"]["width"] >= 1000
     assert media["final_displayed_evaluations"] == expected["showcase_evaluations"][-1]
     assert media["balance"] == expected["balance"]
+    assert media["displayed_elapsed_seconds"] is None
+    assert media["full_run_elapsed_seconds"] > 0
     assert "video_url" not in media
     for name in ("playback.mp4", "playback.gif", "final-frame.png"):
         record = media["assets"][name]
@@ -70,7 +72,9 @@ def test_example_selection_preserves_molecular_activity_and_recorded_best(pairwi
     assert source.search_chain_id == "all"
     assert view.search_chain_id == "all"
     assert view.search_display == "molecule"
-    assert view.full_run_elapsed_seconds == 42.0
+    assert source.full_run_elapsed_seconds == 42.0
+    assert view.full_run_elapsed_seconds is None
+    assert "min elapsed" not in render_playback_svg(view).decode()
     assert view.frames == source.until_last_improvement().frames
     assert [(f.evaluations, f.best_balance, f.candidate) for f in view.frames] == [
         (f.evaluations, f.best_balance, f.candidate) for f in source.until_last_improvement().frames

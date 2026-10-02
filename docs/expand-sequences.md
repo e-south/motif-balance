@@ -9,7 +9,8 @@ Scores above the floor can still differ.
 uv run motif-balance expand collection.json --all --min-balance 0.8 --out expanded
 ```
 
-The directory contains a FASTA and per-motif score table for each arrangement,
+Start with `collection.json` from [collection selection](choose-alternatives.md).
+The output contains a FASTA and per-motif score table for each arrangement,
 plus `collection.json` with the complete record. Omit `--all` to expand the first
 representative, or select `--candidate 2`. A single-parent directory contains
 `sequences.fasta`, `scores.tsv`, and `expansion.json`. A missing arrangement stays
@@ -21,8 +22,7 @@ before expansion starts.
 `--min-balance 0.8` requires every desired normalized score to be at least 0.8.
 For an unwanted model, its avoidance component, one minus its score, must meet
 the floor. Every desired model's selected best-match coordinates and strand stay
-fixed under the existing tie rule. Uncovered DNA stays unchanged. These scores
-measure model agreement, not preserved binding or expression.
+fixed under the existing tie rule. Uncovered DNA stays unchanged.
 
 By default, expansion returns up to 256 sequences per arrangement and evaluates
 up to 4,096 sequences, including the parent. Set `--max-variants` and
@@ -56,9 +56,11 @@ can exclude individually qualifying sequences.
 ## Python and verification
 
 ```python
+from motif_balance.formats.collection import read_collection
 from motif_balance.variants import expand_collection, load_expansion
 
 # Reuse the models and selected layouts already carried by the collection.
+report = read_collection("collection.json")
 expanded = expand_collection(report, min_balance=0.8, max_variants=256)
 
 # Each arrangement has its own sequence list, scores, and compact test history.
@@ -76,7 +78,8 @@ the default set of editable positions, so it can explicitly permit flanking
 bases. The CLI equivalent is `--editable-mask`, using `0` and `1`. The complementary
 strand is determined by the sequence, not edited independently.
 
-## Resource and record contracts
+<details>
+<summary>Work, memory, and record limits</summary>
 
 Full motif-match records are retained only for returned sequences. Each rejected
 test stores a source-sequence index, edited position and base, balance, and
@@ -100,3 +103,5 @@ They do not silently reinterpret historical `variant-library` product records.
 `load_expansion` rejects duplicate JSON keys and inputs over 64 MB, then replays
 all decisions, scores, sites, and limits. Structural parsing alone is not score
 verification. Producer version and build-lock fields are provenance declarations.
+
+</details>

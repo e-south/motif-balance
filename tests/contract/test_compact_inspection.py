@@ -70,7 +70,7 @@ def test_compact_svg_keeps_scores_but_omits_detailed_annotations(pairwise_spec, 
     inspected = inspect_result(tmp_path / "result", kind="bundle")
     raw = render_candidate_svg(inspected, compact=True)
     root = ET.fromstring(raw)
-    labels = " ".join(node.text or "" for node in root.iter() if node.tag.endswith("text"))
+    labels = " ".join("".join(node.itertext()) for node in root.iter() if node.tag.endswith("text"))
     assert "Balance" in labels
     assert "q =" in labels
     assert "LLR" not in labels

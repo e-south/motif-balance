@@ -52,6 +52,5 @@ to a minimum sequence difference. To select distinct arrangements instead, use
 by order, orientation and interval relationships. These are different ways to
 choose candidates for experimental comparison.
 
-Scores describe model agreement, not measured regulatory activity. A bounded
-search does not prove an optimum. Read [interpretation](interpreting-results.md)
-for result fields and the biological scope of the scores.
+Read [interpretation](interpreting-results.md) for result fields and the
+biological scope of the scores.

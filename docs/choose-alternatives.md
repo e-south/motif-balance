@@ -40,10 +40,9 @@ for rank, member in enumerate(collection.members, 1):
     print(f"Arrangement {rank}: balance {member.evaluation.balance_score:.3f}")
 ```
 
-The saved search retained 256 sequences. Ranking rescans that pool, groups its
-selected motif sites, and orders the representatives by balance. It performs no
-new sequence search. A shortfall describes the retained pool, not every sequence
-or arrangement possible at this DNA length.
+The saved search retained 256 sequences. Ranking groups their selected motif
+sites and orders the representatives by balance. A shortfall describes that pool,
+not every arrangement possible at this DNA length.
 
 ## Choose what counts as a different arrangement
 
@@ -63,10 +62,7 @@ explains ties, boundary relationships, and returned fields.
 <details>
 <summary>Inspect the second arrangement</summary>
 
-## Inspect a ranked alternative
-
-Append this to the Python example. The second representative scores 0.801.
-The same duplex and logo renderer used for design review shows its selected sites.
+Append this to the Python example to draw the second representative.
 
 ```python
 from motif_balance import Candidate

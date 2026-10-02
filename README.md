@@ -1,4 +1,4 @@
-# ![Motif Balance: balanced motif design](assets/motif-balance-banner.svg)
+# ![Motif Balance: model, scan, balance, select](assets/motif-balance-banner.svg)
 
 Supply motif models and a DNA length. Motif Balance searches for sequences that
 strengthen the weakest desired match while optionally limiting unwanted matches.
@@ -30,10 +30,9 @@ uv run motif-balance example argr-cra --out argr-cra
 cd argr-cra
 ```
 
-The command caches the checked download. `inputs/motifs/` contains the models,
-`SOURCE.json` records their origin, and `design.yaml` sets the DNA length,
-requested count, search allowance, and seed. The [preparation guide](examples/argr-cra/README.md)
-explains how the probabilities are adjusted.
+`inputs/motifs/` contains the models, `SOURCE.json` records their origin, and
+`design.yaml` sets the request. The download is cached for reuse.
+[Preparation details](examples/argr-cra/README.md).
 
 To see a model, start Python with `uv run python` and enter:
 
@@ -57,9 +56,8 @@ Position         A         C         G         T
       14     0.823    0.0227    0.0955    0.0591
 ```
 
-Position 1 strongly favors G. Scoring converts these probabilities into log-odds
-weights, giving positive weights to bases preferred over the background. Exit
-Python with `exit()` to continue in the terminal.
+Position 1 strongly favors G. Scoring compares these probabilities with the
+background. Exit Python with `exit()` to continue in the terminal.
 
 ### 2. Design and inspect DNA
 
@@ -74,8 +72,8 @@ uv run motif-balance inspect result --format png --out candidate.png
 ![ArgR and Cra logos aligned to the recovered 25-base duplex, with scores 0.855 and 0.889](examples/argr-cra/candidate.png)
 
 Each *q* is a motif's best match, rescaled to its own score range. Balance *B*
-is the weaker score, **0.855** here. Both strands are scanned. For score tables
-and search summaries, use `uv run motif-balance inspect result --format html --out review.html`.
+is the weaker score, **0.855** here. Both strands are scanned.
+[Other inspection formats](docs/reference/result-inspection.md) include HTML score tables.
 
 ### 3. Collect different arrangements
 
@@ -87,11 +85,10 @@ uv run motif-balance inspect collection.json --format png --out arrangements.png
 
 ![Two selected arrangements with balances 0.855 and 0.801](examples/argr-cra/arrangements.png)
 
-The two representatives score **0.855** and **0.801**. The first is displayed
-as the reverse complement of the design above. Collection selection treats
-whole-duplex reversal as equivalent and reports any shortfall in the retained
-search pool. [Arrangement definitions](docs/choose-alternatives.md)
-explain which differences count.
+The first arrangement is the same duplex shown above, viewed from the opposite
+strand. Reversing the whole duplex does not create a different arrangement.
+Selection reports a shortfall if the retained pool cannot supply the requested
+count. [Arrangement definitions](docs/choose-alternatives.md).
 
 ### 4. Expand each arrangement into sequence alternatives
 
@@ -101,11 +98,10 @@ explain which differences count.
 uv run motif-balance expand collection.json --all --min-balance 0.8 --out expanded
 ```
 
-Each arrangement returns **256 sequences** at the default output limit. Every
-sequence meets the floor and retains its parent's selected sites. The `expanded/`
-directory contains FASTA sequences and per-motif score tables for each layout.
-Other designs can yield fewer alternatives. [Sequence expansion](docs/expand-sequences.md)
-explains the checks and work limits.
+Each arrangement returns **256 sequences** at the default output limit.
+`expanded/` contains FASTA sequences and per-motif score tables for each layout.
+Other designs can yield fewer alternatives. See [sequence expansion](docs/expand-sequences.md)
+to change the limits or inspect the checks.
 
 Use new output names when repeating a step. The [Python tutorial](docs/python-api.md)
 uses these same models throughout.
@@ -122,9 +118,9 @@ uv run motif-balance design twelve-motifs/design.yaml --out twelve-result
 uv run motif-balance inspect twelve-result --format png --out twelve-dna.png
 ```
 
-This request uses 60 bases and 655,360 evaluations. The recorded run took about
-27 minutes on an Apple M2 Pro and reached balance **0.733**. The movie follows
-its best sequence as the search improves it. Gray windows show recorded search
+This request uses 60 bases and 655,360 evaluations. The movie ends when the recorded
+run first reaches its best balance, **0.733**, at evaluation 121,534.
+Gray windows show recorded search
 candidates; colored windows show the best sequence so far.
 
 ![Recorded improvements in the twelve-model search](examples/twelve-motifs/playback.gif)

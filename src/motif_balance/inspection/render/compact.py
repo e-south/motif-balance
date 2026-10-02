@@ -14,7 +14,25 @@ from .candidate_layout import CandidateLayout
 from .candidate_projection import shown_matches, validate_candidate_projection
 from .candidate_sections import _duplex, _match_lane
 from .information_logo import render_coordinate_aligned_information_logo
-from .svg_primitives import finish_svg, motif_color, safe_text, text
+from .svg_primitives import INK, finish_svg, motif_color, safe_text, text
+
+
+def _score_label(
+    x: float,
+    y: float,
+    prefix: str,
+    symbol: str,
+    suffix: str,
+    *,
+    size: int,
+    fill: str = INK,
+    weight: int | None = None,
+    anchor: str | None = None,
+) -> str:
+    label = text(x, y, prefix, size=size, fill=fill, weight=weight, anchor=anchor).removesuffix(
+        "</text>"
+    )
+    return f'{label}<tspan font-style="italic">{symbol}</tspan>{safe_text(suffix)}</text>'
 
 
 def render_compact_candidate_svg(
@@ -25,13 +43,17 @@ def render_compact_candidate_svg(
     matches = shown_matches(candidate)
     forward = tuple(m for m in matches if m.strand == "+")
     reverse = tuple(m for m in matches if m.strand == "-")
-    cell, row = 24, 132
-    left = max(196, max(len(m.motif_id) for m in matches) * 10 + 125)
-    width = max(540, left + problem.length * cell + 44)
-    primary_y = 24 + row * len(forward) + 16
-    complement_y = primary_y + 30
+    cell, row = 24, 108
+    left = max(
+        180,
+        max(len(m.motif_id) + (8 if m.spec_direction == "avoid" else 0) for m in matches) * 9 + 100,
+    )
+    width = max(540, left + problem.length * cell + 64)
+    primary_y = 32 + row * len(forward)
+    complement_y = primary_y + 28
     reverse_top = complement_y + 44
-    height = reverse_top + row * len(reverse) + 34
+    bottom = reverse_top + (len(reverse) - 1) * row + 72 if reverse else complement_y + 8
+    height = bottom + 50
     layout = CandidateLayout(
         matches,
         forward,
@@ -39,7 +61,7 @@ def render_compact_candidate_svg(
         cell,
         left,
         width,
-        24,
+        primary_y - 40 - (len(forward) - 1) * row - 100,
         row,
         primary_y,
         complement_y,
@@ -58,7 +80,7 @@ def render_compact_candidate_svg(
             "Filled windows show the selected bases on the corresponding strand."
         ),
         "</desc>",
-        f'<rect width="{width}" height="{height}" fill="white"/>',
+        f'<rect width="{width}" height="{height}" rx="18" fill="#F4F9F7"/>',
     ]
     motifs = {m.motif_id: m for m in problem.motifs}
     for lanes, origin in ((forward, layout.logo_top), (reverse, reverse_top)):
@@ -79,13 +101,16 @@ def render_compact_candidate_svg(
             parts.append(_match_lane(match, top=window, layout=layout))
             role = " (avoid)" if match.spec_direction == "avoid" else ""
             parts.append(
-                text(
-                    16,
+                _score_label(
+                    left + match.start * cell - 28,
                     window + 15,
-                    f"{match.motif_id}{role}  q = {match.normalized_score:.3f}",
+                    f"{match.motif_id}{role}  ",
+                    "q",
+                    f" = {match.normalized_score:.3f}",
                     size=16,
                     fill=motif_color(match.motif_id),
                     weight=650,
+                    anchor="end",
                 )
             )
     parts.extend(_duplex(candidate, layout))
@@ -95,8 +120,15 @@ def render_compact_candidate_svg(
         else f"{m.normalized_score:.3f}"
         for m in candidate.matches
     )
-    balance = f"Balance B = {candidate.balance_score:.3f}"
+    balance = f" = {candidate.balance_score:.3f}"
     if len(matches) <= 4:
-        balance = f"Balance B = min({components}) = {candidate.balance_score:.3f}"
-    parts.extend([text(width / 2, height - 14, balance, size=18, anchor="middle"), "</svg>\n"])
+        balance = f" = min({components}) = {candidate.balance_score:.3f}"
+    parts.extend(
+        [
+            _score_label(
+                width / 2, height - 20, "Balance ", "B", balance, size=18, anchor="middle"
+            ),
+            "</svg>\n",
+        ]
+    )
     return finish_svg(parts)

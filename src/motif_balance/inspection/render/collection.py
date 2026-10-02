@@ -38,12 +38,12 @@ def render_collection_svg(members: tuple[CandidateInspection, ...]) -> bytes:
             )
         drawings.append(ET.fromstring(payload))
     width = max(int(d.attrib["width"]) for d in drawings)
-    height = sum(int(d.attrib["height"]) + 36 for d in drawings)
+    height = sum(int(d.attrib["height"]) + 32 for d in drawings)
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
         f'viewBox="0 0 {width} {height}" role="img">',
         "<title>Selected motif arrangements</title>",
-        f'<rect width="{width}" height="{height}" fill="white"/>',
+        f'<rect width="{width}" height="{height}" rx="18" fill="#F4F9F7"/>',
     ]
     y = 0
     for member, drawing in zip(members, drawings, strict=True):
@@ -66,8 +66,8 @@ def render_collection_svg(members: tuple[CandidateInspection, ...]) -> bytes:
         parts.append(
             text(width / 2, 24, f"Arrangement {rank}", size=20, anchor="middle", weight=650)
         )
-        drawing.set("y", "36")
+        drawing.set("y", "32")
         parts.append(ET.tostring(drawing, encoding="unicode"))
         parts.append("</g>")
-        y += int(drawing.attrib["height"]) + 36
+        y += int(drawing.attrib["height"]) + 32
     return finish_svg([*parts, "</svg>\n"])

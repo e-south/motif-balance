@@ -39,13 +39,18 @@ def best_progress(source: PlaybackInspection) -> PlaybackInspection:
     if source.chain_id is not None:
         raise ValueError("The example requires recorded best sequences, not one search chain")
     view = PlaybackInspection.model_validate(
-        source.model_copy(update={"search_display": "molecule"}).model_dump(mode="python")
+        source.model_copy(
+            # The movie omits the final plateau. No elapsed time was recorded at
+            # its endpoint, so the complete-run timing cannot label this excerpt.
+            update={"search_display": "molecule", "full_run_elapsed_seconds": None}
+        ).model_dump(mode="python")
     )
     return view.until_last_improvement()
 
 
 def write_media(view: PlaybackInspection, destination: Path, *, source_evaluations: int) -> None:
     """Render the shared selection and bind its media files to their recorded scores."""
+    full_run_elapsed_seconds = view.full_run_elapsed_seconds
     view = best_progress(view)
     settings = {"pacing": "accelerating"}
     assets = {}
@@ -83,7 +88,8 @@ def write_media(view: PlaybackInspection, destination: Path, *, source_evaluatio
         "search_chain_id": view.search_chain_id,
         "search_display": view.search_display,
         "balance": view.frames[-1].best_balance,
-        "full_run_elapsed_seconds": view.full_run_elapsed_seconds,
+        "full_run_elapsed_seconds": full_run_elapsed_seconds,
+        "displayed_elapsed_seconds": None,
         "render_package_version": PACKAGE_VERSION,
         **settings,
         "meaning": (
@@ -155,7 +161,7 @@ def main() -> None:
     (args.out / "final-frame.svg").write_bytes(render_playback_svg(view))
     if args.media:
         # The movie moves between saved placements; it does not invent search states.
-        write_media(view, args.out, source_evaluations=spec.evaluations)
+        write_media(full_view, args.out, source_evaluations=spec.evaluations)
     print(f"Best balance {winner.balance_score:.3f}; complete search {elapsed:.1f} seconds elapsed")
     print(args.out / "playback.html")
 

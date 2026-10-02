@@ -72,6 +72,11 @@ limited to 24 members and the shared SVG byte limit. A candidate SVG uses the fu
 view by default; add `--compact` for the molecule and scores alone. Full HTML
 inspection retains the detailed score and search tables.
 
+Compact drawings align site windows with their DNA columns. Logos grow away
+from the corresponding strand, with each bit scale beside its motif. Names and
+scores identify the models independently of color. The rounded background has
+transparent corners, so the PNG can sit on light or dark pages.
+
 From Python, `inspect_collection(report)` returns one `CandidateInspection` per
 selected member. Use `candidate_rank=2` for one member, and
 `render_collection_svg(members)` from `motif_balance.inspection.render.collection`
@@ -83,7 +88,7 @@ An alternative selected from a retained pool need not be a run's winner or a
 member of its published portfolio. Use the explicit Python API
 `inspect_candidate(candidate: Candidate, spec: DesignSpec) -> CandidateInspection`
 from `motif_balance.inspection` to explain that candidate without inventing a
-result bundle. The [alternative-selection guide](../choose-alternatives.md#inspect-a-ranked-alternative)
+result bundle. The [alternative-selection guide](../choose-alternatives.md)
 contains a runnable example. This operation is available through Python.
 
 The operation revalidates both models, checks projection limits, compiles the
