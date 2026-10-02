@@ -19,7 +19,7 @@ uv run --locked ruff format --check .
 uv run --locked mypy src
 uv run --locked python -m compileall -q src/motif_balance scripts
 mkdir -p .artifacts
-uv run --locked pytest \
+uv run --locked --extra visualization pytest \
   --cov=motif_balance \
   --cov-report=term-missing \
   --cov-report=xml:.artifacts/coverage.xml \
