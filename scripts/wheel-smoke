@@ -187,7 +187,7 @@ cp -R "$smoke_root/installed-example/inputs" "$smoke_root/argr-cra-inputs"
 "$smoke_root/venv/bin/motif-balance" example twelve-motifs --out "$smoke_root/installed-twelve"
 "$smoke_root/venv/bin/motif-balance" design "$smoke_root/installed-twelve/design.yaml" --check
 uv pip install --python "$smoke_root/venv/bin/python" "${wheel_path}[visualization]"
-source_python="$(uv run --locked python -c 'import sys; print(sys.executable)')"
+source_python="$(uv run --locked --extra visualization python -c 'import sys; print(sys.executable)')"
 # Execute the README command blocks with both installations, outside the checkout.
 readme_program="$("$source_python" - "$repo_root/README.md" <<'PYDOC'
 import re
