@@ -9,7 +9,7 @@ inputs, choose outputs, or interpret scores.
 | Task | Guide |
 | --- | --- |
 | Start a uv project | [Installation](installation.md) |
-| Run, inspect and export a first design | [Quickstart](quickstart.md) |
+| Check a request and compare search methods | [Quickstart](quickstart.md) |
 | Prepare count or probability matrices | [Motif inputs](motif-models.md) |
 | Write a design request | [Design specification](design-spec.md) |
 | Design from Python | [Python tutorial](python-api.md) |

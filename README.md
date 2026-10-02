@@ -2,8 +2,8 @@
 
 Supply motif models and a DNA length. Motif Balance searches for sequences that
 strengthen the weakest desired match while optionally limiting unwanted matches.
-Inspect the sites, collect different arrangements, and expand each layout into
-nucleotide alternatives.
+Inspect the motif sites, collect different arrangements, and expand each layout
+into sequence alternatives.
 
 [Documentation](docs/README.md) ·
 [Supply motifs](docs/motif-models.md) ·
@@ -120,8 +120,8 @@ uv run motif-balance inspect twelve-result --format png --out twelve-dna.png
 
 This request uses 60 bases and 655,360 evaluations. The movie ends when the recorded
 run first reaches its best balance, **0.733**, at evaluation 121,534.
-Gray windows show recorded search
-candidates; colored windows show the best sequence so far.
+Gray windows show recorded search candidates; colored windows show the best
+sequence so far.
 
 ![Recorded improvements in the twelve-model search](examples/twelve-motifs/playback.gif)
 
