@@ -38,6 +38,29 @@ wheel_path="${wheels[0]}"
 sdist_path="${sdists[0]}"
 
 uv run --locked twine check "$wheel_path" "$sdist_path"
+# Check the uploaded description, not only the Markdown in the checkout.
+uv run --locked python - "$wheel_path" "$sdist_path" <<'PYREADME'
+import runpy
+import sys
+import tarfile
+import zipfile
+from email.parser import BytesParser
+from pathlib import Path
+
+check = runpy.run_path("scripts/check_docs.py")["package_description_errors"]
+expected = Path("README.md").read_text().strip()
+with zipfile.ZipFile(sys.argv[1]) as wheel, tarfile.open(sys.argv[2]) as sdist:
+    wheel_metadata, = [n for n in wheel.namelist() if n.endswith(".dist-info/METADATA")]
+    source_metadata, = [m for m in sdist.getmembers() if m.name.count("/") == 1
+                        and m.name.endswith("/PKG-INFO")]
+    source_stream = sdist.extractfile(source_metadata)
+    assert source_stream is not None
+    for metadata in (wheel.read(wheel_metadata), source_stream.read()):
+        description = BytesParser().parsebytes(metadata).get_payload(decode=True).decode("utf-8").strip()
+        assert description == expected, "Packaged README differs from the checked source"
+        assert not check(description), check(description)
+print("Wheel and source descriptions use checked HTTPS links: ok")
+PYREADME
 wheel_contents="$(python3 -m zipfile -l "$wheel_path")"
 for forbidden in '/tests/' '/scripts/' '/.github/' '/.agents/'; do
   if grep -Fq "$forbidden" <<<"$wheel_contents"; then

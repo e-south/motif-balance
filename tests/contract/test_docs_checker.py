@@ -33,6 +33,8 @@ def checker() -> ModuleType:
         "https://github.com/e-south/motif-balance/blob/main/docs/missing.md",
         "https://github.com/e-south/motif-balance/tree/main/examples/missing",
         "https://raw.githubusercontent.com/e-south/motif-balance/main/assets/missing.svg",
+        "https://raw.githubusercontent.com/e-south/motif-balance/"
+        "0123456789abcdef0123456789abcdef01234567/assets/missing.png",
     ],
 )
 def test_repository_web_links_are_checked_in_current_tree(url: str) -> None:
@@ -79,6 +81,43 @@ def test_html_preview_links_are_checked(html: str) -> None:
     assert "broken link" in errors[0]
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "![Banner](assets/banner.png)",
+        "[Guide](docs/README.md)",
+        '<img src="examples/candidate.png" alt="Candidate">',
+        "![Banner](http://example.org/banner.png)",
+    ],
+)
+def test_package_description_rejects_relative_or_insecure_links(text: str) -> None:
+    assert checker().package_description_errors(text)
+
+
+def test_package_description_accepts_https_links_and_local_anchors() -> None:
+    text = (
+        "![Banner](https://example.org/banner.png)\n"
+        "[Guide](https://example.org/docs)\n[Install](#install)"
+    )
+    assert checker().package_description_errors(text) == []
+
+
+def test_readme_rejects_images_exceeding_the_pypi_proxy_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = checker()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+    image = tmp_path / "playback.gif"
+    with image.open("wb") as stream:
+        stream.truncate(10_000_001)
+    text = "![Search](https://raw.githubusercontent.com/e-south/motif-balance/main/playback.gif)"
+    errors = module.link_errors(tmp_path / "README.md", text)
+    assert len(errors) == 1 and "image exceeds 10 MB" in errors[0]
+    with image.open("wb") as stream:
+        stream.truncate(10_000_000)
+    assert module.link_errors(tmp_path / "README.md", text) == []
+
+
 def test_readme_and_example_links_are_included(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -103,10 +142,13 @@ def test_plain_markdown_keeps_link_and_fence_checks(
     guide = tmp_path / "docs" / "guide.md"
     guide.write_text("# Read a saved result\n\nOpen its score table.\n")
     (tmp_path / "README.md").write_text(
-        "# Example\n\n[Guide](docs/guide.md)\n![Overview](assets/motif-balance-banner.svg)\n"
+        "# Example\n\n[Guide](https://github.com/e-south/motif-balance/blob/main/docs/guide.md)\n"
+        "![Overview](https://raw.githubusercontent.com/e-south/motif-balance/main/"
+        "assets/motif-balance-banner.png)\n"
     )
     assets = tmp_path / "assets"
     assets.mkdir()
+    (assets / "motif-balance-banner.png").touch()
     banner = assets / "motif-balance-banner.svg"
     banner.write_text(
         '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="230" '

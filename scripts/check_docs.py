@@ -27,10 +27,10 @@ ROOT_DOCS = [
 ]
 LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 BANNER_PATH = REPO_ROOT / "assets" / "motif-balance-banner.svg"
-REPOSITORY_FILE_URLS = (
-    "https://github.com/e-south/motif-balance/blob/main/",
-    "https://github.com/e-south/motif-balance/tree/main/",
-    "https://raw.githubusercontent.com/e-south/motif-balance/main/",
+REPOSITORY_FILE_URL = re.compile(
+    r"https://(?:github\.com/e-south/motif-balance/(?:blob|tree)"
+    r"|raw\.githubusercontent\.com/e-south/motif-balance)"
+    r"/(?:main|[0-9a-f]{40})/(.*)"
 )
 
 
@@ -61,6 +61,18 @@ class _PreviewLinks(HTMLParser):
                 self.targets.append(value)
 
 
+def package_description_errors(text: str) -> list[str]:
+    """Require links that resolve when the README is displayed outside GitHub."""
+    previews = _PreviewLinks()
+    previews.feed(text)
+    errors: list[str] = []
+    for raw_target in [*LINK_PATTERN.findall(text), *previews.targets]:
+        target = raw_target.strip().strip("<>")
+        if not target.startswith(("https://", "#")):
+            errors.append(f"Package description needs an absolute HTTPS link: {raw_target!r}")
+    return errors
+
+
 def link_errors(path: Path, text: str) -> list[str]:
     """Check local and canonical repository-file links against this checkout."""
     errors: list[str] = []
@@ -68,12 +80,9 @@ def link_errors(path: Path, text: str) -> list[str]:
     previews.feed(text)
     for raw_target in [*LINK_PATTERN.findall(text), *previews.targets]:
         target_with_fragment = raw_target.strip().strip("<>")
-        repository_prefix = next(
-            (prefix for prefix in REPOSITORY_FILE_URLS if target_with_fragment.startswith(prefix)),
-            None,
-        )
-        if repository_prefix is not None:
-            target_with_fragment = target_with_fragment.removeprefix(repository_prefix)
+        repository_match = REPOSITORY_FILE_URL.fullmatch(target_with_fragment)
+        if repository_match is not None:
+            target_with_fragment = repository_match.group(1)
             base = REPO_ROOT
         elif "://" in target_with_fragment or target_with_fragment.startswith("mailto:"):
             continue
@@ -88,6 +97,12 @@ def link_errors(path: Path, text: str) -> list[str]:
             continue
         if not resolved.exists():
             errors.append(f"{path.relative_to(REPO_ROOT)}: broken link {raw_target!r}")
+        elif (
+            path == REPO_ROOT / "README.md"
+            and resolved.suffix.lower() in {".png", ".gif", ".jpg", ".jpeg", ".webp", ".svg"}
+            and resolved.stat().st_size > 10_000_000
+        ):
+            errors.append(f"README.md: image exceeds 10 MB for the PyPI proxy: {raw_target!r}")
         elif (
             fragment
             and resolved.suffix == ".md"
@@ -114,6 +129,8 @@ def main() -> int:
         if text.count("```") % 2:
             errors.append(f"{path.relative_to(REPO_ROOT)}: unbalanced fenced code blocks")
         errors.extend(link_errors(path, text))
+        if path == REPO_ROOT / "README.md":
+            errors.extend(package_description_errors(text))
 
     try:
         banner = ET.parse(BANNER_PATH).getroot()
@@ -126,7 +143,7 @@ def main() -> int:
             errors.append(
                 "assets/motif-balance-banner.svg: missing accessible title or description"
             )
-        if "assets/motif-balance-banner.svg" not in (REPO_ROOT / "README.md").read_text():
+        if "assets/motif-balance-banner.png" not in (REPO_ROOT / "README.md").read_text():
             errors.append("README.md: missing banner route")
     except (OSError, ET.ParseError) as exc:
         errors.append(f"assets/motif-balance-banner.svg: unable to parse: {exc}")

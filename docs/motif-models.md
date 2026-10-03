@@ -24,12 +24,12 @@ print(cra)
 ```text
 Cra (14 positions)
 Background (A C G T): 0.25 0.25 0.25 0.25
-Probabilities (3 significant digits)
+Nucleotide probabilities
 Position         A         C         G         T
        1    0.0227    0.0227     0.932    0.0227
        2    0.0227     0.932    0.0227    0.0227
        3    0.0227    0.0227    0.0227     0.932
-... 9 positions omitted ...
+                   ... 9 positions omitted ...
       13    0.0409     0.914    0.0227    0.0227
       14     0.823    0.0227    0.0955    0.0591
 ```
