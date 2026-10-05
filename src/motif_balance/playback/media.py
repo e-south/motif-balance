@@ -12,6 +12,7 @@ Module Author(s): Eric J. South
 import importlib
 import io
 import math
+import subprocess
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
@@ -68,6 +69,48 @@ def _movie_steps(
     return steps
 
 
+def _encode_gif(
+    payload: bytes, *, palette_colors: int | None, final_frame_duration_ms: int | None
+) -> bytes:
+    """Use one full-animation palette without dithering; preserve recorded frame timing."""
+    if len(payload) > _MAX_BYTES:
+        raise ArtifactError("playback media exceeds 64 MiB")
+    encoder = _dependency("imageio_ffmpeg")
+    with tempfile.TemporaryDirectory(prefix="motif-playback-") as directory:
+        source, target = Path(directory) / "source.gif", Path(directory) / "playback.gif"
+        source.write_bytes(payload)
+        command = [
+            encoder.get_ffmpeg_exe(),
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            str(source),
+        ]
+        if palette_colors is not None:
+            command += [
+                "-filter_complex",
+                "[0:v]split[a][b];"
+                f"[a]palettegen=max_colors={palette_colors}:stats_mode=full[p];"
+                "[b][p]paletteuse=dither=none",
+            ]
+        else:
+            command += ["-c:v", "copy"]
+        command += ["-loop", "0"]
+        if final_frame_duration_ms is not None:
+            command += ["-final_delay", str(final_frame_duration_ms // 10)]
+        command.append(str(target))
+        try:
+            subprocess.run(
+                command, stdin=subprocess.DEVNULL, capture_output=True, check=True, timeout=60
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise ArtifactError("GIF encoding failed or exceeded its 60-second limit") from exc
+        if target.stat().st_size > _MAX_BYTES:
+            raise ArtifactError("playback media exceeds 64 MiB")
+        return target.read_bytes()
+
+
 def render_playback_media(
     view: PlaybackInspection,
     *,
@@ -77,6 +120,8 @@ def render_playback_media(
     transition_frames: int = 0,
     pacing: Literal["uniform", "accelerating"] = "uniform",
     width: int | None = None,
+    gif_palette_colors: int | None = None,
+    final_frame_duration_ms: int | None = None,
 ) -> bytes:
     """Return PNG for one frame, or GIF/MP4 for all recorded frames in order.
 
@@ -86,6 +131,10 @@ def render_playback_media(
     frame; transitions do not insert pauses at the recorded states. Tweened movies
     skip unchanged intermediate drawings but preserve their plotted observations
     and always include the final checkpoint.
+
+    GIF can use a shared palette of 4-256 colors sampled across all frames,
+    without dithering. Its final frame can have an explicit duration in multiples
+    of 10 milliseconds (10-655350). These options leave the saved states unchanged.
     """
     view = validate_view(view)
     if format_name not in ("png", "gif", "mp4"):
@@ -100,6 +149,22 @@ def render_playback_media(
         raise ArtifactError("pacing must be uniform or accelerating")
     if pacing != "uniform" and (format_name == "png" or not transition_frames):
         raise ArtifactError("accelerating pacing requires a tweened GIF or MP4")
+    if gif_palette_colors is not None and (
+        type(gif_palette_colors) is not int or not 4 <= gif_palette_colors <= 256
+    ):
+        raise ArtifactError("gif_palette_colors must be an integer from 4 through 256")
+    if final_frame_duration_ms is not None and (
+        type(final_frame_duration_ms) is not int
+        or not 10 <= final_frame_duration_ms <= 655350
+        or final_frame_duration_ms % 10
+    ):
+        raise ArtifactError(
+            "final_frame_duration_ms must be a multiple of 10 from 10 through 655350"
+        )
+    if format_name != "gif" and (
+        gif_palette_colors is not None or final_frame_duration_ms is not None
+    ):
+        raise ArtifactError("palette colors and final-frame duration apply only to GIF")
     native_width, native_height, _ = frame_dimensions(view)
     if width is not None and (type(width) is not int or not 320 <= width <= native_width):
         raise ArtifactError("width must be an integer from 320 through the native frame width")
@@ -156,6 +221,12 @@ def render_playback_media(
             disposal=1,
         )
         payload = target.getvalue()
+        if gif_palette_colors is not None or final_frame_duration_ms is not None:
+            payload = _encode_gif(
+                payload,
+                palette_colors=gif_palette_colors,
+                final_frame_duration_ms=final_frame_duration_ms,
+            )
     else:
         encoder = _dependency("imageio_ffmpeg")
         with tempfile.TemporaryDirectory(prefix="motif-playback-") as directory:
