@@ -31,6 +31,44 @@ jobs:
         with:
           enable-cache: true
           prune-cache: true
+      - name: Diagnose publisher response metadata
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import tomllib
+          from pathlib import Path
+          from urllib.parse import urlsplit
+          from urllib.request import Request, urlopen
+
+          source = json.loads(Path("src/motif_balance/examples/data/argr-cra/SOURCE.json").read_text())
+          version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          requests = (
+              ("default urllib", source["url"]),
+              ("package User-Agent", Request(source["url"], headers={
+                  "User-Agent": f"motif-balance/{version} (+https://github.com/e-south/motif-balance)",
+              })),
+          )
+          for label, request in requests:
+              metadata = {"request": label}
+              try:
+                  with urlopen(request, timeout=20) as response:
+                      data = response.read(32 * 1024 * 1024 + 1)
+                      digest = hashlib.sha256(data).hexdigest()
+                      metadata.update(
+                          status=response.status,
+                          content_type=response.headers.get("Content-Type"),
+                          bytes=len(data),
+                          sha256=digest,
+                          expected_archive=digest == source["archive_sha256"],
+                          final_host=urlsplit(response.url).hostname,
+                          zip_signature=data.startswith(b"PK"),
+                      )
+              except Exception as error:
+                  metadata.update(error=type(error).__name__, status=getattr(error, "code", None))
+              notice = json.dumps(metadata, sort_keys=True).replace("%", "%25")
+              print(f"::notice title=Publisher response metadata::{notice}", flush=True)
+          PY
       - name: Verify repository
         run: bash ./scripts/verify
 
