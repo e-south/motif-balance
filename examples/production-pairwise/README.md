@@ -10,12 +10,12 @@ interpretation.
 # Validate the input motifs and search settings without running a search.
 uv run motif-balance design examples/production-pairwise/design.yaml --check
 # Run the design and save its sequences, matches and scoring inputs.
-uv run motif-balance design examples/production-pairwise/design.yaml --out /tmp/motif-pair-result
+uv run motif-balance design examples/production-pairwise/design.yaml --out motif-pair-result
 # Verify the saved result and print its sequences and motif matches.
-uv run motif-balance inspect /tmp/motif-pair-result
+uv run motif-balance inspect motif-pair-result
 # Plot the recorded best scores over the search.
-uv run motif-balance inspect /tmp/motif-pair-result \
-  --format svg --view search --out /tmp/motif-pair-search.svg
+uv run motif-balance inspect motif-pair-result \
+  --format svg --view search --out motif-pair-search.svg
 ```
 
 Run from an installed checkout as described in the [quickstart](../../docs/quickstart.md).
