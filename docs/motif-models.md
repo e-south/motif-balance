@@ -3,7 +3,7 @@
 Start with transcription-factor motif profiles or other DNA preference models
 appropriate to your question. Motif Balance accepts position probabilities
 and an explicit background distribution. It converts these to log-odds weights
-when scoring. Choose the source profiles for your question.
+when scoring.
 
 Keep the source identifier and version with each profile. If you compare
 models, record how you prepared their probabilities and why you chose the
@@ -48,7 +48,7 @@ conversion with an equal-frequency A/C/G/T background:
 
 ```bash
 # Convert source counts into a probability model with an explicit background.
-motif-balance motif prepare examples/formats/synthetic.jaspar \
+uv run motif-balance motif prepare examples/formats/synthetic.jaspar \
   --motif-id regulator_a \
   --background 0.25,0.25,0.25,0.25 \
   --out regulator-a.yaml
