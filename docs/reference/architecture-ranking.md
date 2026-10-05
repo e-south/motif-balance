@@ -94,9 +94,9 @@ the result when reproducing a caller-owned collection.
 
 The API is `rank_architectures(sequences, spec, *, grouping="exact_offsets", distance_base_budget=10_000_000)`.
 `sequences` must be a tuple
-or list of uppercase, fixed-length A/C/G/T strings; `spec` must be a current
-directional request with at least two specifications. Iterators, legacy
-requests, mixed lengths, and unsupported distance constraints are refused.
+or list of uppercase, fixed-length A/C/G/T strings; `spec` must be a
+`design-spec/v3` request with at least two specifications. Iterators, mixed
+lengths, and unsupported distance constraints are refused.
 
 | Resource | Limit |
 | --- | --- |
