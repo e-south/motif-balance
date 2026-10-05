@@ -12,6 +12,7 @@ Module Author(s): Eric J. South
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 from types import ModuleType
 
@@ -100,6 +101,107 @@ def test_package_description_accepts_https_links_and_local_anchors() -> None:
         "[Guide](https://example.org/docs)\n[Install](#install)"
     )
     assert checker().package_description_errors(text) == []
+
+
+@pytest.mark.parametrize("target", ["relative.md", "http://example.org/guide"])
+def test_linked_image_requires_https_for_the_enclosing_link(target: str) -> None:
+    text = f"[![Badge](https://example.org/badge.svg)]({target})"
+    errors = checker().package_description_errors(text)
+    assert len(errors) == 1
+    assert target in errors[0]
+
+
+def test_linked_image_accepts_https_for_both_destinations() -> None:
+    text = "[![Badge](https://example.org/badge.svg)](https://example.org/guide)"
+    assert checker().package_description_errors(text) == []
+
+
+def test_linked_image_checks_the_enclosing_repository_link() -> None:
+    module = checker()
+    text = "[![Badge](https://example.org/badge.svg)](docs/missing.md)"
+    errors = module.link_errors(module.REPO_ROOT / "README.md", text)
+    assert len(errors) == 1
+    assert "broken link 'docs/missing.md'" in errors[0]
+
+
+@pytest.fixture
+def pinned_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[ModuleType, str]:
+    module = checker()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
+    (tmp_path / "guide.md").write_text("# Historical heading\n")
+    (tmp_path / "historical.png").write_bytes(b"historical image")
+    with (tmp_path / "large.gif").open("wb") as stream:
+        stream.truncate(10_000_001)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Documentation Test",
+            "-c",
+            "user.email=docs@example.invalid",
+            "commit",
+            "--quiet",
+            "--no-gpg-sign",
+            "-m",
+            "historical fixtures",
+        ],
+        cwd=tmp_path,
+        check=True,
+    )
+    revision = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=tmp_path, text=True
+    ).strip()
+    (tmp_path / "guide.md").write_text("# Current heading\n")
+    (tmp_path / "historical.png").unlink()
+    (tmp_path / "new.png").write_bytes(b"new image")
+    (tmp_path / "large.gif").write_bytes(b"small image now")
+    return module, revision
+
+
+def test_pinned_image_cannot_borrow_a_new_file_from_the_current_checkout(pinned_repository) -> None:
+    module, revision = pinned_repository
+    url = f"https://raw.githubusercontent.com/e-south/motif-balance/{revision}/new.png"
+    errors = module.link_errors(module.REPO_ROOT / "README.md", f"![Image]({url})")
+    assert len(errors) == 1 and "broken link" in errors[0]
+
+
+def test_pinned_image_remains_valid_when_deleted_from_the_current_checkout(
+    pinned_repository,
+) -> None:
+    module, revision = pinned_repository
+    url = f"https://raw.githubusercontent.com/e-south/motif-balance/{revision}/historical.png"
+    assert module.link_errors(module.REPO_ROOT / "README.md", f"![Image]({url})") == []
+
+
+@pytest.mark.parametrize(
+    "fragment, valid", [("historical-heading", True), ("current-heading", False)]
+)
+def test_pinned_markdown_uses_the_historical_heading(pinned_repository, fragment, valid) -> None:
+    module, revision = pinned_repository
+    url = f"https://github.com/e-south/motif-balance/blob/{revision}/guide.md#{fragment}"
+    errors = module.link_errors(module.REPO_ROOT / "README.md", f"[Guide]({url})")
+    if valid:
+        assert errors == []
+    else:
+        assert len(errors) == 1 and "broken heading fragment" in errors[0]
+
+
+def test_pinned_image_size_uses_the_historical_bytes(pinned_repository) -> None:
+    module, revision = pinned_repository
+    url = f"https://raw.githubusercontent.com/e-south/motif-balance/{revision}/large.gif"
+    errors = module.link_errors(module.REPO_ROOT / "README.md", f"![Image]({url})")
+    assert len(errors) == 1 and "image exceeds 10 MB" in errors[0]
+
+
+def test_missing_pinned_revision_does_not_fall_back_to_current_files(tmp_path, monkeypatch) -> None:
+    module = checker()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+    (tmp_path / "image.png").write_bytes(b"current file")
+    url = "https://raw.githubusercontent.com/e-south/motif-balance/" + "0" * 40 + "/image.png"
+    errors = module.link_errors(tmp_path / "README.md", f"![Image]({url})")
+    assert len(errors) == 1 and "pinned revision unavailable" in errors[0]
 
 
 def test_readme_rejects_images_exceeding_the_pypi_proxy_limit(

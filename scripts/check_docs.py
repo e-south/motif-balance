@@ -12,10 +12,12 @@ Module Author(s): Eric J. South
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import unquote
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -25,12 +27,13 @@ ROOT_DOCS = [
     REPO_ROOT / "RELIABILITY.md",
     REPO_ROOT / "SECURITY.md",
 ]
-LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+# Match destinations independently of labels, including links around images.
+LINK_PATTERN = re.compile(r"\]\(([^)]+)\)")
 BANNER_PATH = REPO_ROOT / "assets" / "motif-balance-banner.svg"
 REPOSITORY_FILE_URL = re.compile(
     r"https://(?:github\.com/e-south/motif-balance/(?:blob|tree)"
     r"|raw\.githubusercontent\.com/e-south/motif-balance)"
-    r"/(?:main|[0-9a-f]{40})/(.*)"
+    r"/(main|[0-9a-f]{40})/(.*)"
 )
 
 
@@ -73,8 +76,60 @@ def package_description_errors(text: str) -> list[str]:
     return errors
 
 
+def _git_object(option: str, reference: str) -> bytes | None:
+    """Read only available Git objects; incomplete history must not pass a link."""
+    try:
+        result = subprocess.run(
+            ["git", "cat-file", option, reference],
+            cwd=REPO_ROOT,
+            env={**os.environ, "GIT_NO_LAZY_FETCH": "1"},
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def _pinned_link_errors(path: Path, revision: str, target: str, raw_target: str) -> list[str]:
+    """Check immutable repository URLs in their declared tree, including byte limits."""
+    label = path.relative_to(REPO_ROOT)
+    target, _, fragment = target.partition("#")
+    relative = PurePosixPath(unquote(target))
+    if relative.is_absolute() or ".." in relative.parts:
+        return [f"{label}: link escapes repository {raw_target!r}"]
+    if _git_object("-e", f"{revision}^{{commit}}") is None:
+        return [
+            f"{label}: broken link {raw_target!r}: pinned revision unavailable; "
+            "check out full Git history"
+        ]
+    reference = f"{revision}:{relative.as_posix()}"
+    kind = _git_object("-t", reference)
+    if kind is None:
+        return [f"{label}: broken link {raw_target!r}"]
+    if kind.strip() == b"blob":
+        if path == REPO_ROOT / "README.md" and relative.suffix.lower() in {
+            ".png",
+            ".gif",
+            ".jpg",
+            ".jpeg",
+            ".webp",
+            ".svg",
+        }:
+            size = _git_object("-s", reference)
+            if size is None:
+                return [f"{label}: unable to read pinned image {raw_target!r}"]
+            if int(size) > 10_000_000:
+                return [f"README.md: image exceeds 10 MB for the PyPI proxy: {raw_target!r}"]
+        if fragment and relative.suffix == ".md":
+            content = _git_object("-p", reference)
+            if content is None or unquote(fragment) not in heading_anchors(content.decode("utf-8")):
+                return [f"{label}: broken heading fragment {raw_target!r}"]
+    return []
+
+
 def link_errors(path: Path, text: str) -> list[str]:
-    """Check local and canonical repository-file links against this checkout."""
+    """Check local links in this checkout and pinned URLs in their declared Git tree."""
     errors: list[str] = []
     previews = _PreviewLinks()
     previews.feed(text)
@@ -82,7 +137,10 @@ def link_errors(path: Path, text: str) -> list[str]:
         target_with_fragment = raw_target.strip().strip("<>")
         repository_match = REPOSITORY_FILE_URL.fullmatch(target_with_fragment)
         if repository_match is not None:
-            target_with_fragment = repository_match.group(1)
+            revision, target_with_fragment = repository_match.groups()
+            if revision != "main":
+                errors.extend(_pinned_link_errors(path, revision, target_with_fragment, raw_target))
+                continue
             base = REPO_ROOT
         elif "://" in target_with_fragment or target_with_fragment.startswith("mailto:"):
             continue
