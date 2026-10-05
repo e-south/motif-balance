@@ -30,10 +30,11 @@ ROOT_DOCS = [
 # Match destinations independently of labels, including links around images.
 LINK_PATTERN = re.compile(r"\]\(([^)]+)\)")
 BANNER_PATH = REPO_ROOT / "assets" / "motif-balance-banner.svg"
+# GitHub redirects between blob/tree pages; raw URLs must resolve to files.
 REPOSITORY_FILE_URL = re.compile(
-    r"https://(?:github\.com/e-south/motif-balance/(?:blob|tree)"
+    r"https://(?:github\.com/e-south/motif-balance/(?P<route>blob|tree)"
     r"|raw\.githubusercontent\.com/e-south/motif-balance)"
-    r"/(main|[0-9a-f]{40})/(.*)"
+    r"/(?P<revision>main|[0-9a-f]{40})/(?P<target>.*)"
 )
 
 
@@ -91,7 +92,9 @@ def _git_object(option: str, reference: str) -> bytes | None:
     return result.stdout if result.returncode == 0 else None
 
 
-def _pinned_link_errors(path: Path, revision: str, target: str, raw_target: str) -> list[str]:
+def _pinned_link_errors(
+    path: Path, revision: str, target: str, raw_target: str, route: str
+) -> list[str]:
     """Check immutable repository URLs in their declared tree, including byte limits."""
     label = path.relative_to(REPO_ROOT)
     target, _, fragment = target.partition("#")
@@ -107,6 +110,8 @@ def _pinned_link_errors(path: Path, revision: str, target: str, raw_target: str)
     kind = _git_object("-t", reference)
     if kind is None:
         return [f"{label}: broken link {raw_target!r}"]
+    if route == "raw" and kind.strip() != b"blob":
+        return [f"{label}: broken link {raw_target!r}: raw URL requires a file"]
     if kind.strip() == b"blob":
         if path == REPO_ROOT / "README.md" and relative.suffix.lower() in {
             ".png",
@@ -134,12 +139,17 @@ def link_errors(path: Path, text: str) -> list[str]:
     previews = _PreviewLinks()
     previews.feed(text)
     for raw_target in [*LINK_PATTERN.findall(text), *previews.targets]:
+        route = None
         target_with_fragment = raw_target.strip().strip("<>")
         repository_match = REPOSITORY_FILE_URL.fullmatch(target_with_fragment)
         if repository_match is not None:
-            revision, target_with_fragment = repository_match.groups()
+            route = repository_match.group("route") or "raw"
+            revision = repository_match.group("revision")
+            target_with_fragment = repository_match.group("target")
             if revision != "main":
-                errors.extend(_pinned_link_errors(path, revision, target_with_fragment, raw_target))
+                errors.extend(
+                    _pinned_link_errors(path, revision, target_with_fragment, raw_target, route)
+                )
                 continue
             base = REPO_ROOT
         elif "://" in target_with_fragment or target_with_fragment.startswith("mailto:"):
@@ -155,6 +165,11 @@ def link_errors(path: Path, text: str) -> list[str]:
             continue
         if not resolved.exists():
             errors.append(f"{path.relative_to(REPO_ROOT)}: broken link {raw_target!r}")
+        elif route == "raw" and not resolved.is_file():
+            errors.append(
+                f"{path.relative_to(REPO_ROOT)}: broken link {raw_target!r}: "
+                "raw URL requires a file"
+            )
         elif (
             path == REPO_ROOT / "README.md"
             and resolved.suffix.lower() in {".png", ".gif", ".jpg", ".jpeg", ".webp", ".svg"}

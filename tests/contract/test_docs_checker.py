@@ -130,6 +130,8 @@ def pinned_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[
     monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
     subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
     (tmp_path / "guide.md").write_text("# Historical heading\n")
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets" / "image.png").write_bytes(b"image")
     (tmp_path / "historical.png").write_bytes(b"historical image")
     with (tmp_path / "large.gif").open("wb") as stream:
         stream.truncate(10_000_001)
@@ -158,6 +160,26 @@ def pinned_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[
     (tmp_path / "new.png").write_bytes(b"new image")
     (tmp_path / "large.gif").write_bytes(b"small image now")
     return module, revision
+
+
+@pytest.mark.parametrize("pinned", [False, True])
+def test_raw_repository_link_rejects_a_directory(pinned_repository, pinned) -> None:
+    module, revision = pinned_repository
+    revision = revision if pinned else "main"
+    url = f"https://raw.githubusercontent.com/e-south/motif-balance/{revision}/assets"
+    errors = module.link_errors(module.REPO_ROOT / "README.md", f"[Assets]({url})")
+    assert len(errors) == 1 and "raw URL requires a file" in errors[0]
+
+
+@pytest.mark.parametrize("pinned", [False, True])
+@pytest.mark.parametrize("route, target", [("blob", "assets"), ("tree", "guide.md")])
+def test_github_repository_routes_accept_file_directory_redirects(
+    pinned_repository, pinned, route, target
+) -> None:
+    module, revision = pinned_repository
+    revision = revision if pinned else "main"
+    url = f"https://github.com/e-south/motif-balance/{route}/{revision}/{target}"
+    assert module.link_errors(module.REPO_ROOT / "README.md", f"[Guide]({url})") == []
 
 
 def test_pinned_image_cannot_borrow_a_new_file_from_the_current_checkout(pinned_repository) -> None:
