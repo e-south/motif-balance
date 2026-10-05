@@ -64,8 +64,6 @@ def argr_cra_example(tmp_path_factory: pytest.TempPathFactory) -> Path:
     subprocess.run(
         [sys.executable, str(destination / "prepare_inputs.py")],
         check=True,
-        capture_output=True,
-        text=True,
         timeout=90,
     )
     return destination

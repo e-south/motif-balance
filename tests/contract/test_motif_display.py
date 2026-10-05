@@ -30,7 +30,7 @@ def test_print_motif_labels_background_and_each_small_model_position(
     assert capsys.readouterr().out == (
         "two_positions (2 positions)\n"
         "Background (A C G T): 0.3 0.2 0.2 0.3\n"
-        "Probabilities (3 significant digits)\n"
+        "Nucleotide probabilities\n"
         "Position         A         C         G         T\n"
         "       1       0.7       0.1       0.1       0.1\n"
         "       2       0.1       0.2       0.3       0.4\n"
@@ -65,6 +65,12 @@ def test_wide_display_keeps_labelled_head_and_tail_with_explicit_omission(
         assert "omitted" not in text
     else:
         assert f"... {omitted} positions omitted ..." in text
+        header = next(line for line in text.splitlines() if line.startswith("Position"))
+        omission = next(line for line in text.splitlines() if "omitted" in line)
+        heading_center = (header.index("A") + header.rindex("T")) / 2
+        omission_center = (len(omission) - len(omission.lstrip()) + len(omission) - 1) / 2
+        assert abs(omission_center - heading_center) <= 0.5
+        assert omission == omission.rstrip()
         assert len(text) < 600
 
 

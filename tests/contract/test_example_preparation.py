@@ -11,6 +11,7 @@ Module Author(s): Eric J. South
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from motif_balance.cli import app
@@ -98,9 +99,32 @@ def test_cached_example_writes_editable_inputs_and_checks_cache(tmp_path, monkey
     assert conversion.prior_weight == 0.1
     assert json.loads((tmp_path / "second/SOURCE.json").read_text()) == source
     (cache / f"{digest}.zip").write_bytes(b"corrupt")
-    import pytest
-
     with pytest.raises(ValueError, match="checksum"):
         prepare_example("twelve-motifs", tmp_path / "third", cache=cache)
     assert not (tmp_path / "third").exists()
     assert len(downloads) == 1
+
+
+@pytest.mark.parametrize(
+    "payload, zip_signature",
+    [(b"<html>Unavailable</html>", False), (b"PK\x03\x04changed archive", True)],
+)
+def test_download_checksum_error_identifies_the_received_bytes(
+    tmp_path, monkeypatch, payload, zip_signature
+):
+    import hashlib
+    import io
+
+    from motif_balance.examples import download
+
+    monkeypatch.setattr(download, "urlopen", lambda url, timeout: io.BytesIO(payload))
+    cache = tmp_path / "cache"
+    with pytest.raises(ValueError) as error:
+        download.archive_bytes("https://example.invalid/motifs.zip", "0" * 64, cache)
+
+    message = str(error.value)
+    assert "checksum differs from the source record" in message
+    assert f"received {len(payload)} bytes" in message
+    assert f"sha256={hashlib.sha256(payload).hexdigest()}" in message
+    assert f"zip_signature={zip_signature}" in message
+    assert not cache.exists()

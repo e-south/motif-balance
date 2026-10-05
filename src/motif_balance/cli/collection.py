@@ -50,7 +50,7 @@ def collect_command(
         )
         collection = ranking.select_up_to(count)
         format_name = format_name or (
-            "json" if out is not None and out.suffix == ".json" else "text"
+            "json" if out is not None and out.suffix.lower() == ".json" else "text"
         )
         if format_name == "json":
             payload = collection_json(
