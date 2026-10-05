@@ -131,7 +131,7 @@ def test_greedy_refuses_legacy_constraints_before_evaluation(monkeypatch):
     spec = directional.model_copy(update={"schema_version": "design-spec/v2"})
     monkeypatch.setattr(
         motif_balance.search.greedy,
-        "evaluate",
+        "_PreparedScorer",
         lambda *_: pytest.fail("legacy request was evaluated"),
     )
     with pytest.raises(IncompatibleDesign, match=r"[Uu]nsupported"):

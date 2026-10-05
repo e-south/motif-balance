@@ -61,18 +61,20 @@ def test_exact_incumbents_match_call_prefixes_without_changing_any_search_call(
     second_direction,
 ) -> None:
     from motif_balance.scoring import evaluate
-    from motif_balance.search import engine, greedy, moves, uniform
-    from motif_balance.search import initialization as starts
+    from motif_balance.search import engine, greedy, uniform
 
     calls = []
 
-    def recorded(sequence, problem):
-        result = evaluate(sequence, problem)
-        calls.append(result)
-        return result
+    def recorded_scorer(problem):
+        def recorded(sequence):
+            result = evaluate(sequence, problem)
+            calls.append(result)
+            return result
 
-    for module in (engine, greedy, starts, moves, uniform):
-        monkeypatch.setattr(module, "evaluate", recorded)
+        return recorded
+
+    for module in (engine, greedy, uniform):
+        monkeypatch.setattr(module, "_PreparedScorer", recorded_scorer)
     spec = _request(second_direction=second_direction)
     expected = design(spec, method=method, initialization=initialization)
     baseline = tuple(calls)

@@ -11,6 +11,7 @@ Module Author(s): Eric J. South
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Literal
 
 import numpy as np
@@ -106,6 +107,7 @@ class SearchMoves:
         current: Evaluation,
         rng: np.random.Generator,
         ledger: _SearchLedger,
+        score: Callable[[str], Evaluation] | None = None,
         progress: float,
     ) -> tuple[np.ndarray, Evaluation, bool]:
         bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
@@ -118,7 +120,11 @@ class SearchMoves:
         for base in range(4):
             proposal = state.copy()
             proposal[position] = base
-            result = evaluate(_sequence(proposal), problem)
+            result = (
+                evaluate(_sequence(proposal), problem)
+                if score is None
+                else score(_sequence(proposal))
+            )
             ledger.record(result)
             candidates.append((proposal, result))
         soft_beta = 0.5 + 11.5 * progress
@@ -144,6 +150,7 @@ class SearchMoves:
         current: Evaluation,
         rng: np.random.Generator,
         ledger: _SearchLedger,
+        score: Callable[[str], Evaluation] | None = None,
     ) -> tuple[np.ndarray, Evaluation]:
         block_length = int(rng.integers(2, min(5, problem.spec.length) + 1))
         bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
@@ -157,7 +164,9 @@ class SearchMoves:
         proposal[start : start + block_length] = rng.integers(
             0, 4, size=block_length, dtype=np.int8
         )
-        result = evaluate(_sequence(proposal), problem)
+        result = (
+            evaluate(_sequence(proposal), problem) if score is None else score(_sequence(proposal))
+        )
         ledger.record(result)
         return proposal, result
 
@@ -169,6 +178,7 @@ class SearchMoves:
         current: Evaluation,
         rng: np.random.Generator,
         ledger: _SearchLedger,
+        score: Callable[[str], Evaluation] | None = None,
     ) -> tuple[np.ndarray, Evaluation]:
         count = int(rng.integers(1, min(2, problem.spec.length) + 1))
         bounds = _target_bounds(current, length=problem.spec.length) if rng.random() < 0.5 else None
@@ -180,7 +190,9 @@ class SearchMoves:
         positions = rng.choice(population, size=count, replace=False)
         proposal = state.copy()
         proposal[positions] = rng.integers(0, 4, size=count, dtype=np.int8)
-        result = evaluate(_sequence(proposal), problem)
+        result = (
+            evaluate(_sequence(proposal), problem) if score is None else score(_sequence(proposal))
+        )
         ledger.record(result)
         return proposal, result
 
@@ -192,6 +204,7 @@ class SearchMoves:
         current: Evaluation,
         rng: np.random.Generator,
         ledger: _SearchLedger,
+        score: Callable[[str], Evaluation] | None = None,
     ) -> tuple[np.ndarray, Evaluation]:
         worst = _worst_match(current)
         motif = _motif_for_match(problem, worst.motif_id)
@@ -211,6 +224,8 @@ class SearchMoves:
         )
         proposal = state.copy()
         proposal[start : start + len(inserted)] = [DNA_ALPHABET.index(base) for base in inserted]
-        result = evaluate(_sequence(proposal), problem)
+        result = (
+            evaluate(_sequence(proposal), problem) if score is None else score(_sequence(proposal))
+        )
         ledger.record(result)
         return proposal, result
