@@ -46,8 +46,13 @@ def archive_bytes(url: str, digest: str, cache: Path) -> bytes:
             data = response.read(MAX_ARCHIVE_BYTES + 1)
         if len(data) > MAX_ARCHIVE_BYTES:
             raise ValueError("Publisher archive exceeds the size limit")
-    if hashlib.sha256(data).hexdigest() != digest:
-        raise ValueError("Publisher archive checksum differs from the source record")
+    observed_digest = hashlib.sha256(data).hexdigest()
+    if observed_digest != digest:
+        raise ValueError(
+            "Publisher archive checksum differs from the source record; "
+            f"received {len(data)} bytes, sha256={observed_digest}, "
+            f"zip_signature={data.startswith(b'PK')}"
+        )
     if not os.path.lexists(path):
         cache.mkdir(parents=True, exist_ok=True)
         descriptor, name = tempfile.mkstemp(prefix=".download-", dir=cache)
