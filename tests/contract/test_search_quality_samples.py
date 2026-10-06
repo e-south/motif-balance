@@ -107,12 +107,15 @@ def test_bounded_reference_sample_can_cover_every_encounter_without_a_full_histo
 
     encountered = {}
 
-    def recorded(sequence, problem):
-        result = evaluate(sequence, problem)
-        encountered[sequence] = result
-        return result
+    def recorded_scorer(problem):
+        def recorded(sequence):
+            result = evaluate(sequence, problem)
+            encountered[sequence] = result
+            return result
 
-    monkeypatch.setattr(uniform, "evaluate", recorded)
+        return recorded
+
+    monkeypatch.setattr(uniform, "_PreparedScorer", recorded_scorer)
     spec = _request(length=7, evaluations=512)
     portfolio, complete = design_observed(
         spec,
