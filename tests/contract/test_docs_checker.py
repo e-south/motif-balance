@@ -275,8 +275,8 @@ def test_plain_markdown_keeps_link_and_fence_checks(
     (assets / "motif-balance-banner.png").touch()
     banner = assets / "motif-balance-banner.svg"
     banner.write_text(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="230" '
-        'viewBox="0 0 1280 230"><title>Overview</title><desc>Design DNA</desc></svg>'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="200" '
+        'viewBox="0 0 1280 200"><title>Overview</title><desc>Design DNA</desc></svg>'
     )
     monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(module, "ROOT_DOCS", [])
