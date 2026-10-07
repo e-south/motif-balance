@@ -24,7 +24,7 @@ def test_package_and_project_identify_the_current_release() -> None:
     root = Path(__file__).resolve().parents[2]
     project = tomllib.loads((root / "pyproject.toml").read_text())["project"]
 
-    assert PACKAGE_VERSION == project["version"] == "0.9.0"
+    assert PACKAGE_VERSION == project["version"] == "0.9.1"
 
 
 def test_runtime_and_build_lock_contracts_match_repository() -> None:
