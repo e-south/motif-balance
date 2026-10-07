@@ -8,12 +8,14 @@ wheel, verified bundle, and `motif-balance.execution-receipt/v1`. The receipt
 binds the execution interval and runtime facts to the bundle manifest, producer
 revision, package-tree digest, search engine, and evaluation counts.
 
-Create the workspace in the same operation that performs the design:
+Install the exact release wheel into the active environment first, and retain
+that wheel. Replace the wheel path and producer commit below with its release
+identities. Create the workspace in the same operation that performs the design:
 
 ```bash
-# Run the request in an environment built from the specified release artifact.
+# Run the request and check that the installed package matches its release wheel.
 motif-balance orchestration execute design.yaml \
-  --release-artifact dist/motif_balance-0.6.0-py3-none-any.whl \
+  --release-artifact /path/to/motif_balance-VERSION-py3-none-any.whl \
   --producer-revision <40-character-commit> \
   --out execution-workspace
 ```

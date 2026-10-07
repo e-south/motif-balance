@@ -23,11 +23,17 @@
       "transition_frames": 6
     },
     "playback.gif": {
-      "sha256": "3941c21d5476e08ca174387b921c17d5f2a2b88bfbfcf69ec39f1f181bdacc88",
-      "bytes": 18701226,
+      "sha256": "460ff6585a5b685d720130fee7d1316a3ba2cedd214e4e66538d144e77e40081",
+      "bytes": 9962468,
       "width": 1000,
       "fps": 10,
-      "transition_frames": 2
+      "transition_frames": 2,
+      "encoding": {
+        "palette_colors": 64,
+        "palette_sampling": "full",
+        "dither": "none"
+      },
+      "final_frame_duration_ms": 2000
     },
     "final-frame.png": {
       "sha256": "9e22bf419379fadfac7e015e969fb0b27d2dbb8da8dd3a7c84f25d6c9c74b9d6",

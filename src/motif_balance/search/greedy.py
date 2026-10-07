@@ -24,7 +24,7 @@ from motif_balance.constants import (
 from motif_balance.errors import IncompatibleDesign
 from motif_balance.model import ProposalSummary, SearchDiagnostics
 from motif_balance.model.search import SearchInitialization
-from motif_balance.scoring import evaluate
+from motif_balance.scoring import _PreparedScorer
 
 from .initialization import initial_states
 from .observation import SearchRecorder
@@ -59,13 +59,14 @@ class GreedySearchEngine:
                 hint="Use explicit seek/avoid specifications for this search method.",
             )
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
+        score = _PreparedScorer(problem)
         ledger = _SearchLedger(
             budget=problem.spec.evaluations,
             observer=self.observer,
             retention_capacity=DEFAULT_ELITE_CAPACITY if problem.spec.count == 1 else None,
         )
         states, current = initial_states(
-            problem, rng=rng, ledger=ledger, initialization=self.initialization
+            problem, rng=rng, ledger=ledger, initialization=self.initialization, score=score
         )
         if self.observer is not None:
             self.observer.snapshot(
@@ -79,7 +80,7 @@ class GreedySearchEngine:
             for base in range(min(4, ledger.budget - ledger.evaluations_used)):
                 state = states[chain].copy()
                 state[position] = base
-                result = evaluate(_sequence(state), problem)
+                result = score(_sequence(state))
                 ledger.record(result)
                 trials.append((result, state))
             proposed, proposal = min(

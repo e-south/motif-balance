@@ -110,7 +110,7 @@ def test_random_refuses_legacy_before_any_evaluation(monkeypatch):
     legacy = directional.model_copy(update={"schema_version": "design-spec/v2"})
     monkeypatch.setattr(
         motif_balance.search.uniform,
-        "evaluate",
+        "_PreparedScorer",
         lambda *_: pytest.fail("legacy request was evaluated"),
     )
     with pytest.raises(IncompatibleDesign, match=r"[Uu]nsupported"):

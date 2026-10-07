@@ -60,10 +60,16 @@ def write_media(view: PlaybackInspection, destination: Path, *, source_evaluatio
         ("playback.gif", "gif", 1000, 10, 2),
         ("final-frame.png", "png", None, 1, 0),
     ):
+        gif_settings = (
+            {"gif_palette_colors": 64, "final_frame_duration_ms": 2000}
+            if format_name == "gif"
+            else {}
+        )
         payload = render_playback_media(
             view,
             format_name=format_name,
             width=width,
+            **gif_settings,
             **(
                 {}
                 if format_name == "png"
@@ -78,6 +84,15 @@ def write_media(view: PlaybackInspection, destination: Path, *, source_evaluatio
             "fps": fps,
             "transition_frames": transitions,
         }
+        if gif_settings:
+            assets[name].update(
+                encoding={
+                    "palette_colors": gif_settings["gif_palette_colors"],
+                    "palette_sampling": "full",
+                    "dither": "none",
+                },
+                final_frame_duration_ms=gif_settings["final_frame_duration_ms"],
+            )
     metadata = {
         "source_record_sha256": view.observation_sha256,
         "source_evaluations": source_evaluations,

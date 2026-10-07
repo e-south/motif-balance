@@ -16,10 +16,10 @@ uv run motif-balance design design.yaml --check
 
 # Evaluate up to 4,096 candidates and save four sequences.
 uv run motif-balance design design.yaml \
-  --out /tmp/motif-balance-result
+  --out motif-balance-result
 
 # Verify the saved scores and print the sequences and their motif matches.
-uv run motif-balance inspect /tmp/motif-balance-result
+uv run motif-balance inspect motif-balance-result
 ```
 
 The best balance is approximately **0.855**: the weaker of the two best motif
@@ -32,12 +32,12 @@ request, input motifs, sequences, match tables and search record.
 
 ```bash
 # Draw the best candidate as double-stranded DNA with aligned motif logos.
-uv run motif-balance inspect /tmp/motif-balance-result \
-  --format svg --view candidate --out /tmp/motif-balance-candidate.svg
+uv run motif-balance inspect motif-balance-result \
+  --format svg --view candidate --out motif-balance-candidate.svg
 
 # Create a browser view of the candidate set and its scores.
-uv run motif-balance inspect /tmp/motif-balance-result \
-  --format html --out /tmp/motif-balance-review.html
+uv run motif-balance inspect motif-balance-result \
+  --format html --out motif-balance-review.html
 ```
 
 Open the SVG in an image viewer or the HTML in a browser. The filled windows
@@ -67,7 +67,7 @@ Keep the same request, seed and evaluation allowance while changing the method:
 ```bash
 for method in annealed greedy random; do
   uv run motif-balance design design.yaml \
-    --method "$method" --out "/tmp/motif-balance-$method"
+    --method "$method" --out "motif-balance-$method"
 done
 ```
 

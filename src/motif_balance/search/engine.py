@@ -31,7 +31,7 @@ from motif_balance.model import (
     SearchDiagnostics,
 )
 from motif_balance.model.search import SearchInitialization
-from motif_balance.scoring import evaluate
+from motif_balance.scoring import _PreparedScorer
 
 from .initialization import initial_states
 from .moves import MoveName, SearchMoves
@@ -48,13 +48,14 @@ class ExhaustiveSearchEngine:
         sequence_space = sequence_space_at_most(problem.spec.length, problem.spec.evaluations)
         if sequence_space is None:
             raise ValueError("exhaustive search requires a budget covering the sequence space")
+        score = _PreparedScorer(problem)
         ledger = _SearchLedger(
             budget=sequence_space,
             observer=self.observer,
             retention_capacity=DEFAULT_ELITE_CAPACITY if problem.spec.count == 1 else None,
         )
         for bases in itertools.product(DNA_ALPHABET, repeat=problem.spec.length):
-            ledger.record(evaluate("".join(bases), problem))
+            ledger.record(score("".join(bases)))
             if self.observer is not None:
                 self.observer.snapshot(
                     ledger.evaluations_used,
@@ -107,6 +108,7 @@ class AnnealedSearchEngine(SearchMoves):
 
     def search(self, problem: CompiledProblem) -> SearchResult:
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
+        score = _PreparedScorer(problem)
         ledger = _SearchLedger(
             budget=problem.spec.evaluations,
             observer=self.observer,
@@ -118,6 +120,7 @@ class AnnealedSearchEngine(SearchMoves):
             ledger=ledger,
             initialization=self.initialization,
             restarts=self.restarts,
+            score=score,
         )
         if self.observer is not None:
             self.observer.snapshot(
@@ -148,6 +151,7 @@ class AnnealedSearchEngine(SearchMoves):
                     current=result,
                     rng=rng,
                     ledger=ledger,
+                    score=score,
                     progress=progress,
                 )
             elif move == "block":
@@ -157,6 +161,7 @@ class AnnealedSearchEngine(SearchMoves):
                     current=result,
                     rng=rng,
                     ledger=ledger,
+                    score=score,
                 )
                 was_accepted = self._accept(result, proposed, progress=progress, rng=rng)
             elif move == "multi":
@@ -166,6 +171,7 @@ class AnnealedSearchEngine(SearchMoves):
                     current=result,
                     rng=rng,
                     ledger=ledger,
+                    score=score,
                 )
                 was_accepted = self._accept(result, proposed, progress=progress, rng=rng)
             else:
@@ -175,6 +181,7 @@ class AnnealedSearchEngine(SearchMoves):
                     current=result,
                     rng=rng,
                     ledger=ledger,
+                    score=score,
                 )
                 was_accepted = self._accept(result, proposed, progress=progress, rng=rng)
             if was_accepted:

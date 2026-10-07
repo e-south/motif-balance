@@ -11,6 +11,7 @@ Module Author(s): Eric J. South
 
 import json
 
+import pytest
 from typer.testing import CliRunner
 
 from motif_balance import DesignSpec, design
@@ -71,3 +72,29 @@ def test_collection_cli_checks_external_identity_and_preserves_outputs(tmp_path,
         app, ["collect", str(path), "--expected-bundle-id", "bundle-" + "0" * 16, "--count", "3"]
     )
     assert bad.exit_code != 0
+
+
+@pytest.mark.parametrize("suffix", [".json", ".JSON", ".Json"])
+def test_collection_json_suffix_supports_the_expansion_handoff(tmp_path, pairwise_spec, suffix):
+    path, _ = bundle(tmp_path, pairwise_spec)
+    output = tmp_path / f"collection{suffix}"
+    runner = CliRunner()
+    collected = runner.invoke(app, ["collect", str(path), "--count", "2", "--out", str(output)])
+    assert collected.exit_code == 0, collected.output
+
+    expanded = runner.invoke(
+        app,
+        [
+            "expand",
+            str(output),
+            "--all",
+            "--min-balance",
+            "0",
+            "--max-variants",
+            "1",
+        ],
+    )
+    assert expanded.exit_code == 0, expanded.output
+    report = json.loads(expanded.stdout)
+    assert len(report["libraries"]) == 2
+    assert all(len(library["variants"]) == 1 for library in report["libraries"])

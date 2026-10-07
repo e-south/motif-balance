@@ -19,7 +19,7 @@ from motif_balance.compile import CompiledProblem
 from motif_balance.constants import DEFAULT_ELITE_CAPACITY, RANDOM_SEARCH_ENGINE
 from motif_balance.errors import IncompatibleDesign
 from motif_balance.model import SearchDiagnostics
-from motif_balance.scoring import evaluate
+from motif_balance.scoring import _PreparedScorer
 
 from .observation import SearchRecorder
 from .policy import _sequence
@@ -45,6 +45,7 @@ class UniformRandomSearchEngine:
                 hint="Use explicit seek/avoid specifications for this search method.",
             )
         rng = np.random.Generator(np.random.PCG64(problem.spec.seed))
+        score = _PreparedScorer(problem)
         ledger = _SearchLedger(
             budget=problem.spec.evaluations,
             observer=self.observer,
@@ -52,7 +53,7 @@ class UniformRandomSearchEngine:
         )
         while ledger.evaluations_used < ledger.budget:
             state = rng.integers(0, 4, size=problem.spec.length, dtype=np.int8)
-            ledger.record(evaluate(_sequence(state), problem))
+            ledger.record(score(_sequence(state)))
             if self.observer is not None:
                 self.observer.snapshot(
                     ledger.evaluations_used,

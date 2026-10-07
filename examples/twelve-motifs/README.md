@@ -25,17 +25,25 @@ PNG export requires the visualization extra.
 
 ## Replay the recorded search
 
-From a [source checkout](../../docs/installation.md#install-from-source) with the visualization extra:
+Use a separate checkout of the recorded recipe's release:
 
 ```bash
+git clone --branch v0.8.1 --depth 1 https://github.com/e-south/motif-balance.git motif-balance-replay
+cd motif-balance-replay
+uv sync --locked --extra visualization
+
 # Prepare the recorded models and check the request before searching.
 uv run python examples/twelve-motifs/prepare_inputs.py
 uv run motif-balance design examples/twelve-motifs/design.yaml --check
 # Repeat the search, then export a player, MP4, GIF, and final frame.
-uv run python examples/twelve-motifs/reproduce.py --out /tmp/twelve-motifs-demo --media
+uv run python examples/twelve-motifs/reproduce.py --out twelve-motifs-demo --media
 ```
 
-Open `playback.html` for play/pause and frame selection. Use a new output directory. The recipe requires Motif Balance 0.8.1 and checks the recovered sequence and balance against `expected.json`. Its evenly spaced search snapshots differ from the movie's denser early sampling.
+Open `twelve-motifs-demo/playback.html` for play/pause and frame selection. Use a
+new output directory. The recipe checks the recovered sequence and balance
+against `expected.json`. Its evenly spaced search snapshots differ from the
+published movie's denser early sampling. The [media record](media.json) lists
+the movie's separately recorded frames and rendering settings.
 
 ## Motif inputs
 

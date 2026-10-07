@@ -11,6 +11,8 @@ Module Author(s): Eric J. South
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 
 from motif_balance.compile import CompiledProblem
@@ -29,6 +31,7 @@ def initial_states(
     ledger: _SearchLedger,
     initialization: SearchInitialization,
     restarts: int = 8,
+    score: Callable[[str], Evaluation] | None = None,
 ) -> tuple[list[np.ndarray], list[Evaluation]]:
     chain_count = min(restarts, problem.spec.evaluations)
     base = (
@@ -55,7 +58,7 @@ def initial_states(
                 if replacement >= current:
                     replacement += 1
                 state[position] = replacement
-        result = evaluate(_sequence(state), problem)
+        result = evaluate(_sequence(state), problem) if score is None else score(_sequence(state))
         ledger.record(result)
         states.append(state)
         results.append(result)

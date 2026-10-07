@@ -17,7 +17,9 @@ records the exact wheel and runtime separately from bundle identity.
 ## Bounded execution
 
 [Request validation](docs/design-spec.md#combined-resource-bounds) limits
-allocation and work before search. Every evaluator call counts. A run records
+allocation and work before search. Every evaluator call counts, including a repeated sequence returned from the
+per-search cache. Scoring caches share a 4 MiB entry allowance; preparation and
+retained results use additional memory. A run records
 bounded or exhaustive completion; random sampling remains bounded even when its
 allowance could cover the sequence space. Requested count and separation are hard
 postconditions. Infeasibility publishes no partial successful bundle.

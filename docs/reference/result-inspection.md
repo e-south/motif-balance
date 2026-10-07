@@ -95,8 +95,8 @@ The operation revalidates both models, checks projection limits, compiles the
 supplied scoring context, and evaluates the sequence exactly once. Every stored
 evaluation field must match replay, including coordinates, strands, directional
 satisfaction, and constraint status. The candidate ID must match its sequence.
-It accepts only current directional `design-spec/v3`; no legacy conversion or
-path discovery occurs. The original portfolio count does not have to be
+It accepts `design-spec/v3` requests with explicitly supplied models.
+The original portfolio count does not have to be
 attainable, because inspection generates no portfolio.
 
 The immutable `motif-balance.candidate-inspection/v2` contains the scoring

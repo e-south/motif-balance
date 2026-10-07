@@ -21,6 +21,9 @@ These representatives have balance **0.855** and **0.801**. If you already saved
 Add `--candidate 2` to inspect one member. The collection includes the models
 needed to recheck each displayed sequence. PNG export uses the visualization extra.
 
+Use a `.json` filename or `--format json` to save the collection for inspection
+or expansion. Other outputs default to a text summary.
+
 For the same selection in Python:
 
 ```python

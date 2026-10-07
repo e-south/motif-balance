@@ -65,20 +65,25 @@ def test_observation_preserves_every_evaluator_call_including_repeated_proposals
     monkeypatch,
     initialization,
 ) -> None:
-    from motif_balance.scoring import evaluate
-    from motif_balance.search import engine, moves
+    from motif_balance.scoring import _PreparedScorer
+    from motif_balance.search import engine
 
     calls = []
 
-    def recorded(sequence, problem):
-        result = evaluate(sequence, problem)
-        calls.append(result)
-        return result
+    def recorded_scorer(problem):
+        scorer = _PreparedScorer(problem)
 
-    monkeypatch.setattr(engine, "evaluate", recorded)
-    monkeypatch.setattr(moves, "evaluate", recorded)
+        def recorded(sequence):
+            result = scorer(sequence)
+            calls.append(result)
+            return result
+
+        return recorded
+
+    monkeypatch.setattr(engine, "_PreparedScorer", recorded_scorer)
     expected = design(_spec(), initialization=initialization)
     baseline_calls = tuple(calls)
+    assert len(baseline_calls) == _spec().evaluations
     calls.clear()
     actual, _ = design_observed(
         _spec(), ObservationSpec(max_snapshots=8), initialization=initialization

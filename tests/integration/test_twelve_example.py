@@ -105,3 +105,40 @@ def test_example_checks_replay_version_without_rewriting_original_producer():
     expected["recipe_package_version"] = "0.0.0"
     with pytest.raises(ValueError, match="recipe package"):
         module.verify_replay_version(expected)
+
+
+def test_media_recipe_replays_and_records_published_gif_encoding(
+    pairwise_spec, monkeypatch, tmp_path
+):
+    from motif_balance.api import design_observed
+    from motif_balance.model.search_observation import ObservationSpec
+    from motif_balance.playback import inspect_playback
+
+    path = Path(__file__).resolve().parents[2] / "examples/twelve-motifs/reproduce.py"
+    spec = importlib.util.spec_from_file_location("twelve_example", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    view = inspect_playback(
+        design_observed(
+            pairwise_spec.model_copy(update={"evaluations": 64}),
+            ObservationSpec(max_snapshots=4),
+        )[1],
+        search_chain_id="all",
+    )
+    calls = {}
+
+    def render(_view, **settings):
+        calls[settings["format_name"]] = settings
+        return settings["format_name"].encode()
+
+    monkeypatch.setattr(module, "render_playback_media", render)
+    module.write_media(view, tmp_path, source_evaluations=64)
+    assert calls["gif"]["gif_palette_colors"] == 64
+    assert calls["gif"]["final_frame_duration_ms"] == 2000
+    for format_name in ("mp4", "png"):
+        assert "gif_palette_colors" not in calls[format_name]
+        assert "final_frame_duration_ms" not in calls[format_name]
+    actual = json.loads((tmp_path / "media.json").read_text())["assets"]["playback.gif"]
+    published = json.loads((path.parent / "media.json").read_text())["assets"]["playback.gif"]
+    assert actual["encoding"] == published["encoding"]
+    assert actual["final_frame_duration_ms"] == published["final_frame_duration_ms"]
