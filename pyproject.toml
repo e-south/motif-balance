@@ -34,7 +34,7 @@ dependencies = [
 [project.optional-dependencies]
 visualization = [
   "resvg-py>=0.5,<0.6",
-  "pillow>=11,<13",
+  "pillow>=13,<14",
   "imageio-ffmpeg>=0.6,<1",
 ]
 

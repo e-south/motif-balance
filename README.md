@@ -1,4 +1,4 @@
-# ![Motif Balance: model, scan, balance, select](https://raw.githubusercontent.com/e-south/motif-balance/v0.9.2/assets/motif-balance-banner.png)
+# ![Motif Balance: model, scan, balance, select](https://raw.githubusercontent.com/e-south/motif-balance/5503331d5a12a70bf055ab743fe53eb04cce7531/assets/motif-balance-banner.png)
 
 [![CI](https://github.com/e-south/motif-balance/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/e-south/motif-balance/actions/workflows/ci.yaml)
 [![PyPI](https://img.shields.io/pypi/v/motif-balance)](https://pypi.org/project/motif-balance/)
