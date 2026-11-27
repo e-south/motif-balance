@@ -68,6 +68,9 @@ def _write_runtime_equivalent_wheel(path: Path) -> None:
         entries[f"motif_balance/{source.relative_to(package_root).as_posix()}"] = (
             source.read_bytes()
         )
+    entries["motif_balance/uv.lock"] = (
+        Path(__file__).resolve().parents[2] / "uv.lock"
+    ).read_bytes()
     dist_info = f"motif_balance-{PACKAGE_VERSION}.dist-info/"
     entries[f"{dist_info}METADATA"] = (
         f"Metadata-Version: 2.4\nName: motif-balance\nVersion: {PACKAGE_VERSION}\n".encode()
