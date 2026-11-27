@@ -24,7 +24,12 @@ from email import policy
 from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
 
-from motif_balance.constants import MAX_BUNDLE_ARTIFACT_BYTES, PACKAGE_VERSION
+from motif_balance.constants import (
+    BUILD_LOCK_SHA256,
+    MAX_BUNDLE_ARTIFACT_BYTES,
+    PACKAGE_VERSION,
+    build_lock_bytes,
+)
 from motif_balance.errors import ArtifactError
 
 
@@ -218,6 +223,11 @@ def _runtime_package_tree() -> dict[str, bytes]:
         if path.is_symlink() or not path.is_file():
             raise ArtifactError("runtime package tree contains an unsafe file")
         entries[path.relative_to(package_root).as_posix()] = path.read_bytes()
+    # Hatch maps the repository-root lock to this path in the wheel.
+    if "uv.lock" not in entries:
+        entries["uv.lock"] = build_lock_bytes()
+    if hashlib.sha256(entries["uv.lock"]).hexdigest() != BUILD_LOCK_SHA256:
+        raise ArtifactError("runtime build lockfile changed after the package was loaded")
     return entries
 
 

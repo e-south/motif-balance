@@ -23,11 +23,11 @@ MAX_JOINT_ASSESSMENT_ARRANGEMENTS: Final = 100_000
 MAX_JOINT_ASSESSMENT_BASE_OPERATIONS: Final = 20_000_000
 
 
-def _build_lock_digest() -> str:
-    """Identify the reviewed lockfile for this installation or source checkout."""
+def build_lock_bytes() -> bytes:
+    """Read the lockfile that Hatch includes in this distribution."""
     packaged = files(__package__).joinpath("uv.lock")
     if packaged.is_file():
-        return hashlib.sha256(packaged.read_bytes()).hexdigest()
+        return packaged.read_bytes()
 
     package_dir = Path(__file__).resolve().parent
     source_root = package_dir.parent.parent
@@ -35,13 +35,13 @@ def _build_lock_digest() -> str:
     if package_dir.parent.name == "src" and metadata.is_file():
         with metadata.open("rb") as stream:
             if tomllib.load(stream).get("project", {}).get("name") == "motif-balance":
-                return hashlib.sha256((source_root / "uv.lock").read_bytes()).hexdigest()
+                return (source_root / "uv.lock").read_bytes()
     raise FileNotFoundError("The motif-balance installation is missing its build lockfile.")
 
 
 PACKAGE_VERSION: Final = "0.9.3"
 RUNTIME_CONTRACT: Final = "python>=3.12,<3.15"
-BUILD_LOCK_SHA256: Final = _build_lock_digest()
+BUILD_LOCK_SHA256: Final = hashlib.sha256(build_lock_bytes()).hexdigest()
 MAX_INPUT_BYTES: Final = 1_000_000
 MAX_RUN_MANIFEST_BYTES: Final = 64 * 1024 * 1024
 MAX_SEARCH_OBSERVATION_BYTES: Final = 64 * 1024 * 1024

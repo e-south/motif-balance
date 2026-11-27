@@ -87,7 +87,9 @@ class _WorkspaceMutatingLibrary:
         self.renameatx_np = _WorkspaceMutatingRename()
 
 
-def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
+def _write_runtime_wheel(
+    path: Path, *, alter_api: bool = False, build_lock: bytes | None = None
+) -> None:
     package_root = Path(motif_balance.__file__).parent
     entries: dict[str, bytes] = {}
     for source in sorted(package_root.rglob("*")):
@@ -98,6 +100,10 @@ def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
         if alter_api and relative == "api.py":
             payload += b"# substituted\n"
         entries[f"motif_balance/{relative}"] = payload
+    checkout_lock = Path(__file__).resolve().parents[2] / "uv.lock"
+    entries["motif_balance/uv.lock"] = (
+        checkout_lock.read_bytes() if build_lock is None else build_lock
+    )
     dist_info = f"motif_balance-{PACKAGE_VERSION}.dist-info/"
     entries[f"{dist_info}METADATA"] = (
         f"Metadata-Version: 2.4\nName: motif-balance\nVersion: {PACKAGE_VERSION}\n".encode()
@@ -115,6 +121,15 @@ def _write_runtime_wheel(path: Path, *, alter_api: bool = False) -> None:
         for name, payload in entries.items():
             archive.writestr(name, payload)
         archive.writestr(f"{dist_info}RECORD", record)
+
+
+def test_release_attestation_includes_the_packaged_lock(tmp_path: Path) -> None:
+    wheel = tmp_path / "package.whl"
+    _write_runtime_wheel(wheel)
+    assert release_module._attest_release_runtime(wheel.read_bytes())
+    _write_runtime_wheel(wheel, build_lock=b"substituted lock")
+    with pytest.raises(ArtifactError, match="does not match the running package"):
+        release_module._attest_release_runtime(wheel.read_bytes())
 
 
 @pytest.fixture
