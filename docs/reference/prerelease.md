@@ -23,15 +23,12 @@ Uncommitted builds are for review and have no release attestation.
 
 ## Update dependencies
 
-Review dependency changes and update `BUILD_LOCK_SHA256` in
-`src/motif_balance/constants.py` whenever `uv.lock` changes, then run verification.
-This digest identifies the build's dependency lock in execution records.
-Dependabot changes the lock but needs this digest update before checks pass.
-
-```bash
-# Calculate the lockfile checksum to record with this dependency update.
-uv run --locked python -c 'import hashlib; from pathlib import Path; print(hashlib.sha256(Path("uv.lock").read_bytes()).hexdigest())'
-```
+Review dependency changes in `pyproject.toml` and `uv.lock`, then run verification.
+Execution records identify the build by the SHA-256 of its lockfile. Source
+checkouts read the repository lockfile. Wheels include that same file as
+package data, and source distributions include it for wheel builds.
+The release metadata test and distribution smoke checks verify the digest
+against the checkout before release.
 
 ## Prepare the release files
 
