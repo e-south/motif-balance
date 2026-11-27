@@ -66,6 +66,9 @@ required-version = ">=0.12.3,<0.14"
 [tool.hatch.build.targets.wheel]
 packages = ["src/motif_balance"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"uv.lock" = "motif_balance/uv.lock"
+
 [tool.hatch.build.targets.sdist]
 include = [
   "/LICENSE",
@@ -81,6 +84,7 @@ include = [
   "/docs",
   "/examples",
   "/pyproject.toml",
+  "/uv.lock",
   "/src",
 ]
 

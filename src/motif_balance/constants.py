@@ -11,6 +11,10 @@ Module Author(s): Eric J. South
 
 from __future__ import annotations
 
+import hashlib
+import tomllib
+from importlib.resources import files
+from pathlib import Path
 from typing import Final, Literal
 
 # Exact model-only joint assessment bounds, checked before compiling columns.
@@ -19,9 +23,25 @@ MAX_JOINT_ASSESSMENT_ARRANGEMENTS: Final = 100_000
 MAX_JOINT_ASSESSMENT_BASE_OPERATIONS: Final = 20_000_000
 
 
+def _build_lock_digest() -> str:
+    """Identify the reviewed lockfile for this installation or source checkout."""
+    packaged = files(__package__).joinpath("uv.lock")
+    if packaged.is_file():
+        return hashlib.sha256(packaged.read_bytes()).hexdigest()
+
+    package_dir = Path(__file__).resolve().parent
+    source_root = package_dir.parent.parent
+    metadata = source_root / "pyproject.toml"
+    if package_dir.parent.name == "src" and metadata.is_file():
+        with metadata.open("rb") as stream:
+            if tomllib.load(stream).get("project", {}).get("name") == "motif-balance":
+                return hashlib.sha256((source_root / "uv.lock").read_bytes()).hexdigest()
+    raise FileNotFoundError("The motif-balance installation is missing its build lockfile.")
+
+
 PACKAGE_VERSION: Final = "0.9.3"
 RUNTIME_CONTRACT: Final = "python>=3.12,<3.15"
-BUILD_LOCK_SHA256: Final = "ff4bee31c8535bd0d1808f22d99d2adc6ca2f5beee5572cd9c50c05b0128099b"
+BUILD_LOCK_SHA256: Final = _build_lock_digest()
 MAX_INPUT_BYTES: Final = 1_000_000
 MAX_RUN_MANIFEST_BYTES: Final = 64 * 1024 * 1024
 MAX_SEARCH_OBSERVATION_BYTES: Final = 64 * 1024 * 1024
